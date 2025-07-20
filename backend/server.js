@@ -73,6 +73,15 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/anticheat', require('./routes/anticheat'));
+app.use('/api/youtube', require('./routes/youtube'));
+
+// Admin API Routes
+app.use('/api/admin/auth', require('./routes/admin/auth'));
+app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
+app.use('/api/admin/users', require('./routes/admin/users'));
+app.use('/api/admin/notifications', require('./routes/admin/notifications'));
+app.use('/api/admin/ai-verification', require('./routes/admin/ai-verification'));
+app.use('/api/admin/wallet', require('./routes/admin/wallet'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

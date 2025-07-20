@@ -13,9 +13,11 @@ const visionClient = new vision.ImageAnnotatorClient({
 });
 
 // Initialize OpenAI API client
-const openai = new OpenAIApi(new Configuration({
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
-}));
+});
 
 /**
  * Analyze BGMI screenshot for match results
