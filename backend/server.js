@@ -23,20 +23,56 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon-platform')
-  .then(() => {
+// MongoDB Connection with retry logic
+const connectDB = async () => {
+  try {
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/gameon?retryWrites=true&w=majority';
+    
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      retryWrites: true,
+      w: 'majority'
+    });
     console.log('🍃 Connected to MongoDB successfully');
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
-  });
+    // Don't exit process, just retry connection
+    setTimeout(connectDB, 5000);
+  }
+};
+
+// Initial database connection
+connectDB();
+
+// Handle connection errors
+mongoose.connection.on('error', (error) => {
+  console.error('MongoDB connection error:', error);
+  setTimeout(connectDB, 5000);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected. Attempting to reconnect...');
+  setTimeout(connectDB, 5000);
+});
 
 // Mongoose configuration
 mongoose.set('strictQuery', false);
+
+// Kill existing connections on app shutdown
+process.on('SIGINT', async () => {
+  try {
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed through app termination');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error closing MongoDB connection:', err);
+    process.exit(1);
+  }
+});
 
 // Compression middleware
 app.use(compression());
@@ -89,7 +125,8 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'GameOn API is running!',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 

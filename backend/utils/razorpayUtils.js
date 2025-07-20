@@ -1,13 +1,23 @@
 const Razorpay = require('razorpay');
 require('dotenv').config();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+// Initialize Razorpay only if keys are provided
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+} else {
+  console.log('⚠️  Razorpay keys not provided - payment features will be disabled');
+}
 
 const createOrder = async (amount, currency = 'INR') => {
   try {
+    if (!razorpay) {
+      throw new Error('Razorpay is not configured');
+    }
+    
     const options = {
       amount: amount * 100, // Convert to paise
       currency,
