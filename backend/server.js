@@ -105,6 +105,36 @@ app.use(express.urlencoded({ extended: true }));
 // Logging middleware
 app.use(morgan('combined'));
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to GameOn API',
+    version: '1.0.0',
+    endpoints: {
+      auth: {
+        sendOTP: 'POST /api/auth/send-otp',
+        verifyOTP: 'POST /api/auth/verify-otp'
+      },
+      users: {
+        profile: 'GET /api/users/profile',
+        updateProfile: 'PUT /api/users/profile'
+      },
+      tournaments: {
+        list: 'GET /api/tournaments',
+        create: 'POST /api/tournaments',
+        details: 'GET /api/tournaments/:id'
+      },
+      payments: {
+        create: 'POST /api/payments/create',
+        verify: 'POST /api/payments/verify'
+      },
+      leaderboard: 'GET /api/leaderboard',
+      health: 'GET /api/health'
+    }
+  });
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tournaments', require('./routes/tournaments'));

@@ -266,6 +266,110 @@ jobs:
           vercel-project-id: ${{ secrets.PROJECT_ID }}
 ```
 
+## 🔗 Git Commit Hooks
+
+### Setting up Husky and Commit Conventions
+
+1. Install Husky and related packages:
+
+```bash
+npm install --save-dev husky @commitlint/cli @commitlint/config-conventional lint-staged prettier
+```
+
+2. Initialize Husky:
+
+```bash
+npx husky install
+npm set-script prepare "husky install"
+```
+
+3. Create commit message configuration (`.commitlintrc.json`):
+
+```json
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "build",
+        "ci",
+        "chore",
+        "revert"
+      ]
+    ]
+  }
+}
+```
+
+4. Add pre-commit hook for linting and formatting:
+
+```bash
+npx husky add .husky/pre-commit "npx lint-staged"
+```
+
+5. Configure lint-staged in `package.json`:
+
+```json
+{
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+6. Add commit message hook:
+
+```bash
+npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
+```
+
+### Commit Message Format
+
+Follow this format for commit messages:
+
+```
+type(scope): subject
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or modifying tests
+- `build`: Build system changes
+- `ci`: CI configuration changes
+- `chore`: Other changes
+- `revert`: Reverting previous changes
+
+Examples:
+```
+feat(auth): add phone number verification
+fix(tournaments): resolve participant count issue
+docs(deployment): update scaling guidelines
+```
+
 ## 🚨 Troubleshooting
 
 ### Common Issues
