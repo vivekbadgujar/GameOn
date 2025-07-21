@@ -28,9 +28,11 @@ const PORT = process.env.PORT || 5001;
 // MongoDB Connection with retry logic
 const connectDB = async () => {
   try {
-    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/gameon?retryWrites=true&w=majority';
-    
-    await mongoose.connect(MONGODB_URI, {
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not defined');
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       family: 4,
@@ -40,7 +42,7 @@ const connectDB = async () => {
     console.log('🍃 Connected to MongoDB successfully');
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
-    // Don't exit process, just retry connection
+    // Don't exit process, just retry connection after delay
     setTimeout(connectDB, 5000);
   }
 };
@@ -82,8 +84,10 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://gameon-platform.vercel.app'] 
-    : ['http://localhost:3000'],
-  credentials: true
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limiting - prevent abuse
@@ -209,7 +213,7 @@ app.set('io', io);
 server.listen(PORT, () => {
   console.log(`🚀 GameOn API server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000'}`);
+  console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000, localhost:3001'}`);
   console.log(`⚡ Socket.IO enabled for real-time features`);
 });
 

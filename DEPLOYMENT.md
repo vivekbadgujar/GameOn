@@ -25,10 +25,10 @@ PORT=5000
 BASE_URL=https://your-domain.com
 
 # Database
-MONGODB_URI=mongodb+srv://your-mongodb-uri
+MONGODB_URI=mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 
 # JWT Secret
-JWT_SECRET=your-secure-jwt-secret
+JWT_SECRET=123456
 
 # Razorpay Configuration
 RAZORPAY_KEY_ID=rzp_test_your_key_id
@@ -36,16 +36,16 @@ RAZORPAY_KEY_SECRET=your_razorpay_secret_key
 RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 
 # Firebase Configuration (for OTP and Storage)
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_PRIVATE_KEY_ID=your-private-key-id
-FIREBASE_PRIVATE_KEY="your-private-key"
-FIREBASE_CLIENT_EMAIL=your-client-email
-FIREBASE_CLIENT_ID=your-client-id
+FIREBASE_PROJECT_ID=game-on-9234b
+FIREBASE_PRIVATE_KEY_ID=c733bcdda3d7df5e6bc2f426c303f4117834c9b2
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC0iUVHPXJPjC4R\nYwtnLuyCpROQ16cF9clOE3/J627giGwyN+qfumhaaW9KJuAimIrwH+ReNg5U5Vh/\nXus65qKRJWd+2w73NPppGXvVV05X+jV0sBxh07EFgsNEv54xkJELrvWWat6SQ8R8\nOXJHjloQ+lVAR7B04wPH5CxpPxRAlshPOoKamjdoDzy0ap4hNmTvIcWINzc30TqU\nfIFXPZHOT4s3d/JG242NNmmcxbxhYL6EZB072G6dcWe5CvBbU+iUK3IFq5NtLlL3\nlniIZckOGPZufJW8KDLeeoQzc4sKof04O0q64m4uxANnpMp4YvwYiSReIDnhw7U6\niixGy7pHAgMBAAECggEADhwUYAb7YiAwkYdOIthV/7frGYzhLuQQwZtgh2VxGvdO\njXY1ThqBgV9wJTl4lvuZED9N19cds6DhE8NVWxsfZXyo5A820jc/wusM9JWIN/QE\nLYR+E186HJYlsL/RG0qTK3iXFRRxJLlLJ/JNbi4/98e41fdEYT5E02CP4AHgEVQV\n5GIJdH4JV/hYCGm1XmyZP1vAFUpL4FSkX8yUkxFq636l6SlrB393SrBR98rs8k13\nEnpoXIECHDlRMa+JeHYRuy28kAGKE9YktUCHAmc9TOFcF5FvyBXsxEmeWhoCK5w5\n+mAy3C3F/EECQR4BBiitoDy/ijhB3j/5rtbfa0XJAQKBgQDZohI24yzRqg/LlCCE\nYoGJJgmVo/MR6GPDCzUPNtbrlQgnjc8JGcVyKumasW/HMy0bk1miXAFhETqLtI3Z\ntXI0h2wpGprXhiNzthiYnLSmTyiNLBr7ITANKZl/H8cEtBVg1uGUcikulfNxbNSm\nnhlZZcE6Q/9E2Ax+DmlK5ORwwQKBgQDUXP4FN7PgyzVSGbR4TScHxT7/9VcuE1M9\n78qTbl7z8qDIu5Ybz3+Gu/wByzQiTStFYYXjya4jYKjxqLAcWIjtqjZZ7Kje0fCO\nHiTL4ciKmWu24fFHwvfnnsSy7EVzkIG8VnIkBbfXPIBGs+2FgaMcgUgTVmpS+dRo\nT/yU57DlBwKBgQCD5BGPy+ssgRijcnimYiBIopGqazpyvtg+qrsUJlLnYGEZv3oZ\n9NFQ2CrMQf4QxbXvgUQP/hwj3FITum9A4hJ9PRjSbDospTE0/cU4L7fXFh/oNjN/\nv+QkBfLtNK/i7NQL5Q2+bdUBU4S+V4skEqogIGeSzQSVjy0687bh2YeLwQKBgQC4\nWbG6XcytTDqRdvcPqApF2JkEIbr4qJYOomc87QdIxkuFdjKtGcge8nmmJPyw+kSi\nCjLst1uQIo0Gm+Wl9cWIa8aa8bL3G1C0Tr6qruokR2MWc7W9Eieazlz65di0pbG6\nCWE0nDInisHgnrmGuC8cw64J+255cZ9OnoEp0qfhaQKBgAM8n/P3EYrqGsmY49jh\nubIi17bktLQ8qCb42D7xoDgy6ASdj0lxPrTB7xD6wxKELTVqRdDHyS7TyC+Y1TN2\nnKxu1455pWkEqABoCtDVAtnxcUToUr+m7xRjOKsPRcNVyGUCFn/BHzhsRQCT27md\nka+ZPzGo6YUcOn4At6ljGCsK\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@game-on-9234b.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your-116914143194734299488
 FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
 FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
 FIREBASE_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
-FIREBASE_CLIENT_X509_CERT_URL=your-cert-url
-FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+FIREBASE_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40game-on-9234b.iam.gserviceaccount.com
+FIREBASE_STORAGE_BUCKET=game-on-9234b.appspot.com
 
 # Security
 CORS_ORIGIN=https://your-frontend-domain.com
@@ -71,7 +71,7 @@ REACT_APP_FIREBASE_AUTH_DOMAIN=game-on-9234b.firebaseapp.com
 REACT_APP_FIREBASE_PROJECT_ID=game-on-9234b
 REACT_APP_FIREBASE_STORAGE_BUCKET=game-on-9234b.appspot.com
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=496424773632
-REACT_APP_FIREBASE_APP_ID=496424773632
+REACT_APP_FIREBASE_APP_ID=1:496424773632:web:a222be347f0fb636fbd0e5
 
 # App Configuration
 REACT_APP_APP_NAME=GameOn

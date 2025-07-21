@@ -1,6 +1,46 @@
 const express = require('express');
 const router = express.Router();
 
+// Get leaderboard
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const { type = 'global' } = req.query;
+    
+    // Mock leaderboard data (replace with actual DB query)
+    const leaderboard = [
+      {
+        _id: '1',
+        username: 'ProGamer123',
+        gameProfile: { bgmiId: 'BGMI001' },
+        stats: { matches: 50, wins: 25, points: 1250 }
+      },
+      {
+        _id: '2',
+        username: 'GameMaster',
+        gameProfile: { bgmiId: 'BGMI002' },
+        stats: { matches: 45, wins: 20, points: 1100 }
+      },
+      {
+        _id: '3',
+        username: 'VictoryKing',
+        gameProfile: { bgmiId: 'BGMI003' },
+        stats: { matches: 40, wins: 18, points: 950 }
+      }
+    ];
+    
+    res.json({
+      success: true,
+      data: leaderboard
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve leaderboard', 
+      error: err.message 
+    });
+  }
+});
+
 // Get user profile
 router.get('/:id', async (req, res) => {
   try {
