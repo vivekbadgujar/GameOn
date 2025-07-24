@@ -25,7 +25,12 @@ PORT=5000
 BASE_URL=https://your-domain.com
 
 # Database
-MONGODB_URI=mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+   NODE_ENV=development
+   PORT=5001
+   MONGODB_URI=mongodb://localhost:27017/
+   CORS_ORIGIN=http://localhost:3000,http://localhost:3001
+   JWT_SECRET=your-secret-key-here
+   JWT_EXPIRES_IN=7d
 
 # JWT Secret
 JWT_SECRET=123456

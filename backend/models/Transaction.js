@@ -9,13 +9,15 @@ const TransactionSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
   
   transactionId: {
     type: String,
     unique: true,
-    required: true
+    required: true,
+    index: true
   },
   
   type: {
@@ -102,9 +104,8 @@ const TransactionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
+// Only add compound and non-duplicate indexes
 TransactionSchema.index({ user: 1, createdAt: -1 });
-TransactionSchema.index({ transactionId: 1 });
 TransactionSchema.index({ status: 1 });
 TransactionSchema.index({ type: 1 });
 TransactionSchema.index({ 'paymentGateway.gatewayTransactionId': 1 });

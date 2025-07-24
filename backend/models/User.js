@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    index: true,
     match: /^[6-9]\d{9}$/ // Indian mobile number validation
   },
   email: {
@@ -206,11 +207,7 @@ const UserSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better performance
-UserSchema.index({ phone: 1 });
-UserSchema.index({ username: 1 });
-UserSchema.index({ 'gameProfile.bgmiId': 1 });
-UserSchema.index({ 'referral.code': 1 });
+// Only add indexes that aren't already defined in the schema
 UserSchema.index({ 'stats.totalEarnings': -1 });
 UserSchema.index({ 'stats.xpPoints': -1 });
 UserSchema.index({ createdAt: -1 });
