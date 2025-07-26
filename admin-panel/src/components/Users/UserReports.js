@@ -55,11 +55,17 @@ const UserReports = () => {
   const [actionReason, setActionReason] = useState('');
   const [activeTab, setActiveTab] = useState(0);
 
-  const { data: reports = [], isLoading } = useQuery({
+  const { data: reportsResponse, isLoading } = useQuery({
     queryKey: ['user-reports'],
     queryFn: userAPI.getReports,
     refetchInterval: 30000,
   });
+
+  // Ensure data is always an array
+  const data = Array.isArray(reportsResponse?.data) ? reportsResponse.data : [];
+  const pendingReports = data.filter(report => report.status === 'pending');
+  const investigatingReports = data.filter(report => report.status === 'investigating');
+  const resolvedReports = data.filter(report => report.status === 'resolved');
 
   const handleReportMutation = useMutation({
     mutationFn: ({ reportId, action }) => userAPI.handleReport(reportId, action),
@@ -214,49 +220,6 @@ const UserReports = () => {
     },
   ];
 
-  // Mock data for demonstration
-  const mockReports = [
-    {
-      id: 1,
-      reportedUser: { id: 1, name: 'Cheater123', email: 'cheater@example.com' },
-      reporter: { id: 2, name: 'FairPlayer', email: 'fair@example.com' },
-      type: 'cheating',
-      description: 'User is using aimbot and wallhacks in tournaments',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      evidence: 'Screenshot attached',
-      tournament: 'BGMI Pro League',
-    },
-    {
-      id: 2,
-      reportedUser: { id: 3, name: 'ToxicUser', email: 'toxic@example.com' },
-      reporter: { id: 4, name: 'NiceGuy', email: 'nice@example.com' },
-      type: 'harassment',
-      description: 'User is sending abusive messages and threats',
-      status: 'investigating',
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      evidence: 'Chat logs provided',
-      tournament: 'Weekend Warriors',
-    },
-    {
-      id: 3,
-      reportedUser: { id: 5, name: 'Spammer', email: 'spam@example.com' },
-      reporter: { id: 6, name: 'Moderator', email: 'mod@example.com' },
-      type: 'spam',
-      description: 'User is posting promotional links repeatedly',
-      status: 'resolved',
-      createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
-      evidence: 'Multiple posts documented',
-      tournament: 'General',
-    },
-  ];
-
-  const data = reports.length > 0 ? reports : mockReports;
-
-  const pendingReports = data.filter(r => r.status === 'pending');
-  const investigatingReports = data.filter(r => r.status === 'investigating');
-  const resolvedReports = data.filter(r => r.status === 'resolved');
-
   const getFilteredData = () => {
     switch (activeTab) {
       case 0: return data;
@@ -286,7 +249,7 @@ const UserReports = () => {
                   <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {pendingReports.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="span">
                     Pending Reports
                   </Typography>
                 </Box>
@@ -305,7 +268,7 @@ const UserReports = () => {
                   <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {investigatingReports.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="span">
                     Under Investigation
                   </Typography>
                 </Box>
@@ -324,7 +287,7 @@ const UserReports = () => {
                   <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {resolvedReports.length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="span">
                     Resolved Reports
                   </Typography>
                 </Box>
@@ -343,7 +306,7 @@ const UserReports = () => {
                   <Typography variant="h4" sx={{ fontWeight: 700 }}>
                     {data.filter(r => r.type === 'cheating' || r.type === 'harassment').length}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="span">
                     Serious Violations
                   </Typography>
                 </Box>
@@ -371,7 +334,7 @@ const UserReports = () => {
       <Card>
         <CardContent sx={{ p: 0 }}>
           <DataGrid
-            rows={getFilteredData()}
+            rows={Array.isArray(getFilteredData()) ? getFilteredData() : []}
             columns={columns}
             loading={isLoading}
             autoHeight
@@ -409,28 +372,28 @@ const UserReports = () => {
                     Report Information
                   </Typography>
                   <Box sx={{ space: 2 }}>
-                    <Typography variant="body2" color="text.secondary">Type</Typography>
+                    <Typography variant="body2" color="text.secondary" component="span">Type</Typography>
                     <Chip
                       label={selectedReport.type}
                       color={getReportTypeColor(selectedReport.type)}
                       sx={{ mb: 2, textTransform: 'capitalize' }}
                     />
                     
-                    <Typography variant="body2" color="text.secondary">Status</Typography>
+                    <Typography variant="body2" color="text.secondary" component="span">Status</Typography>
                     <Chip
                       label={selectedReport.status}
                       color={getReportStatusColor(selectedReport.status)}
                       sx={{ mb: 2, textTransform: 'capitalize' }}
                     />
                     
-                    <Typography variant="body2" color="text.secondary">Description</Typography>
+                    <Typography variant="body2" color="text.secondary" component="span">Description</Typography>
                     <Typography variant="body1" sx={{ mb: 2 }}>
                       {selectedReport.description}
                     </Typography>
                     
                     {selectedReport.evidence && (
                       <>
-                        <Typography variant="body2" color="text.secondary">Evidence</Typography>
+                        <Typography variant="body2" color="text.secondary" component="span">Evidence</Typography>
                         <Typography variant="body1" sx={{ mb: 2 }}>
                           {selectedReport.evidence}
                         </Typography>
@@ -444,7 +407,7 @@ const UserReports = () => {
                     User Information
                   </Typography>
                   <Box sx={{ space: 2 }}>
-                    <Typography variant="body2" color="text.secondary">Reported User</Typography>
+                    <Typography variant="body2" color="text.secondary" component="span">Reported User</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                       <Avatar>{selectedReport.reportedUser.name.charAt(0)}</Avatar>
                       <Box>
@@ -455,7 +418,7 @@ const UserReports = () => {
                       </Box>
                     </Box>
                     
-                    <Typography variant="body2" color="text.secondary">Reporter</Typography>
+                    <Typography variant="body2" color="text.secondary" component="span">Reporter</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                       <Avatar>{selectedReport.reporter.name.charAt(0)}</Avatar>
                       <Box>

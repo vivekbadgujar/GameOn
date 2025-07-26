@@ -173,6 +173,12 @@ app.use('/api/admin/ai-verification', require('./routes/admin/ai-verification'))
 app.use('/api/admin/wallet', require('./routes/admin/wallet'));
 app.use('/api/admin/analytics', require('./routes/admin/analytics'));
 app.use('/api/admin/scheduling', require('./routes/admin/scheduling'));
+app.use('/api/admin/broadcast', require('./routes/admin/broadcast'));
+app.use('/api/admin/payouts', require('./routes/admin/payouts'));
+app.use('/api/admin/media', require('./routes/admin/media'));
+app.use('/api/admin/ai', require('./routes/admin/ai'));
+app.use('/api/admin/search', require('./routes/admin/search'));
+app.use('/api/admin/export', require('./routes/admin/export'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -225,6 +231,18 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} left tournament ${tournamentId}`);
   });
 
+  // Join admin room for admin-specific updates
+  socket.on('join_admin', (adminId) => {
+    socket.join(`admin_${adminId}`);
+    console.log(`Admin ${adminId} joined admin room`);
+  });
+
+  // Join user room for user-specific updates
+  socket.on('join_user', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined user room`);
+  });
+
   // Handle chat messages
   socket.on('tournament_message', (data) => {
     const { tournamentId, message, userId, username } = data;
@@ -251,14 +269,76 @@ io.on('connection', (socket) => {
     io.to(`tournament_${tournamentId}`).emit('match_update', matchData);
   });
 
+  // Handle screenshot uploads
+  socket.on('screenshot_uploaded', (data) => {
+    const { tournamentId, userId, screenshotUrl } = data;
+    io.to(`tournament_${tournamentId}`).emit('screenshot_uploaded', {
+      userId,
+      screenshotUrl,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle AI verification results
+  socket.on('ai_verification', (data) => {
+    const { tournamentId, userId, result, confidence } = data;
+    io.to(`tournament_${tournamentId}`).emit('ai_verification', {
+      userId,
+      result,
+      confidence,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle user status changes
+  socket.on('user_status_change', (data) => {
+    const { userId, status, reason } = data;
+    io.to(`user_${userId}`).emit('user_status_change', {
+      status,
+      reason,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle wallet updates
+  socket.on('wallet_update', (data) => {
+    const { userId, balance, transaction } = data;
+    io.to(`user_${userId}`).emit('wallet_update', {
+      balance,
+      transaction,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('👤 User disconnected:', socket.id);
   });
 });
 
-// Make io available globally
+// Global Socket.IO event emitters for admin actions
+const emitToAll = (event, data) => {
+  io.emit(event, data);
+};
+
+const emitToTournament = (tournamentId, event, data) => {
+  io.to(`tournament_${tournamentId}`).emit(event, data);
+};
+
+const emitToUser = (userId, event, data) => {
+  io.to(`user_${userId}`).emit(event, data);
+};
+
+const emitToAdmins = (event, data) => {
+  io.emit(event, data); // All admins will receive this
+};
+
+// Make io and emitters available globally
 app.set('io', io);
+app.set('emitToAll', emitToAll);
+app.set('emitToTournament', emitToTournament);
+app.set('emitToUser', emitToUser);
+app.set('emitToAdmins', emitToAdmins);
 
 // Start server
 server.listen(PORT, () => {

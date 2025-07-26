@@ -46,20 +46,41 @@ import {
 } from '@mui/icons-material';
 import { tournamentAPI } from '../../services/api';
 import dayjs from 'dayjs';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { tournamentAPI } from '../../services/api';
+import { useSocket } from '../../contexts/SocketContext';
 
 const TournamentList = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
-  const { data: tournaments = [], isLoading, error } = useQuery({
-    queryKey: ['tournaments'],
-    queryFn: tournamentAPI.getAll,
+  const { data: tournaments = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin-tournaments'],
+    queryFn: () => tournamentAPI.getAll().then(res => res.data?.data || []),
     refetchInterval: 30000,
   });
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleUpdate = () => refetch();
+    socket.on('tournamentAdded', handleUpdate);
+    socket.on('tournamentUpdated', handleUpdate);
+    socket.on('tournamentDeleted', handleUpdate);
+    return () => {
+      socket.off('tournamentAdded', handleUpdate);
+      socket.off('tournamentUpdated', handleUpdate);
+      socket.off('tournamentDeleted', handleUpdate);
+    };
+  }, [socket, refetch]);
+
+  // Ensure tournaments is always an array
+  const tournamentsList = Array.isArray(tournaments) ? tournaments : [];
 
   const deleteMutation = useMutation({
     mutationFn: tournamentAPI.delete,
@@ -162,7 +183,7 @@ const TournamentList = () => {
       headerName: 'Prize Pool',
       width: 130,
       renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }} component="span">
           ₹{params.value?.toLocaleString()}
         </Typography>
       ),
@@ -222,10 +243,10 @@ const TournamentList = () => {
     },
   ];
 
-  if (error) {
+  if (isError) {
     return (
       <Alert severity="error" sx={{ mb: 2 }}>
-        Failed to load tournaments: {error.message}
+        Failed to load tournaments: {isError.message}
       </Alert>
     );
   }
@@ -249,7 +270,7 @@ const TournamentList = () => {
       <Card>
         <CardContent sx={{ p: 0 }}>
           <DataGrid
-            rows={tournaments}
+            rows={tournamentsList}
             columns={columns}
             loading={isLoading}
             autoHeight

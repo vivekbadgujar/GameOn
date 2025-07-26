@@ -18,6 +18,10 @@ const TournamentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  map: {
+    type: String,
+    default: 'TBD'
+  },
   tournamentType: {
     type: String,
     enum: ['solo', 'duo', 'squad'],

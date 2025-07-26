@@ -294,7 +294,7 @@ const SuggestionsPanel = () => {
                             <Typography variant="body2" sx={{ mb: 1 }}>
                               {suggestion.description}
                             </Typography>
-                            <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
+                            <Typography variant="body2" color="success" sx={{ mb: 1 }}>
                               Impact: {suggestion.impact}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -376,7 +376,7 @@ const SuggestionsPanel = () => {
                   <Typography variant="h6" sx={{ mb: 1 }}>
                     Expected Impact
                   </Typography>
-                  <Typography variant="body2" color="success.main">
+                  <Typography variant="body2" color="success">
                     {selectedSuggestion.impact}
                   </Typography>
                 </Grid>

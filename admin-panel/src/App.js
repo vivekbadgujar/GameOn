@@ -26,6 +26,7 @@ import SuggestionsPanel from './components/AISuggestions/SuggestionsPanel';
 import SearchFilter from './components/SearchExport/SearchFilter';
 import ExportData from './components/SearchExport/ExportData';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -46,7 +47,7 @@ function AppRoutes() {
 
   return (
     <AdminLayout>
-      <Routes>
+      <Routes future={{ v7_relativeSplatPath: true }}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/tournaments" element={<TournamentList />} />
@@ -77,9 +78,11 @@ function App() {
           <CssBaseline />
           <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
             <AuthProvider>
-              <Router>
-                <AppRoutes />
-              </Router>
+              <SocketProvider>
+                <Router>
+                  <AppRoutes />
+                </Router>
+              </SocketProvider>
             </AuthProvider>
           </Box>
         </LocalizationProvider>

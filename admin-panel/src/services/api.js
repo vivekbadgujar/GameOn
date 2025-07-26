@@ -61,7 +61,20 @@ export const userAPI = {
 // Analytics APIs
 export const analyticsAPI = {
   getDashboard: () => api.get('/admin/analytics/dashboard'),
-  getTournamentStats: (params = {}) => api.get('/admin/analytics/tournaments', { params }),
+  getTournamentStats: async (params = {}) => {
+    try {
+      const response = await api.get('/admin/analytics/tournaments', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Analytics API error:', error);
+      // Return a fallback structure to prevent frontend crashes
+      return {
+        success: false,
+        data: null,
+        error: error.message || 'Failed to fetch analytics data'
+      };
+    }
+  },
   getUserStats: (params = {}) => api.get('/admin/analytics/users', { params }),
   getRevenueStats: (params = {}) => api.get('/admin/analytics/revenue', { params }),
   getParticipationStats: (params = {}) => api.get('/admin/analytics/participation', { params }),

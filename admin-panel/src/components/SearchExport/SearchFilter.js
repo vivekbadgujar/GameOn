@@ -339,7 +339,7 @@ const SearchFilter = () => {
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               {result.amount && (
-                                <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                                <Typography variant="body2" color="success" sx={{ fontWeight: 600 }}>
                                   ₹{result.amount.toLocaleString()}
                                 </Typography>
                               )}

@@ -39,13 +39,14 @@ const TournamentForm = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    map: '',
-    teamType: '',
+    game: 'BGMI',
+    map: 'Erangel',
+    tournamentType: 'squad',
     entryFee: '',
     prizePool: '',
     maxParticipants: '',
-    scheduledAt: dayjs(),
-    rules: '',
+    startDate: dayjs(),
+    rules: ['No cheating or use of hacks', 'Respect all players and moderators'],
     status: 'upcoming',
   });
 
@@ -81,13 +82,14 @@ const TournamentForm = () => {
       setFormData({
         title: tournament.title || '',
         description: tournament.description || '',
-        map: tournament.map || '',
-        teamType: tournament.teamType || '',
+        game: tournament.game || 'BGMI',
+        map: tournament.map || 'Erangel',
+        tournamentType: tournament.tournamentType || 'squad',
         entryFee: tournament.entryFee || '',
         prizePool: tournament.prizePool || '',
         maxParticipants: tournament.maxParticipants || '',
-        scheduledAt: tournament.scheduledAt ? dayjs(tournament.scheduledAt) : dayjs(),
-        rules: tournament.rules || '',
+        startDate: tournament.startDate ? dayjs(tournament.startDate) : dayjs(),
+        rules: tournament.rules || ['No cheating or use of hacks', 'Respect all players and moderators'],
         status: tournament.status || 'upcoming',
       });
       if (tournament.image) {
@@ -119,14 +121,15 @@ const TournamentForm = () => {
 
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.game) newErrors.game = 'Game is required';
     if (!formData.map) newErrors.map = 'Map is required';
-    if (!formData.teamType) newErrors.teamType = 'Team type is required';
+    if (!formData.tournamentType) newErrors.tournamentType = 'Tournament type is required';
     if (!formData.entryFee || formData.entryFee <= 0) newErrors.entryFee = 'Valid entry fee is required';
     if (!formData.prizePool || formData.prizePool <= 0) newErrors.prizePool = 'Valid prize pool is required';
     if (!formData.maxParticipants || formData.maxParticipants <= 0) newErrors.maxParticipants = 'Valid participant limit is required';
-    if (!formData.scheduledAt) newErrors.scheduledAt = 'Scheduled date is required';
-    if (formData.scheduledAt && formData.scheduledAt.isBefore(dayjs())) {
-      newErrors.scheduledAt = 'Scheduled date must be in the future';
+    if (!formData.startDate) newErrors.startDate = 'Scheduled date is required';
+    if (formData.startDate && formData.startDate.isBefore(dayjs())) {
+      newErrors.startDate = 'Scheduled date must be in the future';
     }
 
     setErrors(newErrors);
@@ -140,7 +143,7 @@ const TournamentForm = () => {
 
     const submitData = {
       ...formData,
-      scheduledAt: formData.scheduledAt.toISOString(),
+      startDate: formData.startDate.toISOString(),
     };
 
     if (imageFile) {
@@ -186,7 +189,7 @@ const TournamentForm = () => {
             <Grid container spacing={3}>
               {/* Basic Information */}
               <Grid item xs={12}>
-                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }} component="div">
                   Basic Information
                 </Typography>
               </Grid>
@@ -236,9 +239,27 @@ const TournamentForm = () => {
 
               {/* Tournament Details */}
               <Grid item xs={12}>
-                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }} component="div">
                   Tournament Details
                 </Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth error={!!errors.game}>
+                  <InputLabel>Game</InputLabel>
+                  <Select
+                    value={formData.game}
+                    onChange={(e) => handleChange('game', e.target.value)}
+                    label="Game"
+                    required
+                  >
+                    <MenuItem value="BGMI">BGMI</MenuItem>
+                    <MenuItem value="PUBG">PUBG</MenuItem>
+                    <MenuItem value="COD">COD</MenuItem>
+                    <MenuItem value="Apex">Apex</MenuItem>
+                  </Select>
+                  {errors.game && <FormHelperText>{errors.game}</FormHelperText>}
+                </FormControl>
               </Grid>
 
               <Grid item xs={12} md={6}>
@@ -262,19 +283,19 @@ const TournamentForm = () => {
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth error={!!errors.teamType}>
-                  <InputLabel>Team Type</InputLabel>
+                <FormControl fullWidth error={!!errors.tournamentType}>
+                  <InputLabel>Tournament Type</InputLabel>
                   <Select
-                    value={formData.teamType}
-                    onChange={(e) => handleChange('teamType', e.target.value)}
-                    label="Team Type"
+                    value={formData.tournamentType}
+                    onChange={(e) => handleChange('tournamentType', e.target.value)}
+                    label="Tournament Type"
                     required
                   >
-                    <MenuItem value="Solo">Solo</MenuItem>
-                    <MenuItem value="Duo">Duo</MenuItem>
-                    <MenuItem value="Squad">Squad</MenuItem>
+                    <MenuItem value="solo">Solo</MenuItem>
+                    <MenuItem value="duo">Duo</MenuItem>
+                    <MenuItem value="squad">Squad</MenuItem>
                   </Select>
-                  {errors.teamType && <FormHelperText>{errors.teamType}</FormHelperText>}
+                  {errors.tournamentType && <FormHelperText>{errors.tournamentType}</FormHelperText>}
                 </FormControl>
               </Grid>
 
@@ -326,13 +347,13 @@ const TournamentForm = () => {
               <Grid item xs={12} md={6}>
                 <DateTimePicker
                   label="Scheduled Date & Time"
-                  value={formData.scheduledAt}
-                  onChange={(value) => handleChange('scheduledAt', value)}
+                  value={formData.startDate}
+                  onChange={(value) => handleChange('startDate', value)}
                   slotProps={{
                     textField: {
                       fullWidth: true,
-                      error: !!errors.scheduledAt,
-                      helperText: errors.scheduledAt,
+                      error: !!errors.startDate,
+                      helperText: errors.startDate,
                       required: true,
                     },
                   }}
@@ -386,11 +407,15 @@ const TournamentForm = () => {
                 <TextField
                   fullWidth
                   label="Tournament Rules"
-                  value={formData.rules}
-                  onChange={(e) => handleChange('rules', e.target.value)}
+                  value={Array.isArray(formData.rules) ? formData.rules.join('\n') : formData.rules}
+                  onChange={(e) => {
+                    const rulesArray = e.target.value.split('\n').filter(rule => rule.trim() !== '');
+                    handleChange('rules', rulesArray);
+                  }}
                   multiline
                   rows={6}
-                  placeholder="Enter tournament rules and guidelines..."
+                  placeholder="Enter tournament rules and guidelines (one rule per line)..."
+                  helperText="Enter each rule on a separate line"
                 />
               </Grid>
 

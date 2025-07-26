@@ -66,42 +66,6 @@ const Dashboard = () => {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Mock data for demonstration
-  const mockData = {
-    stats: {
-      totalUsers: 1247,
-      activeTournaments: 8,
-      totalRevenue: 45678,
-      pendingPayouts: 12,
-    },
-    trends: {
-      userGrowth: '+12.5%',
-      revenueGrowth: '+8.3%',
-      tournamentGrowth: '+15.2%',
-      payoutGrowth: '-2.1%',
-    },
-    recentActivity: [
-      { id: 1, type: 'tournament', message: 'New tournament "BGMI Pro League" created', time: '2 min ago' },
-      { id: 2, type: 'user', message: 'User "ProGamer123" joined tournament', time: '5 min ago' },
-      { id: 3, type: 'payout', message: 'Payout processed for ₹5000', time: '10 min ago' },
-      { id: 4, type: 'report', message: 'Suspicious activity detected', time: '15 min ago' },
-    ],
-    chartData: [
-      { name: 'Mon', users: 120, tournaments: 3, revenue: 4500 },
-      { name: 'Tue', users: 180, tournaments: 5, revenue: 6200 },
-      { name: 'Wed', users: 220, tournaments: 7, revenue: 7800 },
-      { name: 'Thu', users: 280, tournaments: 8, revenue: 9200 },
-      { name: 'Fri', users: 320, tournaments: 10, revenue: 11500 },
-      { name: 'Sat', users: 380, tournaments: 12, revenue: 14200 },
-      { name: 'Sun', users: 420, tournaments: 15, revenue: 16800 },
-    ],
-    pieData: [
-      { name: 'Solo', value: 45, color: '#6366f1' },
-      { name: 'Duo', value: 30, color: '#10b981' },
-      { name: 'Squad', value: 25, color: '#f59e0b' },
-    ],
-  };
-
   if (isLoading) {
     return (
       <Box sx={{ width: '100%' }}>
@@ -111,7 +75,7 @@ const Dashboard = () => {
   }
 
   // If error or data is missing, show a user-friendly error message
-  if (isError || !mockData) {
+  if (isError || !dashboardData?.data) {
     return (
       <Box sx={{ width: '100%', p: 4 }}>
         <Typography color="error" variant="h6">Error loading dashboard data. Please try again later.</Typography>
@@ -119,7 +83,7 @@ const Dashboard = () => {
     );
   }
 
-  const data = dashboardData?.data && dashboardData.data.stats ? dashboardData.data : mockData;
+  const data = dashboardData.data;
 
   // Defensive: If data.stats is missing, show a fallback UI
   if (!data || !data.stats) {
@@ -163,7 +127,7 @@ const Dashboard = () => {
             title="Total Users"
             value={data.stats.totalUsers.toLocaleString()}
             icon={<People />}
-            color="primary.main"
+            color="primary"
             trend={data.trends.userGrowth}
             subtitle="Active players"
           />
@@ -173,7 +137,7 @@ const Dashboard = () => {
             title="Active Tournaments"
             value={data.stats.activeTournaments}
             icon={<SportsEsports />}
-            color="success.main"
+            color="success"
             trend={data.trends.tournamentGrowth}
             subtitle="Live matches"
           />
@@ -183,7 +147,7 @@ const Dashboard = () => {
             title="Total Revenue"
             value={`₹${data.stats.totalRevenue.toLocaleString()}`}
             icon={<TrendingUp />}
-            color="warning.main"
+            color="warning"
             trend={data.trends.revenueGrowth}
             subtitle="This month"
           />
@@ -193,7 +157,7 @@ const Dashboard = () => {
             title="Pending Payouts"
             value={data.stats.pendingPayouts}
             icon={<AccountBalanceWallet />}
-            color="error.main"
+            color="error"
             trend={data.trends.payoutGrowth}
             subtitle="Awaiting processing"
           />

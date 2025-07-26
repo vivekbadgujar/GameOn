@@ -52,11 +52,14 @@ const PrizePayouts = () => {
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
-  const { data: payouts = [], isLoading } = useQuery({
+  const { data: payoutsResponse, isLoading } = useQuery({
     queryKey: ['payouts'],
     queryFn: payoutAPI.getAll,
     refetchInterval: 30000,
   });
+
+  // Ensure data is always an array
+  const data = Array.isArray(payoutsResponse?.data) ? payoutsResponse.data : [];
 
   const processMutation = useMutation({
     mutationFn: payoutAPI.processPayout,
@@ -239,8 +242,6 @@ const PrizePayouts = () => {
     },
   ];
 
-  const data = payouts.length > 0 ? payouts : mockPayouts;
-
   const pendingPayouts = data.filter(p => p.status === 'pending');
   const totalPendingAmount = pendingPayouts.reduce((sum, p) => sum + p.amount, 0);
 
@@ -334,7 +335,7 @@ const PrizePayouts = () => {
       <Card>
         <CardContent sx={{ p: 0 }}>
           <DataGrid
-            rows={data}
+            rows={Array.isArray(data) ? data : []}
             columns={columns}
             loading={isLoading}
             autoHeight

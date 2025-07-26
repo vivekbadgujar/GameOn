@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
@@ -42,78 +42,44 @@ import {
 } from '@mui/icons-material';
 import { broadcastAPI } from '../../services/api';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { useSocket } from '../../contexts/SocketContext';
+
+dayjs.extend(relativeTime);
 
 const BroadcastMessage = () => {
-  const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    title: '',
-    message: '',
-    type: 'announcement',
-    priority: 'normal',
-    scheduledAt: null,
-    isScheduled: false,
-  });
-  const [previewDialog, setPreviewDialog] = useState(false);
+  const { socket } = useSocket();
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ title: '', message: '', type: 'general_update', priority: 'normal', targetAudience: 'all_users' });
+  const [error, setError] = useState(null);
 
-  const { data: broadcastHistory = [], isLoading } = useQuery({
-    queryKey: ['broadcast-history'],
-    queryFn: broadcastAPI.getHistory,
-    refetchInterval: 30000,
-  });
+  useEffect(() => {
+    broadcastAPI.getHistory().then(res => setMessages(res.data?.data || []));
+  }, []);
 
-  const sendMutation = useMutation({
-    mutationFn: broadcastAPI.sendMessage,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['broadcast-history']);
-      setFormData({
-        title: '',
-        message: '',
-        type: 'announcement',
-        priority: 'normal',
-        scheduledAt: null,
-        isScheduled: false,
-      });
-    },
-  });
+  useEffect(() => {
+    if (!socket) return;
+    const handleBroadcast = (msg) => setMessages(prev => [msg, ...prev]);
+    socket.on('broadcastSent', handleBroadcast);
+    return () => socket.off('broadcastSent', handleBroadcast);
+  }, [socket]);
 
-  const scheduleMutation = useMutation({
-    mutationFn: broadcastAPI.scheduleMessage,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['broadcast-history']);
-      setFormData({
-        title: '',
-        message: '',
-        type: 'announcement',
-        priority: 'normal',
-        scheduledAt: null,
-        isScheduled: false,
-      });
-    },
-  });
-
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSend = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await broadcastAPI.sendMessage(form);
+      setForm({ title: '', message: '', type: 'general_update', priority: 'normal', targetAudience: 'all_users' });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send broadcast');
+    }
+    setLoading(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim() || !formData.message.trim()) {
-      return;
-    }
-
-    try {
-      if (formData.isScheduled && formData.scheduledAt) {
-        await scheduleMutation.mutateAsync({
-          ...formData,
-          scheduledAt: formData.scheduledAt.toISOString(),
-        });
-      } else {
-        await sendMutation.mutateAsync(formData);
-      }
-    } catch (error) {
-      console.error('Broadcast error:', error);
-    }
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const getPriorityColor = (priority) => {
@@ -193,13 +159,13 @@ const BroadcastMessage = () => {
                 Send New Message
               </Typography>
               
-              <Box component="form" onSubmit={handleSubmit}>
+              <Box component="form" onSubmit={handleSend}>
                 <Grid container spacing={2}>
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label="Message Title"
-                      value={formData.title}
+                      value={form.title}
                       onChange={(e) => handleChange('title', e.target.value)}
                       required
                     />
@@ -209,7 +175,7 @@ const BroadcastMessage = () => {
                     <FormControl fullWidth>
                       <InputLabel>Message Type</InputLabel>
                       <Select
-                        value={formData.type}
+                        value={form.type}
                         onChange={(e) => handleChange('type', e.target.value)}
                         label="Message Type"
                       >
@@ -224,7 +190,7 @@ const BroadcastMessage = () => {
                     <FormControl fullWidth>
                       <InputLabel>Priority</InputLabel>
                       <Select
-                        value={formData.priority}
+                        value={form.priority}
                         onChange={(e) => handleChange('priority', e.target.value)}
                         label="Priority"
                       >
@@ -239,7 +205,7 @@ const BroadcastMessage = () => {
                     <TextField
                       fullWidth
                       label="Message Content"
-                      value={formData.message}
+                      value={form.message}
                       onChange={(e) => handleChange('message', e.target.value)}
                       multiline
                       rows={4}
@@ -252,7 +218,7 @@ const BroadcastMessage = () => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={formData.isScheduled}
+                          checked={form.isScheduled}
                           onChange={(e) => handleChange('isScheduled', e.target.checked)}
                         />
                       }
@@ -260,11 +226,11 @@ const BroadcastMessage = () => {
                     />
                   </Grid>
 
-                  {formData.isScheduled && (
+                  {form.isScheduled && (
                     <Grid item xs={12}>
                       <DateTimePicker
                         label="Schedule Date & Time"
-                        value={formData.scheduledAt}
+                        value={form.scheduledAt}
                         onChange={(value) => handleChange('scheduledAt', value)}
                         slotProps={{
                           textField: {
@@ -281,20 +247,20 @@ const BroadcastMessage = () => {
                       <Button
                         variant="outlined"
                         onClick={() => setPreviewDialog(true)}
-                        disabled={!formData.title || !formData.message}
+                        disabled={!form.title || !form.message}
                       >
                         Preview
                       </Button>
                       <Button
                         type="submit"
                         variant="contained"
-                        startIcon={formData.isScheduled ? <ScheduleSend /> : <Send />}
-                        disabled={sendMutation.isPending || scheduleMutation.isPending}
+                        startIcon={form.isScheduled ? <ScheduleSend /> : <Send />}
+                        disabled={loading}
                         sx={{ flex: 1 }}
                       >
-                        {sendMutation.isPending || scheduleMutation.isPending
+                        {loading
                           ? 'Sending...'
-                          : formData.isScheduled
+                          : form.isScheduled
                           ? 'Schedule Message'
                           : 'Send Now'}
                       </Button>
@@ -314,11 +280,11 @@ const BroadcastMessage = () => {
                 Message History
               </Typography>
               
-              {isLoading ? (
+              {loading ? (
                 <LinearProgress />
               ) : (
                 <List>
-                  {history.map((item, index) => (
+                  {messages.map((item, index) => (
                     <React.Fragment key={item.id}>
                       <ListItem alignItems="flex-start">
                         <ListItemAvatar>
@@ -368,7 +334,7 @@ const BroadcastMessage = () => {
                           }
                         />
                       </ListItem>
-                      {index < history.length - 1 && <Divider variant="inset" component="li" />}
+                      {index < messages.length - 1 && <Divider variant="inset" component="li" />}
                     </React.Fragment>
                   ))}
                 </List>
@@ -389,33 +355,33 @@ const BroadcastMessage = () => {
         <DialogContent>
           <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Avatar sx={{ bgcolor: getTypeColor(formData.type) }}>
-                {getTypeIcon(formData.type)}
+              <Avatar sx={{ bgcolor: getTypeColor(form.type) }}>
+                {getTypeIcon(form.type)}
               </Avatar>
               <Box>
-                <Typography variant="h6">{formData.title}</Typography>
+                <Typography variant="h6">{form.title}</Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Chip
-                    label={formData.type}
+                    label={form.type}
                     size="small"
                     sx={{ textTransform: 'capitalize' }}
                   />
                   <Chip
-                    label={formData.priority}
+                    label={form.priority}
                     size="small"
-                    color={getPriorityColor(formData.priority)}
+                    color={getPriorityColor(form.priority)}
                     sx={{ textTransform: 'capitalize' }}
                   />
                 </Box>
               </Box>
             </Box>
             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-              {formData.message}
+              {form.message}
             </Typography>
-            {formData.isScheduled && formData.scheduledAt && (
+            {form.isScheduled && form.scheduledAt && (
               <Box sx={{ mt: 2, p: 1, bgcolor: 'warning.light', borderRadius: 1 }}>
                 <Typography variant="caption" color="warning.dark">
-                  Scheduled for: {formData.scheduledAt.format('MMM DD, YYYY HH:mm')}
+                  Scheduled for: {form.scheduledAt.format('MMM DD, YYYY HH:mm')}
                 </Typography>
               </Box>
             )}

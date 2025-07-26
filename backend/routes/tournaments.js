@@ -4,44 +4,53 @@
  */
 
 const express = require('express');
+const Tournament = require('../models/Tournament');
+const User = require('../models/User');
 const router = express.Router();
 
 // Get all tournaments
 router.get('/', async (req, res) => {
   try {
-    // Mock data for now
-    const tournaments = [
-      {
-        _id: '1',
-        title: 'BGMI Pro League',
-        status: 'upcoming',
-        map: 'Erangel',
-        teamType: 'Squad',
-        maxParticipants: 100,
-        participants: [],
-        entryFee: 20,
-        prizePool: 1000,
-        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        rules: 'Standard BGMI rules apply'
-      },
-      {
-        _id: '2',
-        title: 'Solo Showdown',
-        status: 'active',
-        map: 'Miramar',
-        teamType: 'Solo',
-        maxParticipants: 50,
-        participants: [],
-        entryFee: 30,
-        prizePool: 2000,
-        scheduledAt: new Date(),
-        rules: 'Solo mode rules apply'
-      }
-    ];
+    const { status, game, type } = req.query;
+    
+    // Build filter object
+    const filter = {};
+    if (status) filter.status = status;
+    if (game) filter.game = game;
+    if (type) filter.tournamentType = type;
+    
+    // Only show upcoming and active tournaments to users
+    if (!status) {
+      filter.status = { $in: ['upcoming', 'active'] };
+    }
+
+    const tournaments = await Tournament.find(filter)
+      .sort({ startDate: 1 })
+      .populate('participants.user', 'username displayName gameProfile.bgmiId')
+      .lean();
+
+    // Transform data for frontend compatibility
+    const transformedTournaments = tournaments.map(tournament => ({
+      _id: tournament._id,
+      title: tournament.title,
+      description: tournament.description,
+      status: tournament.status,
+      game: tournament.game,
+      map: tournament.map || 'TBD',
+      teamType: tournament.tournamentType,
+      maxParticipants: tournament.maxParticipants,
+      currentParticipants: tournament.currentParticipants,
+      participants: tournament.participants || [],
+      entryFee: tournament.entryFee,
+      prizePool: tournament.prizePool,
+      scheduledAt: tournament.startDate,
+      rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
+      createdAt: tournament.createdAt
+    }));
 
     res.json({
       success: true,
-      data: tournaments,
+      tournaments: transformedTournaments,
       message: 'Tournaments fetched successfully'
     });
   } catch (error) {
@@ -49,7 +58,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch tournaments',
-      data: []
+      tournaments: []
     });
   }
 });
@@ -59,24 +68,44 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Mock data for now
-    const tournament = {
-      _id: id,
-      title: 'BGMI Pro League',
-      status: 'upcoming',
-      map: 'Erangel',
-      teamType: 'Squad',
-      maxParticipants: 100,
-      participants: [],
-      entryFee: 20,
-      prizePool: 1000,
-      scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      rules: 'Standard BGMI rules apply'
+    const tournament = await Tournament.findById(id)
+      .populate('participants.user', 'username displayName gameProfile.bgmiId')
+      .populate('winners.user', 'username displayName')
+      .lean();
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found',
+        tournament: null
+      });
+    }
+
+    // Transform data for frontend compatibility
+    const transformedTournament = {
+      _id: tournament._id,
+      title: tournament.title,
+      description: tournament.description,
+      status: tournament.status,
+      game: tournament.game,
+      map: tournament.map || 'TBD',
+      teamType: tournament.tournamentType,
+      maxParticipants: tournament.maxParticipants,
+      currentParticipants: tournament.currentParticipants,
+      participants: tournament.participants || [],
+      winners: tournament.winners || [],
+      entryFee: tournament.entryFee,
+      prizePool: tournament.prizePool,
+      scheduledAt: tournament.startDate,
+      endDate: tournament.endDate,
+      rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
+      roomDetails: tournament.roomDetails,
+      createdAt: tournament.createdAt
     };
 
     res.json({
       success: true,
-      data: tournament,
+      tournament: transformedTournament,
       message: 'Tournament details fetched successfully'
     });
   } catch (error) {
@@ -84,7 +113,7 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch tournament details',
-      data: null
+      tournament: null
     });
   }
 });

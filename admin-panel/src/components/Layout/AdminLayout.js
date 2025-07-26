@@ -92,7 +92,7 @@ const AdminLayout = ({ children }) => {
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }} component="div">
           GameOn Admin
         </Typography>
       </Box>
