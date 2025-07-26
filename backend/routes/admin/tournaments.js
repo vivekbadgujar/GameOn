@@ -244,6 +244,9 @@ router.post('/',
       // Update admin stats
       await req.admin.updateOne({ $inc: { totalTournamentsCreated: 1 } });
 
+      // Emit Socket.IO event
+      req.app.get('io').emit('tournamentAdded', tournament);
+
       res.status(201).json({
         success: true,
         message: 'Tournament created successfully',
@@ -314,6 +317,9 @@ router.put('/:id',
 
       Object.assign(tournament, updates);
       await tournament.save();
+
+      // Emit Socket.IO event
+      req.app.get('io').emit('tournamentUpdated', tournament);
       
       res.json({
         success: true,
@@ -356,6 +362,9 @@ router.delete('/:id',
       }
       
       await Tournament.findByIdAndDelete(tournamentId);
+
+      // Emit Socket.IO event
+      req.app.get('io').emit('tournamentDeleted', tournamentId);
       
       res.json({
         success: true,

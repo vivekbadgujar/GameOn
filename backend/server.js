@@ -171,6 +171,8 @@ app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
 app.use('/api/admin/ai-verification', require('./routes/admin/ai-verification'));
 app.use('/api/admin/wallet', require('./routes/admin/wallet'));
+app.use('/api/admin/analytics', require('./routes/admin/analytics'));
+app.use('/api/admin/scheduling', require('./routes/admin/scheduling'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

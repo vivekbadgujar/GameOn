@@ -117,18 +117,15 @@ router.post('/login',
       res.json({
         success: true,
         message: 'Login successful',
-        data: {
-          admin: {
-            id: admin._id,
-            name: admin.name,
-            email: admin.email,
-            role: admin.role,
-            permissions: admin.permissions,
-            avatar: admin.avatar,
-            department: admin.department
-          },
-          accessToken,
-          expiresIn: tokenExpiry
+        token: accessToken,
+        admin: {
+          id: admin._id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          permissions: admin.permissions,
+          avatar: admin.avatar,
+          department: admin.department
         }
       });
 
@@ -239,6 +236,44 @@ router.get('/me', async (req, res) => {
 
   } catch (error) {
     console.error('Get admin profile error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
+});
+
+// Check Authentication Status
+router.get('/check', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const admin = await Admin.findById(decoded.userId).select('-password');
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      admin: admin
+    });
+
+  } catch (error) {
+    console.error('Auth check error:', error);
     res.status(401).json({
       success: false,
       message: 'Invalid token'
