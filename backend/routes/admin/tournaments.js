@@ -60,12 +60,11 @@ router.get('/',
 
       res.json({
         success: true,
-        data: tournamentsWithStats,
-        pagination: {
-          total,
-          page,
-          pages: Math.ceil(total / limit),
-          limit
+        data: {
+          tournaments: tournamentsWithStats,
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
+          total
         }
       });
     } catch (error) {
@@ -723,5 +722,397 @@ function calculatePrizeDistribution(prizePool, tournamentType) {
   
   return distribution.map(percentage => Math.round(prizePool * percentage));
 }
+
+// Post tournament results
+router.post('/:id/results', 
+  requirePermission('tournaments_manage'),
+  auditLog('post_tournament_results'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { results } = req.body;
+      
+      if (!results || !Array.isArray(results)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Results array is required'
+        });
+      }
+      
+      const tournament = await Tournament.findById(tournamentId)
+        .populate('participants.user', 'username displayName wallet');
+      
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+      
+      if (tournament.status !== 'live') {
+        return res.status(400).json({
+          success: false,
+          message: 'Can only post results for live tournaments'
+        });
+      }
+      
+      // Update participant results
+      for (const result of results) {
+        const participant = tournament.participants.find(
+          p => p.user._id.toString() === result.userId
+        );
+        
+        if (participant) {
+          participant.kills = result.kills || 0;
+          participant.rank = result.rank || 0;
+        }
+      }
+      
+      // Calculate and distribute prizes
+      const prizeDistribution = calculatePrizeDistribution(tournament.prizePool, tournament.tournamentType);
+      const sortedParticipants = tournament.participants
+        .filter(p => p.rank > 0)
+        .sort((a, b) => a.rank - b.rank);
+      
+      const winners = [];
+      const transactions = [];
+      
+      for (let i = 0; i < Math.min(sortedParticipants.length, prizeDistribution.length); i++) {
+        const participant = sortedParticipants[i];
+        const prize = prizeDistribution[i];
+        
+        if (prize > 0) {
+          winners.push({
+            user: participant.user._id,
+            prize: prize,
+            position: i + 1,
+            kills: participant.kills
+          });
+          
+          // Update user wallet
+          await User.findByIdAndUpdate(participant.user._id, {
+            $inc: { 
+              'wallet.balance': prize,
+              'stats.totalEarnings': prize,
+              'stats.tournamentsWon': i === 0 ? 1 : 0
+            }
+          });
+          
+          // Create transaction record
+          transactions.push({
+            user: participant.user._id,
+            amount: prize,
+            type: 'tournament_prize',
+            description: `Prize for ${tournament.title} (Position: ${i + 1})`,
+            status: 'completed',
+            tournamentId: tournament._id
+          });
+        }
+      }
+      
+      // Save transactions
+      if (transactions.length > 0) {
+        await Transaction.insertMany(transactions);
+      }
+      
+      // Update tournament
+      tournament.winners = winners;
+      tournament.status = 'completed';
+      tournament.endDate = new Date();
+      await tournament.save();
+      
+      // Emit real-time updates
+      req.app.get('io').emit('tournamentCompleted', {
+        tournamentId: tournament._id,
+        winners: winners,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Notify all participants
+      for (const participant of tournament.participants) {
+        req.app.get('emitToUser')(participant.user._id, 'tournament_results', {
+          tournamentId: tournament._id,
+          tournamentTitle: tournament.title,
+          yourRank: participant.rank,
+          yourKills: participant.kills,
+          yourPrize: winners.find(w => w.user.toString() === participant.user._id.toString())?.prize || 0
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Tournament results posted successfully',
+        data: {
+          tournament: tournament,
+          winners: winners,
+          totalPrizeDistributed: winners.reduce((sum, w) => sum + w.prize, 0)
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error posting tournament results:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to post tournament results',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Update tournament status
+router.patch('/:id/status', 
+  requirePermission('tournaments_manage'),
+  auditLog('update_tournament_status'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { status } = req.body;
+      
+      // Validate status
+      const validStatuses = ['upcoming', 'live', 'completed', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+        });
+      }
+      
+      const tournament = await Tournament.findById(tournamentId);
+      
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+      
+      // Update status
+      tournament.status = status;
+      
+      // Set end date if completing or cancelling
+      if (['completed', 'cancelled'].includes(status)) {
+        tournament.endDate = new Date();
+      }
+      
+      await tournament.save();
+      
+      // Emit Socket.IO event
+      req.app.get('io').emit('tournamentUpdated', tournament);
+      req.app.get('emitToTournament')(tournamentId, 'tournament_status_updated', {
+        tournamentId,
+        status,
+        timestamp: new Date().toISOString()
+      });
+      
+      res.json({
+        success: true,
+        message: 'Tournament status updated successfully',
+        data: {
+          id: tournament._id,
+          status: tournament.status,
+          endDate: tournament.endDate
+        }
+      });
+    } catch (error) {
+      console.error('Error updating tournament status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update tournament status',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Update tournament status
+router.patch('/:id/status', 
+  requirePermission('tournaments_manage'),
+  auditLog('update_tournament_status'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { status } = req.body;
+      
+      if (!['upcoming', 'live', 'completed', 'cancelled'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid status. Must be one of: upcoming, live, completed, cancelled'
+        });
+      }
+      
+      const tournament = await Tournament.findById(tournamentId);
+      
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+      
+      // Validate status transitions
+      const validTransitions = {
+        upcoming: ['live', 'cancelled'],
+        live: ['completed', 'cancelled'],
+        completed: [], // Cannot change from completed
+        cancelled: [] // Cannot change from cancelled
+      };
+      
+      if (!validTransitions[tournament.status].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot change status from ${tournament.status} to ${status}`
+        });
+      }
+      
+      tournament.status = status;
+      
+      // Set end date if completing tournament
+      if (status === 'completed' && !tournament.endDate) {
+        tournament.endDate = new Date();
+      }
+      
+      await tournament.save();
+      
+      // Emit Socket.IO event for real-time updates
+      req.app.get('io').emit('tournamentStatusUpdated', {
+        tournamentId: tournament._id,
+        status: tournament.status,
+        endDate: tournament.endDate
+      });
+      
+      res.json({
+        success: true,
+        message: 'Tournament status updated successfully',
+        data: {
+          id: tournament._id,
+          status: tournament.status,
+          endDate: tournament.endDate
+        }
+      });
+    } catch (error) {
+      console.error('Error updating tournament status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update tournament status',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Export tournaments
+router.get('/export', 
+  requirePermission('tournaments_manage'),
+  auditLog('export_tournaments'),
+  async (req, res) => {
+    try {
+      const { format = 'csv', status, game, startDate, endDate } = req.query;
+      
+      // Build filter
+      const filter = {};
+      if (status) filter.status = status;
+      if (game) filter.game = game;
+      if (startDate || endDate) {
+        filter.startDate = {};
+        if (startDate) filter.startDate.$gte = new Date(startDate);
+        if (endDate) filter.startDate.$lte = new Date(endDate);
+      }
+
+      // Get tournaments
+      const tournaments = await Tournament.find(filter)
+        .populate('participants.user', 'username email gameProfile.bgmiId')
+        .populate('winners.user', 'username email')
+        .lean();
+
+      // Transform data for export
+      const exportData = tournaments.map(tournament => ({
+        id: tournament._id,
+        title: tournament.title,
+        game: tournament.game,
+        status: tournament.status,
+        tournamentType: tournament.tournamentType,
+        maxParticipants: tournament.maxParticipants,
+        currentParticipants: tournament.currentParticipants,
+        entryFee: tournament.entryFee,
+        prizePool: tournament.prizePool,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        createdAt: tournament.createdAt,
+        fillRate: Math.round((tournament.currentParticipants / tournament.maxParticipants) * 100),
+        totalPrize: tournament.winners.reduce((sum, w) => sum + (w.prize || 0), 0),
+        participantsList: tournament.participants.map(p => p.user.username).join(', '),
+        winnersList: tournament.winners.map(w => `${w.user.username} (${w.position})`).join(', ')
+      }));
+
+      if (format === 'json') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename=tournaments_${new Date().toISOString().split('T')[0]}.json`);
+        return res.json(exportData);
+      }
+
+      // CSV format
+      const csv = require('csv-writer').createObjectCsvWriter;
+      const path = require('path');
+      const fs = require('fs');
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `tournaments_${timestamp}.csv`;
+      const filepath = path.join(__dirname, '../../exports', filename);
+      
+      // Ensure exports directory exists
+      const exportDir = path.dirname(filepath);
+      if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+      }
+
+      const csvWriter = csv({
+        path: filepath,
+        header: [
+          { id: 'id', title: 'ID' },
+          { id: 'title', title: 'Title' },
+          { id: 'game', title: 'Game' },
+          { id: 'status', title: 'Status' },
+          { id: 'tournamentType', title: 'Type' },
+          { id: 'maxParticipants', title: 'Max Participants' },
+          { id: 'currentParticipants', title: 'Current Participants' },
+          { id: 'fillRate', title: 'Fill Rate (%)' },
+          { id: 'entryFee', title: 'Entry Fee' },
+          { id: 'prizePool', title: 'Prize Pool' },
+          { id: 'totalPrize', title: 'Total Prize Distributed' },
+          { id: 'startDate', title: 'Start Date' },
+          { id: 'endDate', title: 'End Date' },
+          { id: 'createdAt', title: 'Created At' },
+          { id: 'participantsList', title: 'Participants' },
+          { id: 'winnersList', title: 'Winners' }
+        ]
+      });
+
+      await csvWriter.writeRecords(exportData);
+
+      // Send file
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      
+      const fileStream = fs.createReadStream(filepath);
+      fileStream.pipe(res);
+      
+      // Clean up file after sending
+      fileStream.on('end', () => {
+        fs.unlink(filepath, (err) => {
+          if (err) console.error('Error deleting temp file:', err);
+        });
+      });
+
+    } catch (error) {
+      console.error('Error exporting tournaments:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to export tournaments',
+        error: error.message
+      });
+    }
+  }
+);
 
 module.exports = router;

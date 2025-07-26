@@ -163,9 +163,11 @@ app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/anticheat', require('./routes/anticheat'));
 app.use('/api/youtube', require('./routes/youtube'));
+app.use('/api/stats', require('./routes/stats'));
 
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));
+app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
 app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
 app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
@@ -179,6 +181,7 @@ app.use('/api/admin/media', require('./routes/admin/media'));
 app.use('/api/admin/ai', require('./routes/admin/ai'));
 app.use('/api/admin/search', require('./routes/admin/search'));
 app.use('/api/admin/export', require('./routes/admin/export'));
+app.use('/api/admin/user-monitoring', require('./routes/admin/user-monitoring'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -308,6 +311,101 @@ io.on('connection', (socket) => {
       transaction,
       timestamp: new Date().toISOString()
     });
+  });
+
+  // Handle platform stats requests
+  socket.on('get_platform_stats', async () => {
+    try {
+      const Tournament = require('./models/Tournament');
+      const User = require('./models/User');
+      
+      const activeTournaments = await Tournament.countDocuments({
+        status: { $in: ['upcoming', 'live'] }
+      });
+
+      const activePlayersPipeline = await Tournament.aggregate([
+        { $match: { status: { $in: ['upcoming', 'live'] } } },
+        { $group: { _id: null, totalPlayers: { $sum: '$currentParticipants' } } }
+      ]);
+      const totalPlayers = activePlayersPipeline[0]?.totalPlayers || 0;
+
+      const prizePipeline = await Tournament.aggregate([
+        { $match: { status: { $in: ['upcoming', 'live'] } } },
+        { $group: { _id: null, totalPrizePool: { $sum: '$prizePool' } } }
+      ]);
+      const totalPrizePool = prizePipeline[0]?.totalPrizePool || 0;
+
+      const totalUsers = await User.countDocuments({ status: 'active' });
+      const onlineUsers = Math.floor(totalUsers * 0.1);
+
+      socket.emit('platform_stats', {
+        activeTournaments,
+        totalPlayers,
+        totalPrizePool,
+        onlineUsers,
+        totalUsers
+      });
+    } catch (error) {
+      console.error('Error fetching platform stats:', error);
+    }
+  });
+
+  // Handle recent winners requests
+  socket.on('get_recent_winners', async () => {
+    try {
+      const Tournament = require('./models/Tournament');
+      
+      const recentWinners = await Tournament.aggregate([
+        {
+          $match: {
+            status: 'completed',
+            winners: { $exists: true, $ne: [] }
+          }
+        },
+        { $sort: { endDate: -1 } },
+        { $limit: 10 },
+        { $unwind: '$winners' },
+        {
+          $match: {
+            'winners.position': 1
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'winners.user',
+            foreignField: '_id',
+            as: 'winnerUser'
+          }
+        },
+        { $unwind: '$winnerUser' },
+        {
+          $project: {
+            _id: 1,
+            tournamentTitle: '$title',
+            username: '$winnerUser.username',
+            prize: '$winners.prize',
+            wonAt: '$endDate',
+            gameProfile: '$winnerUser.gameProfile'
+          }
+        }
+      ]);
+
+      socket.emit('recent_winners', recentWinners);
+    } catch (error) {
+      console.error('Error fetching recent winners:', error);
+    }
+  });
+
+  // Handle leaderboard room joining
+  socket.on('join_leaderboard', () => {
+    socket.join('leaderboard');
+    console.log(`User ${socket.id} joined leaderboard room`);
+  });
+
+  socket.on('leave_leaderboard', () => {
+    socket.leave('leaderboard');
+    console.log(`User ${socket.id} left leaderboard room`);
   });
 
   // Handle disconnection

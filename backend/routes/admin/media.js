@@ -1,356 +1,318 @@
+/**
+ * Admin Media Management Routes
+ * Handles image and video uploads, management, and optimization
+ */
+
 const express = require('express');
-const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const Media = require('../../models/Media');
+const { uploadImage, deleteImage, uploadVideo, getOptimizedImageUrl } = require('../../config/cloudinary');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Check file type
+    if (file.fieldname === 'image') {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for image uploads'), false);
+      }
+    } else if (file.fieldname === 'video') {
+      if (file.mimetype.startsWith('video/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only video files are allowed for video uploads'), false);
+      }
+    } else {
+      cb(new Error('Invalid field name'), false);
+    }
+  }
+});
 
 // Middleware to protect all admin media routes
 router.use(authenticateAdmin);
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/media');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|mp4|avi|mov|webm|pdf|doc|docx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only image, video, and document files are allowed'));
-    }
-  }
-});
-
-// Get all media files
-router.get('/', 
+// Upload tournament banner/poster
+router.post('/upload/tournament-banner', 
   requirePermission('media_manage'),
-  async (req, res) => {
-    try {
-      const { type, status, page = 1, limit = 10 } = req.query;
-      
-      const filter = {};
-      if (type) filter.type = type;
-      if (status) filter.status = status;
-      
-      const skip = (page - 1) * limit;
-      
-      const mediaFiles = await Media.find(filter)
-        .populate('uploadedBy', 'username email')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-      
-      const total = await Media.countDocuments(filter);
-      
-      res.json({
-        success: true,
-        data: mediaFiles,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching media files:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch media files'
-      });
-    }
-  }
-);
-
-// Upload media file
-router.post('/upload', 
-  requirePermission('media_manage'),
-  upload.single('file'),
-  auditLog('upload_media'),
+  upload.single('image'),
+  auditLog('upload_tournament_banner'),
   async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          message: 'No file uploaded'
+          message: 'No image file provided'
         });
       }
 
-      const { tags, description, category } = req.body;
+      // Convert buffer to base64 for Cloudinary
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       
-      // Determine file type
-      const fileExtension = path.extname(req.file.originalname).toLowerCase();
-      let fileType = 'document';
-      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(fileExtension)) {
-        fileType = 'image';
-      } else if (['.mp4', '.avi', '.mov', '.webm'].includes(fileExtension)) {
-        fileType = 'video';
-      }
-      
-      // Create media record
-      const media = new Media({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        type: fileType,
-        size: req.file.size,
-        url: `/uploads/media/${req.file.filename}`,
-        tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-        description,
-        category,
-        uploadedBy: req.admin._id,
-        status: 'active'
-      });
-      
-      await media.save();
-      
-      // Emit Socket.IO event for real-time updates
+      const result = await uploadImage({ buffer: base64Image }, 'gameon/tournaments');
+
+      // Emit Socket.IO event
       req.app.get('io').emit('mediaUploaded', {
-        id: media._id,
-        filename: media.filename,
-        type: media.type,
-        url: media.url
+        type: 'tournament_banner',
+        url: result.url,
+        publicId: result.publicId,
+        uploadedBy: req.admin._id
       });
-      
+
       res.json({
         success: true,
-        message: 'Media uploaded successfully',
-        data: media
+        message: 'Tournament banner uploaded successfully',
+        data: result
       });
     } catch (error) {
-      console.error('Error uploading media:', error);
+      console.error('Tournament banner upload error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to upload media'
+        message: 'Failed to upload tournament banner',
+        error: error.message
       });
     }
   }
 );
 
-// Get media file by ID
-router.get('/:id', 
+// Upload user avatar/profile picture
+router.post('/upload/avatar', 
   requirePermission('media_manage'),
+  upload.single('image'),
+  auditLog('upload_avatar'),
   async (req, res) => {
     try {
-      const media = await Media.findById(req.params.id)
-        .populate('uploadedBy', 'username email')
-        .lean();
-      
-      if (!media) {
-        return res.status(404).json({
-          success: false,
-          message: 'Media file not found'
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: media
-      });
-    } catch (error) {
-      console.error('Error fetching media file:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch media file'
-      });
-    }
-  }
-);
-
-// Update media file
-router.put('/:id', 
-  requirePermission('media_manage'),
-  [
-    body('filename').optional().isString().withMessage('Filename must be a string'),
-    body('tags').optional().isArray().withMessage('Tags must be an array'),
-    body('status').optional().isIn(['active', 'inactive', 'archived']).withMessage('Invalid status'),
-    body('description').optional().isString().withMessage('Description must be a string'),
-    body('category').optional().isString().withMessage('Category must be a string')
-  ],
-  auditLog('update_media'),
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+      if (!req.file) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
-          errors: errors.array()
+          message: 'No image file provided'
         });
       }
 
-      const { filename, tags, status, description, category } = req.body;
-      const media = await Media.findById(req.params.id);
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
       
-      if (!media) {
-        return res.status(404).json({
-          success: false,
-          message: 'Media file not found'
-        });
-      }
-      
-      if (filename) media.filename = filename;
-      if (tags) media.tags = tags;
-      if (status) media.status = status;
-      if (description) media.description = description;
-      if (category) media.category = category;
-      
-      await media.save();
-      
+      const result = await uploadImage({ buffer: base64Image }, 'gameon/avatars');
+
+      // Emit Socket.IO event
+      req.app.get('io').emit('mediaUploaded', {
+        type: 'avatar',
+        url: result.url,
+        publicId: result.publicId,
+        uploadedBy: req.admin._id
+      });
+
       res.json({
         success: true,
-        message: 'Media file updated successfully',
-        data: media
+        message: 'Avatar uploaded successfully',
+        data: result
       });
     } catch (error) {
-      console.error('Error updating media file:', error);
+      console.error('Avatar upload error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to update media file'
+        message: 'Failed to upload avatar',
+        error: error.message
       });
     }
   }
 );
 
-// Delete media file
-router.delete('/:id', 
+// Upload promotional content
+router.post('/upload/promotional', 
+  requirePermission('media_manage'),
+  upload.single('image'),
+  auditLog('upload_promotional'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No image file provided'
+        });
+      }
+
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      
+      const result = await uploadImage({ buffer: base64Image }, 'gameon/promotional');
+
+      // Emit Socket.IO event
+      req.app.get('io').emit('mediaUploaded', {
+        type: 'promotional',
+        url: result.url,
+        publicId: result.publicId,
+        uploadedBy: req.admin._id
+      });
+
+      res.json({
+        success: true,
+        message: 'Promotional content uploaded successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Promotional upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload promotional content',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Upload video content
+router.post('/upload/video', 
+  requirePermission('media_manage'),
+  upload.single('video'),
+  auditLog('upload_video'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No video file provided'
+        });
+      }
+
+      const base64Video = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      
+      const result = await uploadVideo({ buffer: base64Video });
+
+      // Emit Socket.IO event
+      req.app.get('io').emit('mediaUploaded', {
+        type: 'video',
+        url: result.url,
+        publicId: result.publicId,
+        duration: result.duration,
+        uploadedBy: req.admin._id
+      });
+
+      res.json({
+        success: true,
+        message: 'Video uploaded successfully',
+        data: result
+      });
+    } catch (error) {
+      console.error('Video upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload video',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Delete media
+router.delete('/:publicId', 
   requirePermission('media_manage'),
   auditLog('delete_media'),
   async (req, res) => {
     try {
-      const media = await Media.findById(req.params.id);
+      const { publicId } = req.params;
       
-      if (!media) {
-        return res.status(404).json({
-          success: false,
-          message: 'Media file not found'
-        });
-      }
+      // Decode the public ID (it might be URL encoded)
+      const decodedPublicId = decodeURIComponent(publicId);
       
-      // Delete physical file
-      const filePath = path.join(__dirname, '../../uploads/media', media.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      
-      await Media.findByIdAndDelete(req.params.id);
-      
-      // Emit Socket.IO event for real-time updates
+      const result = await deleteImage(decodedPublicId);
+
+      // Emit Socket.IO event
       req.app.get('io').emit('mediaDeleted', {
-        id: media._id,
-        filename: media.filename
+        publicId: decodedPublicId,
+        deletedBy: req.admin._id
       });
-      
+
       res.json({
         success: true,
-        message: 'Media file deleted successfully',
-        data: { id: media._id, filename: media.filename }
+        message: 'Media deleted successfully',
+        data: result
       });
     } catch (error) {
-      console.error('Error deleting media file:', error);
+      console.error('Media delete error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to delete media file'
+        message: 'Failed to delete media',
+        error: error.message
       });
     }
   }
 );
 
-// Bulk delete media files
-router.post('/bulk-delete', 
+// Get optimized image URL
+router.post('/optimize', 
   requirePermission('media_manage'),
-  [
-    body('mediaIds').isArray().withMessage('Media IDs must be an array'),
-    body('mediaIds.*').isMongoId().withMessage('Invalid media ID format')
-  ],
-  auditLog('bulk_delete_media'),
   async (req, res) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+      const { publicId, width, height, crop, quality, format } = req.body;
+      
+      if (!publicId) {
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
-          errors: errors.array()
+          message: 'Public ID is required'
         });
       }
 
-      const { mediaIds } = req.body;
-      
-      const mediaFiles = await Media.find({ _id: { $in: mediaIds } });
-      
-      if (mediaFiles.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'No media files found'
-        });
-      }
-      
-      const deletedFiles = [];
-      const failedFiles = [];
-      
-      for (const media of mediaFiles) {
-        try {
-          // Delete physical file
-          const filePath = path.join(__dirname, '../../uploads/media', media.filename);
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-          }
-          
-          await Media.findByIdAndDelete(media._id);
-          deletedFiles.push(media._id);
-          
-          // Emit Socket.IO event
-          req.app.get('io').emit('mediaDeleted', {
-            id: media._id,
-            filename: media.filename
-          });
-        } catch (error) {
-          console.error(`Error deleting media ${media._id}:`, error);
-          failedFiles.push(media._id);
-        }
-      }
-      
+      const optimizedUrl = getOptimizedImageUrl(publicId, {
+        width,
+        height,
+        crop,
+        quality,
+        format
+      });
+
       res.json({
         success: true,
-        message: 'Bulk media deletion completed',
         data: {
-          deleted: deletedFiles.length,
-          failed: failedFiles.length,
-          deletedIds: deletedFiles,
-          failedIds: failedFiles
+          originalPublicId: publicId,
+          optimizedUrl
         }
       });
     } catch (error) {
-      console.error('Error bulk deleting media files:', error);
+      console.error('Image optimization error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to bulk delete media files'
+        message: 'Failed to optimize image',
+        error: error.message
       });
     }
   }
 );
 
-module.exports = router; 
+// Get media upload statistics
+router.get('/stats', 
+  requirePermission('media_manage'),
+  async (req, res) => {
+    try {
+      // This would typically query your database for media statistics
+      // For now, we'll return basic stats
+      const stats = {
+        totalUploads: 0,
+        totalSize: 0,
+        imageUploads: 0,
+        videoUploads: 0,
+        storageUsed: '0 MB',
+        recentUploads: []
+      };
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Media stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch media statistics',
+        error: error.message
+      });
+    }
+  }
+);
+
+module.exports = router;

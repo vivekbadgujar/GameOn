@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -45,11 +45,8 @@ import {
   Warning,
 } from '@mui/icons-material';
 import { tournamentAPI } from '../../services/api';
-import dayjs from 'dayjs';
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { tournamentAPI } from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
+import dayjs from 'dayjs';
 
 const TournamentList = () => {
   const navigate = useNavigate();
