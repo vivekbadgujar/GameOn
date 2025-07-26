@@ -60,7 +60,7 @@ const StatCard = ({ title, value, icon, color, trend, subtitle }) => (
 );
 
 const Dashboard = () => {
-  const { data: dashboardData, isLoading } = useQuery({
+  const { data: dashboardData, isLoading, isError } = useQuery({
     queryKey: ['dashboard'],
     queryFn: analyticsAPI.getDashboard,
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -102,7 +102,33 @@ const Dashboard = () => {
     ],
   };
 
-  const data = dashboardData?.data || mockData;
+  if (isLoading) {
+    return (
+      <Box sx={{ width: '100%' }}>
+        <LinearProgress />
+      </Box>
+    );
+  }
+
+  // If error or data is missing, show a user-friendly error message
+  if (isError || !mockData) {
+    return (
+      <Box sx={{ width: '100%', p: 4 }}>
+        <Typography color="error" variant="h6">Error loading dashboard data. Please try again later.</Typography>
+      </Box>
+    );
+  }
+
+  const data = dashboardData?.data && dashboardData.data.stats ? dashboardData.data : mockData;
+
+  // Defensive: If data.stats is missing, show a fallback UI
+  if (!data || !data.stats) {
+    return (
+      <Box sx={{ width: '100%', p: 4 }}>
+        <Typography color="error" variant="h6">Dashboard data is unavailable. Please try again later.</Typography>
+      </Box>
+    );
+  }
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -123,14 +149,6 @@ const Dashboard = () => {
       default: return 'info.main';
     }
   };
-
-  if (isLoading) {
-    return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
