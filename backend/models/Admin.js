@@ -102,7 +102,6 @@ const AdminSchema = new mongoose.Schema({
 });
 
 // Indexes
-AdminSchema.index({ email: 1 });
 AdminSchema.index({ role: 1 });
 AdminSchema.index({ status: 1 });
 

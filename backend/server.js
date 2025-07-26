@@ -12,7 +12,8 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = createServer(app);
@@ -23,46 +24,64 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 5001;
+// Force port 5000 for consistency
+const PORT = 5000;
 
-// MongoDB Connection with retry logic
-const connectDB = async () => {
-  try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not defined');
-    }
+// Debug environment variables
+console.log('Environment check:');
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      family: 4,
-      retryWrites: true,
-      w: 'majority'
-    });
-    console.log('🍃 Connected to MongoDB successfully');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    // Don't exit process, just retry connection after delay
-    setTimeout(connectDB, 5000);
-  }
-};
+// Temporary hardcoded MongoDB URI for testing
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority';
 
-// Initial database connection
-connectDB();
+// MongoDB Connection
+mongoose.set('debug', false); // Disable debug mode for cleaner logs
 
-// Handle connection errors
-mongoose.connection.on('error', (error) => {
-  console.error('MongoDB connection error:', error);
-  setTimeout(connectDB, 5000);
+// Connection event handlers
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected. Attempting to reconnect...');
-  setTimeout(connectDB, 5000);
+  console.log('MongoDB disconnected');
 });
 
-// Mongoose configuration
-mongoose.set('strictQuery', false);
+mongoose.connection.on('connected', () => {
+  console.log('MongoDB connected successfully');
+});
+
+// Connect to MongoDB with enhanced options
+mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  family: 4,
+  retryWrites: true,
+  w: 'majority'
+}).then(() => {
+  console.log('🍃 Connected to MongoDB successfully');
+  console.log('Database Name:', mongoose.connection.name);
+  console.log('Host:', mongoose.connection.host);
+  // Initialize admin user after successful connection
+  // require('./scripts/initAdmin')(); // Commented out - script not found
+}).catch((err) => {
+  console.error('MongoDB connection error details:', {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    codeName: err.codeName
+  });
+  if (err.name === 'MongoServerSelectionError') {
+    console.error('Could not connect to any MongoDB server.');
+    console.log('Please check:');
+    console.log('1. MongoDB Atlas connection string is correct');
+    console.log('2. Network connectivity is available');
+    console.log('3. IP address is whitelisted in MongoDB Atlas');
+    console.log('4. Username and password are correct');
+  }
+});
 
 // Kill existing connections on app shutdown
 process.on('SIGINT', async () => {
