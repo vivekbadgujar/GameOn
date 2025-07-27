@@ -3,13 +3,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box, LinearProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 import { theme } from './theme/theme';
-import AdminLogin from './components/Auth/AdminLogin';
+import AdminLogin from './AdminLogin';
 import AdminLayout from './components/Layout/AdminLayout';
 import Dashboard from './components/Dashboard/Dashboard';
 import TournamentList from './components/Tournaments/TournamentList';
@@ -39,7 +39,21 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh' 
+      }}>
+        <LinearProgress sx={{ width: '50%' }} />
+      </Box>
+    );
+  }
 
   if (!isAuthenticated) {
     return <AdminLogin />;

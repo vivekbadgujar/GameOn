@@ -40,8 +40,10 @@ const AdminSchema = new mongoose.Schema({
       'users_manage', 
       'payments_view',
       'payments_manage',
+      'payouts_manage',
       'analytics_view',
       'notifications_send',
+      'notifications_manage',
       'ai_moderation',
       'system_settings'
     ]
@@ -123,7 +125,7 @@ AdminSchema.pre('save', async function(next) {
       case 'super_admin':
         this.permissions = [
           'tournaments_manage', 'users_manage', 'payments_view', 
-          'payments_manage', 'analytics_view', 'notifications_send',
+          'payments_manage', 'payouts_manage', 'analytics_view', 'notifications_send', 'notifications_manage',
           'ai_moderation', 'system_settings'
         ];
         break;

@@ -21,18 +21,33 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuthStatus = async () => {
+    console.log('Checking auth status...');
     try {
       const token = localStorage.getItem('adminToken');
+      console.log('Token found:', !!token);
       if (token) {
-        const response = await authAPI.checkAuth();
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Auth check timeout')), 10000); // 10 seconds
+        });
+        
+        const authPromise = authAPI.checkAuth();
+        const response = await Promise.race([authPromise, timeoutPromise]);
+        
         if (response.data.success) {
           setIsAuthenticated(true);
           setAdmin(response.data.admin);
         } else {
+          console.log('Auth check failed - invalid response');
           localStorage.removeItem('adminToken');
           setIsAuthenticated(false);
           setAdmin(null);
         }
+      } else {
+        // No token, not authenticated
+        console.log('No token found - not authenticated');
+        setIsAuthenticated(false);
+        setAdmin(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -40,6 +55,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       setAdmin(null);
     } finally {
+      console.log('Auth check completed, setting loading to false');
       setLoading(false);
     }
   };

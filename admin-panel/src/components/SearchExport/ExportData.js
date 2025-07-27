@@ -55,24 +55,26 @@ const ExportData = () => {
     filters: {},
   });
 
-  const { data: exportHistory = [], isLoading } = useQuery({
+  const { data: exportHistoryData, isLoading } = useQuery({
     queryKey: ['export-history'],
     queryFn: searchExportAPI.getExportHistory,
     refetchInterval: 30000,
   });
 
+  const exportHistory = exportHistoryData?.data || [];
+
   const exportMutation = useMutation({
     mutationFn: ({ type, format, filters }) => searchExportAPI.exportData(type, format, filters),
     onSuccess: (data) => {
-      // Handle file download
-      const blob = new Blob([data], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `export_${exportConfig.dataType}_${dayjs().format('YYYY-MM-DD')}.${exportConfig.format}`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      if (data.data && data.data.downloadUrl) {
+        // Download the file using the provided URL
+        window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${data.data.downloadUrl}`, '_blank');
+      }
       setExportDialog(false);
+    },
+    onError: (error) => {
+      console.error('Export failed:', error);
+      // You might want to show a toast notification here
     },
   });
 
@@ -116,41 +118,7 @@ const ExportData = () => {
     }
   };
 
-  // Mock export history for demonstration
-  const mockExportHistory = [
-    {
-      id: 1,
-      dataType: 'tournaments',
-      format: 'csv',
-      status: 'completed',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      fileSize: '2.5 MB',
-      recordCount: 156,
-      downloadUrl: '#',
-    },
-    {
-      id: 2,
-      dataType: 'users',
-      format: 'excel',
-      status: 'completed',
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      fileSize: '1.8 MB',
-      recordCount: 1247,
-      downloadUrl: '#',
-    },
-    {
-      id: 3,
-      dataType: 'analytics',
-      format: 'pdf',
-      status: 'processing',
-      createdAt: new Date(Date.now() - 30 * 60 * 1000),
-      fileSize: null,
-      recordCount: null,
-      downloadUrl: null,
-    },
-  ];
-
-  const history = exportHistory.length > 0 ? exportHistory : mockExportHistory;
+  const history = exportHistory;
 
   return (
     <Box>
@@ -381,7 +349,7 @@ const ExportData = () => {
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                {exportItem.dataType.charAt(0).toUpperCase() + exportItem.dataType.slice(1)}
+                                {exportItem.type.charAt(0).toUpperCase() + exportItem.type.slice(1)}
                               </Typography>
                               <Chip
                                 label={exportItem.format.toUpperCase()}
@@ -399,7 +367,7 @@ const ExportData = () => {
                           secondary={
                             <Box>
                               <Typography variant="body2" sx={{ mb: 1 }}>
-                                {dayjs(exportItem.createdAt).format('MMM DD, YYYY HH:mm')}
+                                {dayjs(exportItem.requestedAt).format('MMM DD, YYYY HH:mm')}
                               </Typography>
                               {exportItem.fileSize && (
                                 <Typography variant="body2" color="text.secondary">
@@ -414,6 +382,9 @@ const ExportData = () => {
                             size="small"
                             variant="outlined"
                             startIcon={<CloudDownload />}
+                            onClick={() => {
+                              window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${exportItem.downloadUrl}`, '_blank');
+                            }}
                           >
                             Download
                           </Button>

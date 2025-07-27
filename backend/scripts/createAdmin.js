@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority');
     console.log('Connected to MongoDB');
   } catch (error) {
     console.error('MongoDB connection error:', error);
@@ -16,14 +16,23 @@ const createAdmin = async () => {
   try {
     await connectDB();
     
-    // Delete existing admin
-    await Admin.deleteMany({});
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({ email: 'gameonofficial04@gmail.com' });
     
-    // Create new admin with proper settings
+    if (existingAdmin) {
+      console.log('✅ Admin already exists!');
+      console.log(`📧 Email: ${existingAdmin.email}`);
+      console.log(`👤 Role: ${existingAdmin.role}`);
+      console.log(`✅ Status: ${existingAdmin.status}`);
+      console.log(`✅ Email Verified: ${existingAdmin.isEmailVerified}`);
+      process.exit(0);
+    }
+    
+    // Create new admin with real credentials
     const admin = await Admin.create({
-      name: 'System Admin',
-      email: 'admin@gameon.com',
-      password: 'admin123456', // 8+ characters
+      name: 'GameOn Official Admin',
+      email: 'gameonofficial04@gmail.com',
+      password: 'GameOn@321', // Real password
       role: 'super_admin',
       status: 'active',
       isEmailVerified: true
@@ -31,9 +40,10 @@ const createAdmin = async () => {
     
     console.log('✅ Admin created successfully!');
     console.log(`📧 Email: ${admin.email}`);
-    console.log(`🔑 Password: admin123456`);
+    console.log(`🔑 Password: GameOn@321`);
     console.log(`👤 Role: ${admin.role}`);
     console.log(`✅ Email Verified: ${admin.isEmailVerified}`);
+    console.log(`✅ Status: ${admin.status}`);
     
     process.exit(0);
   } catch (error) {

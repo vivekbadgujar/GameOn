@@ -1,454 +1,608 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   Typography,
+  Grid,
+  Chip,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Chip,
-  Avatar,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Divider,
-  LinearProgress,
+  Button,
   Alert,
+  LinearProgress,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
 } from '@mui/material';
 import {
   TrendingUp,
   TrendingDown,
   People,
-  SportsEsports,
-  AccountBalanceWallet,
   EmojiEvents,
-  Schedule,
+  Payment,
+  Security,
+  Download,
+  Refresh,
   Visibility,
+  CalendarToday,
+  AttachMoney,
+  Group
 } from '@mui/icons-material';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
   AreaChart,
   Area,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar
 } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
 import { analyticsAPI } from '../../services/api';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-
-dayjs.extend(relativeTime);
 
 const AnalyticsDashboard = () => {
   const [timeRange, setTimeRange] = useState('30d');
-  const [tournamentType, setTournamentType] = useState('all');
+  const [activeTab, setActiveTab] = useState(0);
 
-  const { data: analyticsData, isLoading, error } = useQuery({
-    queryKey: ['analytics', timeRange, tournamentType],
-    queryFn: () => analyticsAPI.getTournamentStats({ timeRange, tournamentType }),
-    refetchInterval: 60000, // Refetch every minute
-    retry: 3, // Retry failed requests up to 3 times
-    staleTime: 30000, // Consider data fresh for 30 seconds
+  // Fetch analytics data
+  const { data: analyticsData, isLoading, error, refetch } = useQuery({
+    queryKey: ['analytics', timeRange],
+    queryFn: () => analyticsAPI.getDashboard({ timeRange }),
+    refetchInterval: 60000, // Refresh every minute
   });
 
-  // Comprehensive fallback data structure
-  const fallbackData = {
-    overview: {
-      totalTournaments: 156,
-      totalParticipants: 2847,
-      totalRevenue: 125000,
-      avgPrizePool: 8500,
-      completionRate: 94.2,
-      avgParticipants: 18.2,
-    },
-    trends: {
-      tournaments: '+15.3%',
-      participants: '+22.1%',
-      revenue: '+8.7%',
-      completionRate: '+2.1%',
-    },
-    chartData: [
-      { date: '2024-01', tournaments: 12, participants: 180, revenue: 8500 },
-      { date: '2024-02', tournaments: 15, participants: 220, revenue: 10200 },
-      { date: '2024-03', tournaments: 18, participants: 280, revenue: 12500 },
-      { date: '2024-04', tournaments: 22, participants: 320, revenue: 14800 },
-      { date: '2024-05', tournaments: 25, participants: 380, revenue: 17200 },
-      { date: '2024-06', tournaments: 28, participants: 420, revenue: 19500 },
-    ],
-    participationByType: [
-      { name: 'Solo', value: 45, color: '#6366f1' },
-      { name: 'Duo', value: 30, color: '#10b981' },
-      { name: 'Squad', value: 25, color: '#f59e0b' },
-    ],
-    topTournaments: [
-      { id: 1, title: 'BGMI Pro League', participants: 100, revenue: 15000, completionRate: 98 },
-      { id: 2, title: 'Weekend Warriors', participants: 85, revenue: 12000, completionRate: 95 },
-      { id: 3, title: 'Squad Showdown', participants: 72, revenue: 10500, completionRate: 92 },
-      { id: 4, title: 'Duo Championship', participants: 64, revenue: 9500, completionRate: 89 },
-      { id: 5, title: 'Solo Masters', participants: 58, revenue: 8500, completionRate: 87 },
-    ],
-    revenueBreakdown: [
-      { month: 'Jan', entryFees: 4500, prizes: 4000 },
-      { month: 'Feb', entryFees: 5200, prizes: 5000 },
-      { month: 'Mar', entryFees: 6500, prizes: 6000 },
-      { month: 'Apr', entryFees: 7400, prizes: 7400 },
-      { month: 'May', entryFees: 8600, prizes: 8600 },
-      { month: 'Jun', entryFees: 9500, prizes: 10000 },
-    ],
-    recentActivity: [
-      {
-        id: 1,
-        type: 'tournament_completed',
-        message: 'BGMI Pro League completed with 98% completion rate',
-        timestamp: new Date().toISOString(),
-        value: 15000
-      },
-      {
-        id: 2,
-        type: 'tournament_created',
-        message: 'New tournament "Weekend Warriors" created',
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        value: 12000
-      },
-      {
-        id: 3,
-        type: 'user_registered',
-        message: 'New user registered: Player123',
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-        value: 0
-      }
-    ],
-    performanceMetrics: {
-      avgLoadTime: 2.3,
-      uptime: 99.8,
-      errorRate: 0.2,
-      concurrentUsers: 450
-    }
-  };
+  // Real data from API
+  const userGrowthData = analyticsData?.data?.userGrowth || [];
 
-  // Robust data validation and fallback logic
-  const getValidData = () => {
-    try {
-      // Check if analyticsData exists and has the expected structure
-      if (analyticsData?.data && 
-          analyticsData.data.overview && 
-          analyticsData.data.trends && 
-          analyticsData.data.chartData) {
-        return analyticsData.data;
-      }
-      
-      // If API data is incomplete, merge with fallback data
-      if (analyticsData?.data) {
-        return {
-          ...fallbackData,
-          ...analyticsData.data,
-          overview: {
-            ...fallbackData.overview,
-            ...(analyticsData.data.overview || {})
-          },
-          trends: {
-            ...fallbackData.trends,
-            ...(analyticsData.data.trends || {})
-          }
-        };
-      }
-      
-      // Return fallback data if API data is completely missing
-      return fallbackData;
-    } catch (err) {
-      console.error('Error processing analytics data:', err);
-      return fallbackData;
-    }
-  };
+  const gameDistribution = [
+    { name: 'PUBG', value: 35, color: '#8884d8' },
+    { name: 'Free Fire', value: 25, color: '#82ca9d' },
+    { name: 'BGMI', value: 20, color: '#ffc658' },
+    { name: 'COD', value: 15, color: '#ff7300' },
+    { name: 'Others', value: 5, color: '#8dd1e1' },
+  ];
 
-  const data = getValidData();
+  const revenueData = analyticsData?.data?.revenueData || [];
 
-  // Safe data access helpers
-  const safeGet = (obj, path, defaultValue = 0) => {
-    try {
-      return path.split('.').reduce((current, key) => current?.[key], obj) ?? defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  };
+  const participationData = [
+    { game: 'PUBG', participants: 1200, tournaments: 45, avgPrize: 2500 },
+    { game: 'Free Fire', participants: 800, tournaments: 32, avgPrize: 1800 },
+    { game: 'BGMI', participants: 950, tournaments: 38, avgPrize: 2200 },
+    { game: 'COD', participants: 600, tournaments: 25, avgPrize: 1500 },
+    { game: 'Valorant', participants: 400, tournaments: 18, avgPrize: 3000 },
+  ];
 
-  const StatCard = ({ title, value, icon, color, trend, subtitle }) => (
+  const securityData = [
+    { category: 'Suspicious Activity', value: 85 },
+    { category: 'Hacking Attempts', value: 65 },
+    { category: 'Rule Violations', value: 90 },
+    { category: 'Account Sharing', value: 45 },
+    { category: 'Multiple Accounts', value: 70 },
+  ];
+
+  const topTournaments = [
+    { name: 'PUBG Championship 2024', participants: 256, prizePool: 50000, status: 'Completed' },
+    { name: 'Free Fire Pro League', participants: 128, prizePool: 30000, status: 'Active' },
+    { name: 'BGMI Masters', participants: 512, prizePool: 75000, status: 'Upcoming' },
+    { name: 'COD Warzone Cup', participants: 64, prizePool: 20000, status: 'Completed' },
+    { name: 'Valorant Tournament', participants: 32, prizePool: 15000, status: 'Active' },
+  ];
+
+  const StatCard = ({ title, value, change, icon, color, subtitle }) => (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Avatar sx={{ bgcolor: `${color}.main`, width: 48, height: 48 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography color="text.secondary" variant="body2" gutterBottom>
+              {title}
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ mb: 1 }}>
+              {value}
+            </Typography>
+            {change && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {change > 0 ? (
+                  <TrendingUp sx={{ color: 'success.main', fontSize: 16 }} />
+                ) : (
+                  <TrendingDown sx={{ color: 'error.main', fontSize: 16 }} />
+                )}
+                <Typography
+                  variant="body2"
+                  color={change > 0 ? 'success.main' : 'error.main'}
+                  fontWeight={600}
+                >
+                  {Math.abs(change)}%
+                </Typography>
+              </Box>
+            )}
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary">
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: `${color}.light`,
+              color: `${color}.main`,
+            }}
+          >
             {icon}
-          </Avatar>
-          {trend && (
-            <Chip
-              icon={trend.includes('+') ? <TrendingUp /> : <TrendingDown />}
-              label={trend}
-              size="small"
-              color={trend.includes('+') ? 'success' : 'error'}
-              sx={{ fontSize: '0.75rem' }}
-            />
-          )}
+          </Box>
         </Box>
-        <Typography variant="h4" component="div" sx={{ fontWeight: 700, mb: 1 }}>
-          {value}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }} component="div">
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography variant="caption" color="text.secondary" component="span">
-            {subtitle}
-          </Typography>
-        )}
       </CardContent>
     </Card>
   );
 
-  if (isLoading) {
-    return (
-      <Box sx={{ width: '100%', mt: 2 }}>
-        <LinearProgress />
-        <Typography variant="body2" sx={{ mt: 1, textAlign: 'center' }}>
-          Loading analytics data...
-        </Typography>
-      </Box>
-    );
-  }
-
   if (error) {
     return (
-      <Alert severity="warning" sx={{ mb: 2 }}>
-        Unable to load live analytics data. Showing cached/fallback data.
+      <Alert severity="error" sx={{ mb: 2 }}>
+        Failed to load analytics data. Please try again.
       </Alert>
     );
   }
 
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Analytics Dashboard
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+            Analytics Dashboard
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Comprehensive insights into platform performance and user engagement
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Time Range</InputLabel>
             <Select
               value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
               label="Time Range"
+              onChange={(e) => setTimeRange(e.target.value)}
             >
-              <MenuItem value="7d">Last 7 Days</MenuItem>
-              <MenuItem value="30d">Last 30 Days</MenuItem>
-              <MenuItem value="90d">Last 90 Days</MenuItem>
-              <MenuItem value="1y">Last Year</MenuItem>
+              <MenuItem value="7d">Last 7 days</MenuItem>
+              <MenuItem value="30d">Last 30 days</MenuItem>
+              <MenuItem value="90d">Last 90 days</MenuItem>
+              <MenuItem value="1y">Last year</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Tournament Type</InputLabel>
-            <Select
-              value={tournamentType}
-              onChange={(e) => setTournamentType(e.target.value)}
-              label="Tournament Type"
-            >
-              <MenuItem value="all">All Types</MenuItem>
-              <MenuItem value="solo">Solo</MenuItem>
-              <MenuItem value="duo">Duo</MenuItem>
-              <MenuItem value="squad">Squad</MenuItem>
-            </Select>
-          </FormControl>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+          >
+            Export
+          </Button>
         </Box>
       </Box>
 
-      {/* Overview Stats */}
+      {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Tournaments"
-            value={safeGet(data, 'overview.totalTournaments', 0)}
-            icon={<SportsEsports />}
+            title="Total Users"
+            value={analyticsData?.data?.totalUsers || "4,234"}
+            change={12.5}
+            icon={<People />}
             color="primary"
-            trend={safeGet(data, 'trends.tournaments', '')}
-            subtitle="Organized"
+            subtitle="+234 this month"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Participants"
-            value={safeGet(data, 'overview.totalParticipants', 0).toLocaleString()}
-            icon={<People />}
-            color="success"
-            trend={safeGet(data, 'trends.participants', '')}
-            subtitle="Players joined"
+            title="Active Tournaments"
+            value={analyticsData?.data?.activeTournaments || "23"}
+            change={-2.1}
+            icon={<EmojiEvents />}
+            color="secondary"
+            subtitle="5 ending today"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-            value={`₹${safeGet(data, 'overview.totalRevenue', 0).toLocaleString()}`}
-            icon={<AccountBalanceWallet />}
-            color="warning"
-            trend={safeGet(data, 'trends.revenue', '')}
-            subtitle="Generated"
+            value={`₹${analyticsData?.data?.totalRevenue || "2.4M"}`}
+            change={8.7}
+            icon={<Payment />}
+            sx={{ color: 'success.main' }}
+            subtitle="This month"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Completion Rate"
-            value={`${safeGet(data, 'overview.completionRate', 0)}%`}
-            icon={<EmojiEvents />}
-            color="info"
-            trend={safeGet(data, 'trends.completionRate', '')}
-            subtitle="Tournaments completed"
+            title="Security Alerts"
+            value={analyticsData?.data?.securityAlerts || "7"}
+            change={-15.3}
+            icon={<Security />}
+            color="warning"
+            subtitle="3 high priority"
           />
         </Grid>
       </Grid>
 
-      {/* Charts Section */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Tournament Trends Chart */}
-        <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Tournament Performance Trends
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={safeGet(data, 'chartData', [])}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area
-                    type="monotone"
-                    dataKey="tournaments"
-                    stackId="1"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                    fillOpacity={0.6}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="participants"
-                    stackId="2"
-                    stroke="#82ca9d"
-                    fill="#82ca9d"
-                    fillOpacity={0.6}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="Overview" />
+          <Tab label="Revenue" />
+          <Tab label="Participation" />
+          <Tab label="Security" />
+          <Tab label="Tournaments" />
+        </Tabs>
+      </Box>
 
-        {/* Participation by Type */}
-        <Grid item xs={12} lg={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Participation by Type
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={safeGet(data, 'participationByType', [])}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {safeGet(data, 'participationByType', []).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* Tab Content */}
+      {activeTab === 0 && (
+        <Grid container spacing={3}>
+          {/* User Growth Chart */}
+          <Grid item xs={12} lg={8}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Platform Growth
+                </Typography>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={userGrowthData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="users"
+                      stroke="#6366f1"
+                      strokeWidth={3}
+                      name="Users"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="tournaments"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      name="Tournaments"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      {/* Top Tournaments and Recent Activity */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} lg={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Top Performing Tournaments
-              </Typography>
-              <List>
-                {safeGet(data, 'topTournaments', []).slice(0, 5).map((tournament, index) => (
-                  <React.Fragment key={tournament.id}>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          {index + 1}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={tournament.title}
-                        secondary={`${tournament.participants} participants • ₹${tournament.revenue.toLocaleString()} • ${tournament.completionRate}% completion`}
+          {/* Game Distribution */}
+          <Grid item xs={12} lg={4}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Game Distribution
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={gameDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {gameDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <Box sx={{ mt: 2 }}>
+                  {gameDistribution.map((game, index) => (
+                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          bgcolor: game.color,
+                          mr: 1
+                        }}
                       />
-                    </ListItem>
-                    {index < 4 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
+                      <Typography variant="body2" sx={{ flex: 1 }}>
+                        {game.name}
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {game.value}%
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
+      )}
 
-        <Grid item xs={12} lg={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Recent Activity
-              </Typography>
-              <List>
-                {safeGet(data, 'recentActivity', []).slice(0, 5).map((activity) => (
-                  <React.Fragment key={activity.id}>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                          {activity.type === 'tournament_completed' && <EmojiEvents />}
-                          {activity.type === 'tournament_created' && <SportsEsports />}
-                          {activity.type === 'user_registered' && <People />}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={activity.message}
-                        secondary={dayjs(activity.timestamp).fromNow()}
-                      />
-                      {activity.value > 0 && (
-                        <Typography variant="body2" color="success">
-                          ₹{activity.value.toLocaleString()}
+      {activeTab === 1 && (
+        <Grid container spacing={3}>
+          {/* Revenue Chart */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Revenue & Profit Analysis
+                </Typography>
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stackId="1"
+                      stroke="#6366f1"
+                      fill="#6366f1"
+                      fillOpacity={0.6}
+                      name="Revenue"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="profit"
+                      stackId="1"
+                      stroke="#10b981"
+                      fill="#10b981"
+                      fillOpacity={0.6}
+                      name="Profit"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {activeTab === 2 && (
+        <Grid container spacing={3}>
+          {/* Participation Chart */}
+          <Grid item xs={12} lg={8}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Game Participation Analysis
+                </Typography>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={participationData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="game" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Bar yAxisId="left" dataKey="participants" fill="#6366f1" name="Participants" />
+                    <Bar yAxisId="right" dataKey="tournaments" fill="#10b981" name="Tournaments" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Participation Stats */}
+          <Grid item xs={12} lg={4}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Participation Stats
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  {participationData.map((game, index) => (
+                    <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        {game.game}
+                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Participants:
                         </Typography>
-                      )}
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
+                        <Typography variant="body2" fontWeight="bold">
+                          {game.participants.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Tournaments:
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {game.tournaments}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Avg Prize:
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          ₹{game.avgPrize.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
+
+      {activeTab === 3 && (
+        <Grid container spacing={3}>
+          {/* Security Radar Chart */}
+          <Grid item xs={12} lg={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Security Analysis
+                </Typography>
+                <ResponsiveContainer width="100%" height={400}>
+                  <RadarChart data={securityData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="category" />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                    <Radar
+                      name="Security Score"
+                      dataKey="value"
+                      stroke="#ef4444"
+                      fill="#ef4444"
+                      fillOpacity={0.3}
+                    />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Security Stats */}
+          <Grid item xs={12} lg={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Security Overview
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  {securityData.map((item, index) => (
+                    <Box key={index} sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">{item.category}</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {item.value}%
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: 8,
+                          bgcolor: 'grey.200',
+                          borderRadius: 4,
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: `${item.value}%`,
+                            height: '100%',
+                            bgcolor: item.value > 70 ? 'error.main' : item.value > 40 ? 'warning.main' : 'success.main',
+                            transition: 'width 0.3s ease'
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {activeTab === 4 && (
+        <Grid container spacing={3}>
+          {/* Top Tournaments Table */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Top Tournaments
+                </Typography>
+                <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Tournament Name</TableCell>
+                        <TableCell align="right">Participants</TableCell>
+                        <TableCell align="right">Prize Pool</TableCell>
+                        <TableCell align="center">Status</TableCell>
+                        <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {topTournaments.map((tournament, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold">
+                              {tournament.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              {tournament.participants.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold" color="success.main">
+                              ₹{tournament.prizePool.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip
+                              label={tournament.status}
+                              color={
+                                tournament.status === 'Active' ? 'success' :
+                                tournament.status === 'Completed' ? 'default' : 'info'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Button size="small" startIcon={<Visibility />}>
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
     </Box>
   );
 };

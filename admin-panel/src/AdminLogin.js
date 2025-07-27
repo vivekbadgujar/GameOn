@@ -1,20 +1,33 @@
 import React, { useState } from 'react';
-import { Container, Box, Typography, TextField, Button, Paper } from '@mui/material';
+import { Container, Box, Typography, TextField, Button, Paper, Alert, CircularProgress } from '@mui/material';
+import { useAuth } from './contexts/AuthContext';
 
-const AdminLogin = ({ onLogin }) => {
+const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    // TODO: Connect to backend API for admin login
-    if (email && password) {
-      // Simulate login success
-      onLogin();
-    } else {
-      setError('Please enter email and password');
+    setLoading(true);
+
+    try {
+      const result = await login({ email, password });
+      
+      if (result.success) {
+        // Login successful - AuthContext will handle the state update
+        console.log('Login successful');
+      } else {
+        setError(result.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -34,6 +47,7 @@ const AdminLogin = ({ onLogin }) => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
             <TextField
               label="Password"
@@ -43,12 +57,30 @@ const AdminLogin = ({ onLogin }) => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
-            {error && <Typography color="error" variant="body2">{error}</Typography>}
-            <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
-              Login
+            {error && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {error}
+              </Alert>
+            )}
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary" 
+              fullWidth 
+              sx={{ mt: 2 }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Login'}
             </Button>
           </form>
+          
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="textSecondary">
+              Admin Panel - GameOn Platform
+            </Typography>
+          </Box>
         </Paper>
       </Box>
     </Container>

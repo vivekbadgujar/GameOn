@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -8,12 +7,15 @@ import {
   Button,
   Grid,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Divider,
+  Alert,
+  LinearProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,62 +25,111 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert,
-  LinearProgress,
   IconButton,
+  Tooltip,
+  Tabs,
+  Tab,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Divider
 } from '@mui/material';
 import {
-  DataGrid,
-  GridToolbar,
-  GridActionsCellItem,
-} from '@mui/x-data-grid';
-import {
-  AccountBalanceWallet,
+  Payment,
   CheckCircle,
-  Cancel,
-  Schedule,
+  Pending,
   Error,
   Visibility,
-  Payment,
-  History,
+  Edit,
+  Delete,
+  Download,
+  Refresh,
+  FilterList,
+  AccountBalance,
+  TrendingUp,
+  TrendingDown,
+  Schedule,
+  Warning
 } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { payoutAPI } from '../../services/api';
 import dayjs from 'dayjs';
 
 const PrizePayouts = () => {
-  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedPayout, setSelectedPayout] = useState(null);
   const [processDialog, setProcessDialog] = useState(false);
-  const [statusDialog, setStatusDialog] = useState(false);
-  const [newStatus, setNewStatus] = useState('');
-
-  const { data: payoutsResponse, isLoading } = useQuery({
-    queryKey: ['payouts'],
-    queryFn: payoutAPI.getAll,
-    refetchInterval: 30000,
+  const [updateDialog, setUpdateDialog] = useState(false);
+  const [updateData, setUpdateData] = useState({
+    status: '',
+    notes: ''
   });
 
-  // Ensure data is always an array
-  const data = Array.isArray(payoutsResponse?.data) ? payoutsResponse.data : [];
+  const queryClient = useQueryClient();
 
+  // Fetch payouts
+  const { data: payouts, isLoading, error, refetch } = useQuery({
+    queryKey: ['payouts', statusFilter],
+    queryFn: () => payoutAPI.getAll({ status: statusFilter }),
+  });
+
+  // Fetch pending payouts
+  const { data: pendingPayouts } = useQuery({
+    queryKey: ['pending-payouts'],
+    queryFn: () => payoutAPI.getPending(),
+  });
+
+  // Process payout mutation
   const processMutation = useMutation({
-    mutationFn: payoutAPI.processPayout,
+    mutationFn: (id) => payoutAPI.processPayout(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['payouts']);
+      queryClient.invalidateQueries(['pending-payouts']);
       setProcessDialog(false);
       setSelectedPayout(null);
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => payoutAPI.updateStatus(id, status),
+  // Update payout status mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => payoutAPI.updateStatus(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['payouts']);
-      setStatusDialog(false);
+      queryClient.invalidateQueries(['pending-payouts']);
+      setUpdateDialog(false);
       setSelectedPayout(null);
-      setNewStatus('');
+      setUpdateData({ status: '', notes: '' });
     },
   });
+
+  const handleProcessPayout = (payout) => {
+    setSelectedPayout(payout);
+    setProcessDialog(true);
+  };
+
+  const confirmProcessPayout = () => {
+    if (selectedPayout) {
+      processMutation.mutate(selectedPayout._id);
+    }
+  };
+
+  const handleUpdateStatus = (payout) => {
+    setSelectedPayout(payout);
+    setUpdateData({ status: payout.status, notes: payout.notes || '' });
+    setUpdateDialog(true);
+  };
+
+  const confirmUpdateStatus = () => {
+    if (selectedPayout && updateData.status) {
+      updateMutation.mutate({
+        id: selectedPayout._id,
+        data: updateData
+      });
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -86,226 +137,93 @@ const PrizePayouts = () => {
       case 'processing': return 'info';
       case 'completed': return 'success';
       case 'failed': return 'error';
+      case 'cancelled': return 'default';
       default: return 'default';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'pending': return <Schedule />;
-      case 'processing': return <Payment />;
+      case 'pending': return <Pending />;
+      case 'processing': return <Schedule />;
       case 'completed': return <CheckCircle />;
       case 'failed': return <Error />;
-      default: return <AccountBalanceWallet />;
+      case 'cancelled': return <Warning />;
+      default: return <Pending />;
     }
   };
 
-  const handleProcessPayout = () => {
-    if (selectedPayout) {
-      processMutation.mutate(selectedPayout.id);
-    }
+  const getPositionBadge = (position) => {
+    const colors = {
+      1: 'success',
+      2: 'info',
+      3: 'warning'
+    };
+    return (
+      <Chip
+        label={`${position}${position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th'}`}
+        color={colors[position] || 'default'}
+        size="small"
+      />
+    );
   };
 
-  const handleStatusUpdate = () => {
-    if (selectedPayout && newStatus) {
-      updateStatusMutation.mutate({ id: selectedPayout.id, status: newStatus });
-    }
-  };
+  const payoutData = Array.isArray(payouts?.data) ? payouts.data : [];
+  const pendingData = Array.isArray(pendingPayouts?.data) ? pendingPayouts.data : [];
 
-  const columns = [
-    {
-      field: 'tournament',
-      headerName: 'Tournament',
-      flex: 1,
-      minWidth: 200,
-      renderCell: (params) => (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {params.value}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {params.row.position} place
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'player',
-      headerName: 'Player',
-      width: 150,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
-            {params.value.charAt(0)}
-          </Avatar>
-          <Typography variant="body2">{params.value}</Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'amount',
-      headerName: 'Amount',
-      width: 120,
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-          ₹{params.value?.toLocaleString()}
-        </Typography>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 130,
-      renderCell: (params) => (
-        <Chip
-          icon={getStatusIcon(params.value)}
-          label={params.value}
-          color={getStatusColor(params.value)}
-          size="small"
-          sx={{ textTransform: 'capitalize' }}
-        />
-      ),
-    },
-    {
-      field: 'requestedAt',
-      headerName: 'Requested',
-      width: 150,
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {dayjs(params.value).format('MMM DD, HH:mm')}
-        </Typography>
-      ),
-    },
-    {
-      field: 'actions',
-      type: 'actions',
-      headerName: 'Actions',
-      width: 120,
-      getActions: (params) => [
-        <GridActionsCellItem
-          icon={<Visibility />}
-          label="View Details"
-          onClick={() => {
-            setSelectedPayout(params.row);
-            setProcessDialog(true);
-          }}
-        />,
-      ],
-    },
-  ];
-
-  // Mock data for demonstration
-  const mockPayouts = [
-    {
-      id: 1,
-      tournament: 'BGMI Pro League',
-      player: 'ProGamer123',
-      position: '1st',
-      amount: 5000,
-      status: 'pending',
-      requestedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      paymentMethod: 'UPI',
-      transactionId: null,
-    },
-    {
-      id: 2,
-      tournament: 'Weekend Warriors',
-      player: 'SquadLeader',
-      position: '2nd',
-      amount: 3000,
-      status: 'processing',
-      requestedAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      paymentMethod: 'Bank Transfer',
-      transactionId: 'TXN123456',
-    },
-    {
-      id: 3,
-      tournament: 'Solo Masters',
-      player: 'LoneWolf',
-      position: '1st',
-      amount: 2500,
-      status: 'completed',
-      requestedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      paymentMethod: 'UPI',
-      transactionId: 'TXN789012',
-    },
-    {
-      id: 4,
-      tournament: 'Duo Championship',
-      player: 'TeamPlayer',
-      position: '3rd',
-      amount: 1500,
-      status: 'failed',
-      requestedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
-      paymentMethod: 'UPI',
-      transactionId: null,
-    },
-  ];
-
-  const pendingPayouts = data.filter(p => p.status === 'pending');
-  const totalPendingAmount = pendingPayouts.reduce((sum, p) => sum + p.amount, 0);
+  // Calculate statistics
+  const totalPayouts = payoutData.length;
+  const totalAmount = payoutData.reduce((sum, payout) => sum + (payout.amount || 0), 0);
+  const pendingAmount = pendingData.reduce((sum, payout) => sum + (payout.amount || 0), 0);
+  const completedPayouts = payoutData.filter(p => p.status === 'completed').length;
 
   return (
     <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 700 }}>
-        Prize Payouts
-      </Typography>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+            Prize Payouts
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage tournament prize distributions and payment processing
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+          >
+            Export
+          </Button>
+        </Box>
+      </Box>
 
-      {/* Summary Cards */}
+      {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'warning.main' }}>
-                  <Schedule />
-                </Avatar>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {pendingPayouts.length}
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Total Payouts
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Pending Payouts
+                  <Typography variant="h4" component="div" fontWeight="bold">
+                    {totalPayouts}
                   </Typography>
                 </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <CheckCircle />
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    ₹{totalPendingAmount.toLocaleString()}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Pending Amount
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'info.main' }}>
+                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
                   <Payment />
                 </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {data.filter(p => p.status === 'processing').length}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Processing
-                  </Typography>
-                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -313,150 +231,287 @@ const PrizePayouts = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: 'error.main' }}>
-                  <Error />
-                </Avatar>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {data.filter(p => p.status === 'failed').length}
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Total Amount
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Failed Payouts
+                  <Typography variant="h4" component="div" fontWeight="bold" color="success.main">
+                    ₹{totalAmount.toLocaleString()}
                   </Typography>
                 </Box>
+                <Avatar sx={{ bgcolor: 'success.light', color: 'success.main' }}>
+                  <AccountBalance />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Pending Amount
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold" color="warning.main">
+                    ₹{pendingAmount.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'warning.light', color: 'warning.main' }}>
+                  <Pending />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Completed
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold" color="info.main">
+                    {completedPayouts}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'info.light', color: 'info.main' }}>
+                  <CheckCircle />
+                </Avatar>
               </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="All Payouts" />
+          <Tab label="Pending" />
+          <Tab label="Processing" />
+          <Tab label="Completed" />
+        </Tabs>
+      </Box>
+
+      {/* Filter */}
+      <Box sx={{ mb: 3 }}>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel>Filter by Status</InputLabel>
+          <Select
+            value={statusFilter}
+            label="Filter by Status"
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <MenuItem value="all">All Status</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="processing">Processing</MenuItem>
+            <MenuItem value="completed">Completed</MenuItem>
+            <MenuItem value="failed">Failed</MenuItem>
+            <MenuItem value="cancelled">Cancelled</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
       {/* Payouts Table */}
       <Card>
         <CardContent sx={{ p: 0 }}>
-          <DataGrid
-            rows={Array.isArray(data) ? data : []}
-            columns={columns}
-            loading={isLoading}
-            autoHeight
-            pageSizeOptions={[10, 25, 50]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-              sorting: { sortModel: [{ field: 'requestedAt', sort: 'desc' }] },
-            }}
-            slots={{ toolbar: GridToolbar }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-                quickFilterProps: { debounceMs: 500 },
-              },
-            }}
-            sx={{
-              border: 'none',
-              '& .MuiDataGrid-cell:focus': {
-                outline: 'none',
-              },
-            }}
-          />
+          <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Winner</TableCell>
+                  <TableCell>Tournament</TableCell>
+                  <TableCell>Position</TableCell>
+                  <TableCell>Amount</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {payoutData.map((payout, index) => (
+                  <TableRow key={index}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
+                          {payout.user?.username?.charAt(0) || 'U'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold">
+                            {payout.user?.username || 'Unknown User'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {payout.user?.email || 'No email'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold">
+                        {payout.tournament?.title || 'Unknown Tournament'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {payout.tournament?.game || 'Unknown Game'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {getPositionBadge(payout.position)}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold" color="success.main">
+                        ₹{payout.amount?.toLocaleString() || 0}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {getStatusIcon(payout.status)}
+                        <Chip
+                          label={payout.status}
+                          color={getStatusColor(payout.status)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {dayjs(payout.createdAt).format('MMM DD, HH:mm')}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small">
+                            <Visibility />
+                          </IconButton>
+                        </Tooltip>
+                        {payout.status === 'pending' && (
+                          <Tooltip title="Process Payout">
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => handleProcessPayout(payout)}
+                            >
+                              <Payment />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Update Status">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleUpdateStatus(payout)}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </CardContent>
       </Card>
 
       {/* Process Payout Dialog */}
-      <Dialog open={processDialog} onClose={() => setProcessDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Payout Details</DialogTitle>
+      <Dialog open={processDialog} onClose={() => setProcessDialog(false)}>
+        <DialogTitle>Process Payout</DialogTitle>
         <DialogContent>
           {selectedPayout && (
-            <Box sx={{ mt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    {selectedPayout.tournament}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">Player</Typography>
-                  <Typography variant="body1">{selectedPayout.player}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">Position</Typography>
-                  <Typography variant="body1">{selectedPayout.position}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">Amount</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'success.main' }}>
-                    ₹{selectedPayout.amount?.toLocaleString()}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">Status</Typography>
-                  <Chip
-                    icon={getStatusIcon(selectedPayout.status)}
-                    label={selectedPayout.status}
-                    color={getStatusColor(selectedPayout.status)}
-                    size="small"
-                    sx={{ textTransform: 'capitalize' }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body2" color="text.secondary">Payment Method</Typography>
-                  <Typography variant="body1">{selectedPayout.paymentMethod}</Typography>
-                </Grid>
-                {selectedPayout.transactionId && (
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">Transaction ID</Typography>
-                    <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
-                      {selectedPayout.transactionId}
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
+            <Box>
+              <Typography variant="body1" gutterBottom>
+                Are you sure you want to process the payout for:
+              </Typography>
+              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, mt: 2 }}>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  {selectedPayout.user?.username}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Tournament: {selectedPayout.tournament?.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Position: {selectedPayout.position}
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="success.main">
+                  Amount: ₹{selectedPayout.amount?.toLocaleString()}
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                This will initiate the payment process and update the status to "Processing".
+              </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setProcessDialog(false)}>Close</Button>
-          {selectedPayout?.status === 'pending' && (
-            <Button
-              onClick={() => {
-                setProcessDialog(false);
-                setStatusDialog(true);
-              }}
-              variant="contained"
-            >
-              Update Status
-            </Button>
-          )}
+          <Button onClick={() => setProcessDialog(false)}>Cancel</Button>
+          <Button
+            onClick={confirmProcessPayout}
+            variant="contained"
+            color="success"
+            disabled={processMutation.isLoading}
+          >
+            {processMutation.isLoading ? 'Processing...' : 'Process Payout'}
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Update Status Dialog */}
-      <Dialog open={statusDialog} onClose={() => setStatusDialog(false)}>
+      <Dialog open={updateDialog} onClose={() => setUpdateDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Update Payout Status</DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>New Status</InputLabel>
-            <Select
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              label="New Status"
-            >
-              <MenuItem value="processing">Processing</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="failed">Failed</MenuItem>
-            </Select>
-          </FormControl>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={updateData.status}
+                  label="Status"
+                  onChange={(e) => setUpdateData(prev => ({ ...prev, status: e.target.value }))}
+                >
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="processing">Processing</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="failed">Failed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                value={updateData.notes}
+                onChange={(e) => setUpdateData(prev => ({ ...prev, notes: e.target.value }))}
+                multiline
+                rows={3}
+                placeholder="Add any notes about this status update..."
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setStatusDialog(false)}>Cancel</Button>
+          <Button onClick={() => setUpdateDialog(false)}>Cancel</Button>
           <Button
-            onClick={handleStatusUpdate}
+            onClick={confirmUpdateStatus}
             variant="contained"
-            disabled={!newStatus || updateStatusMutation.isPending}
+            disabled={!updateData.status || updateMutation.isLoading}
           >
-            {updateStatusMutation.isPending ? 'Updating...' : 'Update Status'}
+            {updateMutation.isLoading ? 'Updating...' : 'Update Status'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Failed to load payout data. Please try again.
+        </Alert>
+      )}
     </Box>
   );
 };

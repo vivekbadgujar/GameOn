@@ -66,15 +66,14 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
       const activeTournaments = await Tournament.countDocuments({ status: 'upcoming' });
       const totalUsers = await User.countDocuments();
       const totalRevenue = await Transaction.aggregate([
-        { $match: { type: 'entry_fee' } },
+        { $match: { type: 'tournament_entry' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
 
       // Get recent activity
       const recentTournaments = await Tournament.find()
         .sort({ createdAt: -1 })
-        .limit(5)
-        .populate('createdBy', 'username');
+        .limit(5);
 
       const recentUsers = await User.find()
         .sort({ createdAt: -1 })
@@ -91,7 +90,7 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
         ...recentUsers.map(u => ({
           id: u._id,
           type: 'user_registered',
-          message: `New user registered: ${u.username}`,
+          message: `New user registered: ${u.username || u.email}`,
           timestamp: u.createdAt.toISOString()
         }))
       ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
@@ -115,7 +114,7 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
         const revenue = await Transaction.aggregate([
           {
             $match: {
-              type: 'entry_fee',
+              type: 'tournament_entry',
               createdAt: { $gte: startOfMonth, $lte: endOfMonth }
             }
           },
@@ -198,11 +197,10 @@ router.get('/tournaments', authenticateAdmin, async (req, res) => {
         { $group: { _id: '$teamType', count: { $sum: 1 } } }
       ]);
 
-      // Get top tournaments
-      const topTournaments = await Tournament.find(query)
-        .sort({ currentParticipants: -1 })
-        .limit(5)
-        .populate('createdBy', 'username');
+             // Get top tournaments
+       const topTournaments = await Tournament.find(query)
+         .sort({ currentParticipants: -1 })
+         .limit(5);
 
       // Get monthly chart data
       const chartData = [];
@@ -230,11 +228,10 @@ router.get('/tournaments', authenticateAdmin, async (req, res) => {
         });
       }
 
-      // Get recent activity
-      const recentActivity = await Tournament.find(query)
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .populate('createdBy', 'username');
+             // Get recent activity
+       const recentActivity = await Tournament.find(query)
+         .sort({ createdAt: -1 })
+         .limit(10);
 
       analyticsData = {
         overview: {
@@ -345,11 +342,11 @@ router.get('/revenue', authenticateAdmin, async (req, res) => {
     let revenueData = getCachedData(cacheKey);
     
     if (!revenueData) {
-      // Get total revenue from transactions
-      const totalRevenue = await Transaction.aggregate([
-        { $match: { type: 'entry_fee' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
+             // Get total revenue from transactions
+       const totalRevenue = await Transaction.aggregate([
+         { $match: { type: 'tournament_entry' } },
+         { $group: { _id: null, total: { $sum: '$amount' } } }
+       ]);
 
       // Get monthly revenue for last 6 months
       const monthlyRevenue = [];
@@ -359,15 +356,15 @@ router.get('/revenue', authenticateAdmin, async (req, res) => {
         const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
         const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-        const revenue = await Transaction.aggregate([
-          {
-            $match: {
-              type: 'entry_fee',
-              createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-            }
-          },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]);
+                 const revenue = await Transaction.aggregate([
+           {
+             $match: {
+               type: 'tournament_entry',
+               createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+             }
+           },
+           { $group: { _id: null, total: { $sum: '$amount' } } }
+         ]);
 
         monthlyRevenue.push({
           month: date.toLocaleDateString('en-US', { month: 'short' }),
@@ -375,11 +372,11 @@ router.get('/revenue', authenticateAdmin, async (req, res) => {
         });
       }
 
-      // Get revenue breakdown
-      const entryFees = await Transaction.aggregate([
-        { $match: { type: 'entry_fee' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]);
+             // Get revenue breakdown
+       const entryFees = await Transaction.aggregate([
+         { $match: { type: 'tournament_entry' } },
+         { $group: { _id: null, total: { $sum: '$amount' } } }
+       ]);
 
       const withdrawals = await Transaction.aggregate([
         { $match: { type: 'withdrawal' } },

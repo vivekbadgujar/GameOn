@@ -13,13 +13,18 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
   return config;
 });
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
   (error) => {
+    console.error(`API Error: ${error.response?.status || 'Network Error'} ${error.config?.url}`);
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
       window.location.href = '/admin/login';
@@ -39,8 +44,14 @@ export const authAPI = {
 export const tournamentAPI = {
   getAll: (params = {}) => api.get('/admin/tournaments', { params }),
   getById: (id) => api.get(`/admin/tournaments/${id}`),
-  create: (data) => api.post('/admin/tournaments', data),
-  update: (id, data) => api.put(`/admin/tournaments/${id}`, data),
+  create: (data) => {
+    console.log('API: Creating tournament with data:', data);
+    return api.post('/admin/tournaments', data);
+  },
+  update: (id, data) => {
+    console.log('API: Updating tournament with data:', data);
+    return api.put(`/admin/tournaments/${id}`, data);
+  },
   delete: (id) => api.delete(`/admin/tournaments/${id}`),
   updateStatus: (id, status) => api.patch(`/admin/tournaments/${id}/status`, { status }),
   postResult: (id, result) => api.post(`/admin/tournaments/${id}/results`, result),
@@ -133,11 +144,11 @@ export const aiReportsAPI = {
 export const searchExportAPI = {
   search: (query, type) => api.get('/admin/search', { params: { q: query, type } }),
   exportData: (type, format, filters = {}) => 
-    api.get('/admin/export', { 
-      params: { type, format, ...filters },
-      responseType: 'blob'
-    }),
+    api.post('/admin/export', { type, format, ...filters }),
   getExportHistory: () => api.get('/admin/export/history'),
+  getExportStats: () => api.get('/admin/export/stats'),
+  getDataPreview: (type, params = {}) => api.get(`/admin/export/preview/${type}`, { params }),
+  downloadExport: (filename) => api.get(`/admin/export/download/${filename}`, { responseType: 'blob' }),
 };
 
 export default api; 

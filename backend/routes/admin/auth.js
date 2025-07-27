@@ -104,15 +104,22 @@ router.post('/login',
       // Generate tokens
       const tokenExpiry = rememberMe ? '30d' : '8h';
       const accessToken = generateToken(admin._id, tokenExpiry);
-      const refreshToken = generateRefreshToken(admin._id);
+      
+      // Generate refresh token only if JWT_REFRESH_SECRET is available
+      let refreshToken = null;
+      if (process.env.JWT_REFRESH_SECRET) {
+        refreshToken = generateRefreshToken(admin._id);
+      }
 
-      // Set secure HTTP-only cookie for refresh token
-      res.cookie('adminRefreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-      });
+      // Set secure HTTP-only cookie for refresh token (only if available)
+      if (refreshToken) {
+        res.cookie('adminRefreshToken', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        });
+      }
 
       res.json({
         success: true,
@@ -131,9 +138,11 @@ router.post('/login',
 
     } catch (error) {
       console.error('Admin login error:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({
         success: false,
-        message: 'Login failed due to server error'
+        message: 'Login failed due to server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -171,6 +180,13 @@ router.post('/refresh-token', async (req, res) => {
     }
 
     // Verify refresh token
+    if (!process.env.JWT_REFRESH_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Refresh token functionality not configured'
+      });
+    }
+    
     const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     

@@ -333,13 +333,13 @@ const SearchFilter = () => {
                           </Box>
                         }
                         secondary={
-                          <Box>
+                          <React.Fragment>
                             <Typography variant="body2" sx={{ mb: 1 }}>
                               {result.description}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               {result.amount && (
-                                <Typography variant="body2" color="success" sx={{ fontWeight: 600 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
                                   ₹{result.amount.toLocaleString()}
                                 </Typography>
                               )}
@@ -347,7 +347,7 @@ const SearchFilter = () => {
                                 {new Date(result.date).toLocaleDateString()}
                               </Typography>
                             </Box>
-                          </Box>
+                          </React.Fragment>
                         }
                       />
                       <Button size="small" variant="outlined">

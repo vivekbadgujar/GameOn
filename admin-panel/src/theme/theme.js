@@ -25,15 +25,39 @@ export const theme = createTheme({
     },
     error: {
       main: '#ef4444',
+      light: '#f87171',
+      dark: '#dc2626',
+      contrastText: '#ffffff',
     },
     warning: {
       main: '#f59e0b',
+      light: '#fbbf24',
+      dark: '#d97706',
+      contrastText: '#ffffff',
     },
     info: {
       main: '#3b82f6',
+      light: '#60a5fa',
+      dark: '#2563eb',
+      contrastText: '#ffffff',
     },
     success: {
       main: '#10b981',
+      light: '#34d399',
+      dark: '#059669',
+      contrastText: '#ffffff',
+    },
+    grey: {
+      50: '#f8fafc',
+      100: '#f1f5f9',
+      200: '#e2e8f0',
+      300: '#cbd5e1',
+      400: '#94a3b8',
+      500: '#64748b',
+      600: '#475569',
+      700: '#334155',
+      800: '#1e293b',
+      900: '#0f172a',
     },
   },
   typography: {
@@ -88,12 +112,6 @@ export const theme = createTheme({
           fontWeight: 600,
           borderRadius: 8,
           padding: '8px 16px',
-        },
-        contained: {
-          boxShadow: 'none',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-          },
         },
       },
     },

@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@types/node": "^18.19.120",
+    "@types/node": "^20.10.5",
     "dotenv": "^17.2.1"
   }
 }

@@ -7,6 +7,7 @@ const Transaction = require('../../models/Transaction');
 const Notification = require('../../models/Notification');
 const AIFlag = require('../../models/AIFlag');
 const Media = require('../../models/Media');
+const Export = require('../../models/Export');
 const { authenticateAdmin } = require('../../middleware/adminAuth');
 const csv = require('csv-writer').createObjectCsvWriter;
 const path = require('path');
@@ -85,16 +86,17 @@ router.post('/', authenticateAdmin, async (req, res) => {
         });
     }
 
-    // Create export record
-    const exportRecord = {
+    // Create export record in database
+    const exportRecord = new Export({
       type,
       format: format || 'csv',
       requestedBy: adminId,
-      requestedAt: new Date(),
       status: 'processing',
       recordCount,
       filters: { dateRange, filters }
-    };
+    });
+
+    await exportRecord.save();
 
     // Generate file
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -104,30 +106,44 @@ router.post('/', authenticateAdmin, async (req, res) => {
     // Ensure exports directory exists
     await fs.mkdir(path.dirname(filepath), { recursive: true });
 
-    if (format === 'json') {
-      await fs.writeFile(filepath, JSON.stringify(data, null, 2));
-    } else {
-      // CSV format
-      const csvWriter = csv({
-        path: filepath,
-        header: Object.keys(data[0] || {}).map(key => ({ id: key, title: key }))
-      });
-      await csvWriter.writeRecords(data);
-    }
+    try {
+      if (format === 'json') {
+        await fs.writeFile(filepath, JSON.stringify(data, null, 2));
+      } else {
+        // CSV format
+        const csvWriter = csv({
+          path: filepath,
+          header: Object.keys(data[0] || {}).map(key => ({ id: key, title: key }))
+        });
+        await csvWriter.writeRecords(data);
+      }
 
-    // Update export record
-    exportRecord.status = 'completed';
-    exportRecord.downloadUrl = `/api/admin/export/download/${filename}`;
-    exportRecord.filename = filename;
+      // Get file size
+      const stats = await fs.stat(filepath);
+      const fileSize = (stats.size / 1024 / 1024).toFixed(2) + ' MB';
 
-    // Save to database (you might want to create an Export model)
-    // For now, we'll store in memory and emit socket event
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('exportCompleted', {
-        type: 'exportCompleted',
-        data: exportRecord
-      });
+      // Update export record
+      exportRecord.status = 'completed';
+      exportRecord.completedAt = new Date();
+      exportRecord.downloadUrl = `/api/admin/export/download/${filename}`;
+      exportRecord.filename = filename;
+      exportRecord.fileSize = fileSize;
+      await exportRecord.save();
+
+      // Emit socket event
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('exportCompleted', {
+          type: 'exportCompleted',
+          data: exportRecord
+        });
+      }
+    } catch (error) {
+      // Update export record with error
+      exportRecord.status = 'failed';
+      exportRecord.error = error.message;
+      await exportRecord.save();
+      throw error;
     }
 
     res.json({
@@ -141,6 +157,44 @@ router.post('/', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create export'
+    });
+  }
+});
+
+// Get export history
+router.get('/history', authenticateAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, type } = req.query;
+    const skip = (page - 1) * limit;
+
+    let query = { requestedBy: req.admin._id };
+    if (status) query.status = status;
+    if (type) query.type = type;
+
+    const exports = await Export.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('requestedBy', 'username email');
+
+    const total = await Export.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: exports,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching export history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch export history'
     });
   }
 });

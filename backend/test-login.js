@@ -1,55 +1,50 @@
 const mongoose = require('mongoose');
 const Admin = require('./models/Admin');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config();
 
-async function testLogin() {
+const testLogin = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-
+    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority');
     console.log('Connected to MongoDB');
 
-    // Test admin credentials
-    const email = 'gameonofficial04@gmail.com';
-    const password = 'GameOn@321';
-
-    // Find admin
-    const admin = await Admin.findOne({ email: email.toLowerCase() });
+    // Find admin by email
+    const admin = await Admin.findOne({ email: 'admin@gameon.com' });
     
     if (!admin) {
       console.log('❌ Admin not found');
       return;
     }
 
-    console.log('✅ Admin found:', admin.email);
-    console.log('Role:', admin.role);
-    console.log('Status:', admin.status);
-    console.log('Is Email Verified:', admin.isEmailVerified);
+    console.log('✅ Admin found:', {
+      email: admin.email,
+      role: admin.role,
+      status: admin.status,
+      isEmailVerified: admin.isEmailVerified
+    });
 
     // Test password comparison
-    const isPasswordValid = await admin.comparePassword(password);
-    console.log('Password valid:', isPasswordValid);
+    const testPassword = 'admin123456';
+    const isPasswordValid = await admin.comparePassword(testPassword);
+    
+    console.log('🔑 Password test:', isPasswordValid ? '✅ Valid' : '❌ Invalid');
 
-    // Check if account is locked
-    console.log('Is locked:', admin.isLocked);
-
-    if (isPasswordValid && !admin.isLocked && admin.status === 'active') {
-      console.log('✅ Login should work!');
+    // Test login flow
+    if (isPasswordValid && admin.status === 'active' && admin.isEmailVerified) {
+      console.log('✅ Login would be successful');
     } else {
-      console.log('❌ Login will fail');
+      console.log('❌ Login would fail');
+      if (!isPasswordValid) console.log('  - Invalid password');
+      if (admin.status !== 'active') console.log('  - Account not active');
+      if (!admin.isEmailVerified) console.log('  - Email not verified');
     }
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Test failed:', error);
   } finally {
     await mongoose.connection.close();
     console.log('MongoDB connection closed');
   }
-}
+};
 
-// Run the test
 testLogin(); 

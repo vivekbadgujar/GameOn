@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Card,
@@ -8,12 +7,9 @@ import {
   Button,
   Grid,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Divider,
+  Alert,
+  LinearProgress,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,262 +19,492 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert,
-  LinearProgress,
-  IconButton,
+  ImageList,
+  ImageListItem,
+  ImageListItemBar,
   Paper,
+  Tabs,
+  Tab,
+  Tooltip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Divider
 } from '@mui/material';
 import {
   CloudUpload,
-  Image,
-  VideoLibrary,
-  Link,
   Delete,
   Edit,
   Visibility,
   Download,
+  PhotoLibrary,
+  VideoLibrary,
+  Description,
+  Add,
+  Refresh,
+  FilterList,
+  Sort,
+  Search
 } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mediaAPI } from '../../services/api';
+import dayjs from 'dayjs';
 
 const MediaUpload = () => {
-  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState(0);
   const [uploadDialog, setUploadDialog] = useState(false);
+  const [editDialog, setEditDialog] = useState(false);
+  const [previewDialog, setPreviewDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [uploadData, setUploadData] = useState({
     title: '',
     description: '',
-    type: 'image',
-    file: null,
-    url: '',
+    type: 'poster',
     tournament: '',
+    tags: ''
+  });
+  const [editData, setEditData] = useState({
+    title: '',
+    description: '',
+    tags: ''
+  });
+  const [uploadingFile, setUploadingFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
+
+  const queryClient = useQueryClient();
+
+  // Fetch media files
+  const { data: mediaFiles, isLoading, error, refetch } = useQuery({
+    queryKey: ['media-files'],
+    queryFn: () => mediaAPI.getAll(),
   });
 
-  const { data: mediaFiles = [], isLoading } = useQuery({
-    queryKey: ['media'],
-    queryFn: mediaAPI.getAll,
-    refetchInterval: 30000,
-  });
-
+  // Upload media mutation
   const uploadMutation = useMutation({
-    mutationFn: ({ file, type }) => mediaAPI.upload(file, type),
+    mutationFn: (data) => mediaAPI.upload(data.file, data.type),
     onSuccess: () => {
-      queryClient.invalidateQueries(['media']);
+      queryClient.invalidateQueries(['media-files']);
       setUploadDialog(false);
       setUploadData({
         title: '',
         description: '',
-        type: 'image',
-        file: null,
-        url: '',
+        type: 'poster',
         tournament: '',
+        tags: ''
+      });
+      setUploadingFile(null);
+      setUploadProgress(0);
+    },
+  });
+
+  // Update media mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => mediaAPI.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['media-files']);
+      setEditDialog(false);
+      setSelectedMedia(null);
+      setEditData({
+        title: '',
+        description: '',
+        tags: ''
       });
     },
   });
 
+  // Delete media mutation
   const deleteMutation = useMutation({
-    mutationFn: mediaAPI.delete,
+    mutationFn: (id) => mediaAPI.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['media']);
+      queryClient.invalidateQueries(['media-files']);
+      setDeleteDialog(false);
+      setSelectedMedia(null);
     },
   });
 
-  const handleFileChange = (event) => {
+  const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setUploadData(prev => ({ ...prev, file }));
+      setUploadingFile(file);
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
     }
   };
 
-  const handleUpload = async () => {
-    if (uploadData.file) {
-      await uploadMutation.mutateAsync({
-        file: uploadData.file,
+  const handleUpload = () => {
+    if (uploadingFile && uploadData.title) {
+      uploadMutation.mutate({
+        file: uploadingFile,
         type: uploadData.type,
+        metadata: {
+          title: uploadData.title,
+          description: uploadData.description,
+          tournament: uploadData.tournament,
+          tags: uploadData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        }
       });
     }
   };
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'image': return <Image />;
-      case 'video': return <VideoLibrary />;
-      case 'link': return <Link />;
-      default: return <CloudUpload />;
+  const handleEdit = (media) => {
+    setSelectedMedia(media);
+    setEditData({
+      title: media.title || '',
+      description: media.description || '',
+      tags: media.tags?.join(', ') || ''
+    });
+    setEditDialog(true);
+  };
+
+  const handleUpdate = () => {
+    if (selectedMedia && editData.title) {
+      updateMutation.mutate({
+        id: selectedMedia._id,
+        data: {
+          title: editData.title,
+          description: editData.description,
+          tags: editData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        }
+      });
     }
   };
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'image': return 'primary.main';
-      case 'video': return 'secondary.main';
-      case 'link': return 'success.main';
-      default: return 'grey.500';
+  const handleDelete = (media) => {
+    setSelectedMedia(media);
+    setDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedMedia) {
+      deleteMutation.mutate(selectedMedia._id);
     }
   };
 
-  // Mock data for demonstration
-  const mockMedia = [
-    {
-      id: 1,
-      title: 'BGMI Pro League Poster',
-      description: 'Official tournament poster for BGMI Pro League',
-      type: 'image',
-      url: 'https://via.placeholder.com/300x200',
-      tournament: 'BGMI Pro League',
-      uploadedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      size: '2.5 MB',
-    },
-    {
-      id: 2,
-      title: 'Weekend Warriors Stream',
-      description: 'Live stream link for Weekend Warriors tournament',
-      type: 'link',
-      url: 'https://youtube.com/watch?v=abc123',
-      tournament: 'Weekend Warriors',
-      uploadedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      size: 'N/A',
-    },
-    {
-      id: 3,
-      title: 'Tournament Highlights',
-      description: 'Best moments from last week tournaments',
-      type: 'video',
-      url: 'https://via.placeholder.com/300x200',
-      tournament: 'Various',
-      uploadedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
-      size: '15.2 MB',
-    },
+  const handlePreview = (media) => {
+    setSelectedMedia(media);
+    setPreviewDialog(true);
+  };
+
+  const getMediaTypeIcon = (type) => {
+    switch (type) {
+      case 'poster': return <PhotoLibrary />;
+      case 'highlight': return <VideoLibrary />;
+      case 'document': return <Description />;
+      default: return <PhotoLibrary />;
+    }
+  };
+
+  const getMediaTypeColor = (type) => {
+    switch (type) {
+      case 'poster': return 'primary';
+      case 'highlight': return 'secondary';
+      case 'document': return 'info';
+      default: return 'default';
+    }
+  };
+
+  const mediaTypes = [
+    { value: 'poster', label: 'Tournament Poster', icon: <PhotoLibrary /> },
+    { value: 'highlight', label: 'Match Highlights', icon: <VideoLibrary /> },
+    { value: 'document', label: 'Document', icon: <Description /> }
   ];
 
-  const data = mediaFiles.length > 0 ? mediaFiles : mockMedia;
+  const mediaData = mediaFiles?.data || [];
+
+  // Filter media by type based on active tab
+  const filteredMedia = activeTab === 0 
+    ? mediaData 
+    : mediaData.filter(media => {
+        const tabTypes = ['poster', 'highlight', 'document'];
+        return media.type === tabTypes[activeTab - 1];
+      });
 
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Media Management
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<CloudUpload />}
-          onClick={() => setUploadDialog(true)}
-        >
-          Upload Media
-        </Button>
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+            Media Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Upload and manage tournament posters, highlights, and documents
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => refetch()}
+            disabled={isLoading}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setUploadDialog(true)}
+            sx={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+              },
+            }}
+          >
+            Upload Media
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Total Files
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold">
+                    {mediaData.length}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
+                  <PhotoLibrary />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Posters
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold" color="primary.main">
+                    {mediaData.filter(m => m.type === 'poster').length}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
+                  <PhotoLibrary />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Highlights
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold" color="secondary.main">
+                    {mediaData.filter(m => m.type === 'highlight').length}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.main' }}>
+                  <VideoLibrary />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2" gutterBottom>
+                    Documents
+                  </Typography>
+                  <Typography variant="h4" component="div" fontWeight="bold" color="info.main">
+                    {mediaData.filter(m => m.type === 'document').length}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'info.light', color: 'info.main' }}>
+                  <Description />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="All Media" />
+          <Tab label="Posters" />
+          <Tab label="Highlights" />
+          <Tab label="Documents" />
+        </Tabs>
       </Box>
 
       {/* Media Grid */}
-      <Grid container spacing={3}>
-        {data.map((media) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={media.id}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ position: 'relative' }}>
-                {media.type === 'image' || media.type === 'video' ? (
-                  <img
-                    src={media.url}
-                    alt={media.title}
-                    style={{
-                      width: '100%',
-                      height: 200,
-                      objectFit: 'cover',
-                      borderTopLeftRadius: 8,
-                      borderTopRightRadius: 8,
-                    }}
-                  />
-                ) : (
+      <Card>
+        <CardContent>
+          {filteredMedia.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <PhotoLibrary sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No media files found
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Upload your first media file to get started
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setUploadDialog(true)}
+              >
+                Upload Media
+              </Button>
+            </Box>
+          ) : (
+            <ImageList cols={4} gap={16}>
+              {filteredMedia.map((media, index) => (
+                <ImageListItem key={index} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                   <Box
+                    component="img"
+                    src={media.url || 'https://via.placeholder.com/300x200?text=Media'}
+                    alt={media.title}
                     sx={{
                       width: '100%',
                       height: 200,
-                      bgcolor: 'grey.100',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderTopLeftRadius: 8,
-                      borderTopRightRadius: 8,
+                      objectFit: 'cover',
+                      cursor: 'pointer'
                     }}
-                  >
-                    <Link sx={{ fontSize: 60, color: 'grey.400' }} />
-                  </Box>
-                )}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    display: 'flex',
-                    gap: 1,
-                  }}
-                >
-                  <IconButton
-                    size="small"
-                    sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
-                    onClick={() => setSelectedMedia(media)}
-                  >
-                    <Visibility fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    sx={{ bgcolor: 'rgba(255,255,255,0.9)' }}
-                    onClick={() => deleteMutation.mutate(media.id)}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Box>
-                <Chip
-                  icon={getTypeIcon(media.type)}
-                  label={media.type}
-                  size="small"
-                  sx={{
-                    position: 'absolute',
-                    top: 8,
-                    left: 8,
-                    bgcolor: 'rgba(255,255,255,0.9)',
-                  }}
-                />
-              </Box>
-              <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                  {media.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flexGrow: 1 }}>
-                  {media.description}
-                </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {media.size}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(media.uploadedAt).toLocaleDateString()}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                    onClick={() => handlePreview(media)}
+                  />
+                  <ImageListItemBar
+                    title={media.title}
+                    subtitle={
+                      <Box>
+                        <Typography variant="caption" display="block">
+                          {dayjs(media.createdAt).format('MMM DD, YYYY')}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                          <Chip
+                            icon={getMediaTypeIcon(media.type)}
+                            label={media.type}
+                            size="small"
+                            color={getMediaTypeColor(media.type)}
+                            variant="outlined"
+                          />
+                        </Box>
+                      </Box>
+                    }
+                    actionIcon={
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Preview">
+                          <IconButton
+                            size="small"
+                            onClick={() => handlePreview(media)}
+                            sx={{ color: 'white' }}
+                          >
+                            <Visibility />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(media)}
+                            sx={{ color: 'white' }}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(media)}
+                            sx={{ color: 'white' }}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  />
+                </ImageListItem>
+              ))}
+            </ImageList>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Upload Dialog */}
-      <Dialog open={uploadDialog} onClose={() => setUploadDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={uploadDialog} onClose={() => setUploadDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Upload Media</DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Media Type</InputLabel>
-                <Select
-                  value={uploadData.type}
-                  onChange={(e) => setUploadData(prev => ({ ...prev, type: e.target.value }))}
-                  label="Media Type"
-                >
-                  <MenuItem value="image">Image</MenuItem>
-                  <MenuItem value="video">Video</MenuItem>
-                  <MenuItem value="link">Link</MenuItem>
-                </Select>
-              </FormControl>
+              <Box
+                sx={{
+                  border: '2px dashed',
+                  borderColor: 'primary.main',
+                  borderRadius: 2,
+                  p: 4,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    borderColor: 'primary.dark',
+                    bgcolor: 'primary.light',
+                    opacity: 0.1
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Click to upload or drag and drop
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Supports: JPG, PNG, GIF, MP4, PDF (Max 10MB)
+                </Typography>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+              </Box>
             </Grid>
 
-            <Grid item xs={12}>
+            {uploadingFile && (
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold" gutterBottom>
+                    {uploadingFile.name}
+                  </Typography>
+                  <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 1 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    {(uploadingFile.size / 1024 / 1024).toFixed(2)} MB
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
+
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Title"
@@ -286,6 +512,26 @@ const MediaUpload = () => {
                 onChange={(e) => setUploadData(prev => ({ ...prev, title: e.target.value }))}
                 required
               />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Media Type</InputLabel>
+                <Select
+                  value={uploadData.type}
+                  label="Media Type"
+                  onChange={(e) => setUploadData(prev => ({ ...prev, type: e.target.value }))}
+                >
+                  {mediaTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {type.icon}
+                        {type.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12}>
@@ -299,59 +545,26 @@ const MediaUpload = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Tournament (Optional)"
                 value={uploadData.tournament}
                 onChange={(e) => setUploadData(prev => ({ ...prev, tournament: e.target.value }))}
-                placeholder="Associated tournament"
+                placeholder="Associated tournament name"
               />
             </Grid>
 
-            {uploadData.type === 'link' ? (
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="URL"
-                  value={uploadData.url}
-                  onChange={(e) => setUploadData(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="https://..."
-                  required
-                />
-              </Grid>
-            ) : (
-              <Grid item xs={12}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    border: '2px dashed',
-                    borderColor: 'grey.300',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                    },
-                  }}
-                  onClick={() => document.getElementById('file-upload').click()}
-                >
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept={uploadData.type === 'image' ? 'image/*' : 'video/*'}
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                  />
-                  <CloudUpload sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
-                  <Typography variant="h6" sx={{ mb: 1 }}>
-                    Click to upload {uploadData.type}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {uploadData.file ? uploadData.file.name : `Select a ${uploadData.type} file`}
-                  </Typography>
-                </Paper>
-              </Grid>
-            )}
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Tags"
+                value={uploadData.tags}
+                onChange={(e) => setUploadData(prev => ({ ...prev, tags: e.target.value }))}
+                placeholder="tag1, tag2, tag3"
+                helperText="Separate tags with commas"
+              />
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -359,86 +572,137 @@ const MediaUpload = () => {
           <Button
             onClick={handleUpload}
             variant="contained"
-            disabled={uploadMutation.isPending || (!uploadData.file && !uploadData.url)}
+            disabled={!uploadingFile || !uploadData.title || uploadMutation.isLoading}
           >
-            {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+            {uploadMutation.isLoading ? 'Uploading...' : 'Upload'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Media Preview Dialog */}
-      <Dialog
-        open={Boolean(selectedMedia)}
-        onClose={() => setSelectedMedia(null)}
-        maxWidth="md"
-        fullWidth
-      >
+      {/* Edit Dialog */}
+      <Dialog open={editDialog} onClose={() => setEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Media</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Title"
+                value={editData.title}
+                onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={editData.description}
+                onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                multiline
+                rows={3}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Tags"
+                value={editData.tags}
+                onChange={(e) => setEditData(prev => ({ ...prev, tags: e.target.value }))}
+                placeholder="tag1, tag2, tag3"
+                helperText="Separate tags with commas"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleUpdate}
+            variant="contained"
+            disabled={!editData.title || updateMutation.isLoading}
+          >
+            {updateMutation.isLoading ? 'Updating...' : 'Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewDialog} onClose={() => setPreviewDialog(false)} maxWidth="lg" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {selectedMedia && getTypeIcon(selectedMedia.type)}
-            {selectedMedia?.title}
-          </Box>
+          {selectedMedia?.title}
+          <Chip
+            icon={getMediaTypeIcon(selectedMedia?.type)}
+            label={selectedMedia?.type}
+            size="small"
+            color={getMediaTypeColor(selectedMedia?.type)}
+            sx={{ ml: 2 }}
+          />
         </DialogTitle>
         <DialogContent>
           {selectedMedia && (
             <Box>
-              {selectedMedia.type === 'image' && (
-                <img
-                  src={selectedMedia.url}
-                  alt={selectedMedia.title}
-                  style={{ width: '100%', maxHeight: 400, objectFit: 'contain' }}
-                />
-              )}
-              {selectedMedia.type === 'video' && (
-                <video
-                  src={selectedMedia.url}
-                  controls
-                  style={{ width: '100%', maxHeight: 400 }}
-                />
-              )}
-              {selectedMedia.type === 'link' && (
-                <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Link: {selectedMedia.url}
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Link />}
-                    onClick={() => window.open(selectedMedia.url, '_blank')}
-                  >
-                    Open Link
-                  </Button>
-                </Box>
-              )}
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body1" sx={{ mb: 1 }}>
-                  {selectedMedia.description}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label={selectedMedia.type} size="small" />
-                  <Chip label={selectedMedia.size} size="small" />
-                  {selectedMedia.tournament && (
-                    <Chip label={selectedMedia.tournament} size="small" color="primary" />
-                  )}
-                </Box>
+              <Box
+                component="img"
+                src={selectedMedia.url || 'https://via.placeholder.com/800x600?text=Media'}
+                alt={selectedMedia.title}
+                sx={{
+                  width: '100%',
+                  maxHeight: 500,
+                  objectFit: 'contain',
+                  borderRadius: 1,
+                  mb: 2
+                }}
+              />
+              <Typography variant="body1" gutterBottom>
+                {selectedMedia.description}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
+                {selectedMedia.tags?.map((tag, index) => (
+                  <Chip key={index} label={tag} size="small" variant="outlined" />
+                ))}
               </Box>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
+                Uploaded: {dayjs(selectedMedia.createdAt).format('MMM DD, YYYY HH:mm')}
+              </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelectedMedia(null)}>Close</Button>
+          <Button onClick={() => setPreviewDialog(false)}>Close</Button>
+          <Button startIcon={<Download />}>Download</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+        <DialogTitle>Delete Media</DialogTitle>
+        <DialogContent>
+          {selectedMedia && (
+            <Typography>
+              Are you sure you want to delete "{selectedMedia.title}"? This action cannot be undone.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
           <Button
-            startIcon={<Download />}
-            onClick={() => {
-              if (selectedMedia) {
-                window.open(selectedMedia.url, '_blank');
-              }
-            }}
+            onClick={confirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteMutation.isLoading}
           >
-            Download
+            {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Failed to load media files. Please try again.
+        </Alert>
+      )}
     </Box>
   );
 };

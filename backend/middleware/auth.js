@@ -210,6 +210,9 @@ const generateToken = (userId, expiresIn = '7d') => {
 
 // Generate Refresh Token
 const generateRefreshToken = (userId) => {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is not set');
+  }
   return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
 };
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Tournament = require('../../models/Tournament');
-const Notification = require('../../models/Notification');
+const { Notification } = require('../../models/Notification');
 const { authenticateAdmin } = require('../../middleware/adminAuth');
 
 // Get Scheduled Events

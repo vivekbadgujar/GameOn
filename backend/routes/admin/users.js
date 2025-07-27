@@ -68,6 +68,30 @@ router.get('/', requirePermission('users_manage'), async (req, res) => {
   }
 });
 
+// Get user reports
+router.get('/reports', requirePermission('users_manage'), async (req, res) => {
+  try {
+    // For now, return empty reports data
+    res.json({
+      success: true,
+      data: [],
+      pagination: {
+        total: 0,
+        page: 1,
+        limit: 20,
+        pages: 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user reports:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user reports',
+      error: error.message
+    });
+  }
+});
+
 // Get user details by ID
 router.get('/:id', requirePermission('users_manage'), async (req, res) => {
   try {
