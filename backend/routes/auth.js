@@ -9,6 +9,131 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendOTP, verifyOTP } = require('../utils/otpService');
 
+// Simple email/password login for testing
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Hardcoded credentials for testing
+    if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
+      // Create or find user
+      let user = await User.findOne({ email });
+      
+      if (!user) {
+        user = new User({
+          username: 'GameOnAdmin',
+          displayName: 'GameOn Admin',
+          email: 'gamonoffice04@gmail.com',
+          phone: '9876543210',
+          isVerified: true,
+          gameProfile: {
+            bgmiId: 'ADMIN123456',
+            bgmiName: 'GameOnAdmin'
+          }
+        });
+        await user.save();
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          avatar: user.avatar,
+          createdAt: user.createdAt
+        },
+        token
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+});
+
+// Simple email/password registration for testing
+router.post('/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username, email, and password are required'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Create new user
+    const user = new User({
+      username,
+      displayName: username,
+      email,
+      phone: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(), // Random 10-digit phone
+      isVerified: true,
+      gameProfile: {
+        bgmiId: 'USER' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+        bgmiName: username
+      }
+    });
+    
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Registration successful',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        createdAt: user.createdAt
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Registration Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed'
+    });
+  }
+});
+
 // Send OTP
 router.post('/send-otp', async (req, res) => {
   try {
