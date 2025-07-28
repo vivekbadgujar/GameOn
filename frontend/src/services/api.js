@@ -52,9 +52,18 @@ export const getUserStats = async () => {
 };
 
 // Tournament endpoints
-export const getTournaments = async () => {
-  const response = await api.get('/tournaments');
-  return response.data?.tournaments || [];
+export const getTournaments = async (status = null) => {
+  try {
+    const params = {};
+    if (status) params.status = status;
+    
+    const response = await api.get('/tournaments', { params });
+    console.log('Tournaments API response:', response.data);
+    return response.data?.tournaments || [];
+  } catch (error) {
+    console.error('Error fetching tournaments:', error);
+    return [];
+  }
 };
 
 export const getTournamentById = async (id) => {
@@ -121,8 +130,13 @@ export const createPaymentOrder = (amount) => api.post('/payments/create-order',
 
 // YouTube API
 export const getYouTubeVideos = async (searchTerm = '') => {
-  const response = await api.get(`/youtube/videos${searchTerm ? `?search=${searchTerm}` : ''}`);
-  return response.data;
+  try {
+    const response = await api.get(`/youtube/videos${searchTerm ? `?search=${searchTerm}` : ''}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching YouTube videos:', error);
+    return { success: false, videos: [], error: error.message };
+  }
 };
 
 // Stats API
@@ -141,6 +155,27 @@ export const getLeaderboard = async (type = 'overall', timeFilter = 'all', limit
     params: { type, timeFilter, limit }
   });
   return response.data;
+};
+
+// Notifications API
+export const getNotifications = async () => {
+  try {
+    const response = await api.get('/notifications');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+export const markNotificationAsRead = async (notificationId) => {
+  try {
+    const response = await api.patch(`/notifications/${notificationId}/read`);
+    return response.data;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
 };
 
 // Tournament API object for easier imports

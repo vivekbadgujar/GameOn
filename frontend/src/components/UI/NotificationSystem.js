@@ -5,30 +5,19 @@ import { useSocket } from '../../contexts/SocketContext';
 
 const NotificationSystem = () => {
   const [notifications, setNotifications] = useState([]);
-  const { socket } = useSocket();
+  const { socket, lastMessage } = useSocket();
 
+  // Real-time updates
   useEffect(() => {
-    if (socket) {
-      socket.on('notification', (notification) => {
-        const newNotification = {
-          id: Date.now(),
-          ...notification,
-          timestamp: new Date()
-        };
-        
-        setNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-          removeNotification(newNotification.id);
-        }, 5000);
-      });
-
-      return () => {
-        socket.off('notification');
-      };
+    if (!lastMessage) return;
+    if (lastMessage.type === 'notificationAdded' || lastMessage.type === 'notificationSent') {
+      setNotifications(prev => [{ ...lastMessage.data, id: lastMessage.data._id || Date.now(), timestamp: new Date() }, ...prev.slice(0, 4)]);
+    } else if (lastMessage.type === 'notificationUpdated') {
+      setNotifications(prev => prev.map(n => n._id === lastMessage.data._id ? { ...n, ...lastMessage.data } : n));
+    } else if (lastMessage.type === 'notificationDeleted') {
+      setNotifications(prev => prev.filter(n => n._id !== lastMessage.data && n.id !== lastMessage.data));
     }
-  }, [socket]);
+  }, [lastMessage]);
 
   const removeNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));

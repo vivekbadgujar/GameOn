@@ -111,6 +111,42 @@ export const SocketProvider = ({ children }) => {
       setLastMessage({ type: 'ai_verification', data: verification });
     });
 
+    // Video and notification events for admin panel
+    newSocket.on('videoAdded', (video) => {
+      console.log('Video added (admin):', video);
+      setLastMessage({ type: 'videoAdded', data: video });
+    });
+
+    newSocket.on('videoUpdated', (video) => {
+      console.log('Video updated (admin):', video);
+      setLastMessage({ type: 'videoUpdated', data: video });
+    });
+
+    newSocket.on('videoDeleted', (videoId) => {
+      console.log('Video deleted (admin):', videoId);
+      setLastMessage({ type: 'videoDeleted', data: videoId });
+    });
+
+    newSocket.on('notificationAdded', (notification) => {
+      console.log('Notification added (admin):', notification);
+      setLastMessage({ type: 'notificationAdded', data: notification });
+    });
+
+    newSocket.on('notificationUpdated', (notification) => {
+      console.log('Notification updated (admin):', notification);
+      setLastMessage({ type: 'notificationUpdated', data: notification });
+    });
+
+    newSocket.on('notificationSent', (notification) => {
+      console.log('Notification sent (admin):', notification);
+      setLastMessage({ type: 'notificationSent', data: notification });
+    });
+
+    newSocket.on('notificationDeleted', (notificationId) => {
+      console.log('Notification deleted (admin):', notificationId);
+      setLastMessage({ type: 'notificationDeleted', data: notificationId });
+    });
+
     setSocket(newSocket);
 
     return () => {

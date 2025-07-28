@@ -16,18 +16,18 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  LinearProgress,
   Tooltip,
   FormControl,
   InputLabel,
   Select,
-  Grid
+  Grid,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import {
   DataGrid,
   GridToolbar,
-  GridActionsCellItem,
-  GridRowModes
+  GridActionsCellItem
 } from '@mui/x-data-grid';
 import {
   Search,
@@ -35,26 +35,24 @@ import {
   Edit,
   Delete,
   Visibility,
+  VisibilityOff,
   MoreVert,
-  FilterList,
   Refresh,
-  EmojiEvents,
-  Schedule,
-  People,
-  Payment,
-  VpnKey
+  VideoLibrary,
+  YouTube
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { tournamentAPI } from '../../services/api';
+import { tournamentVideoAPI } from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
 
-const TournamentList = () => {
+const VideoList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [gameFilter, setGameFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [visibilityFilter, setVisibilityFilter] = useState('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedTournament, setSelectedTournament] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -62,76 +60,73 @@ const TournamentList = () => {
   const queryClient = useQueryClient();
   const { lastMessage } = useSocket();
 
-  // Fetch tournaments - MUST be defined before using refetch in useEffect
-  const { data: tournaments, isLoading, error, refetch } = useQuery({
-    queryKey: ['tournaments', searchTerm, statusFilter, gameFilter],
-    queryFn: () => tournamentAPI.getAll({ search: searchTerm, status: statusFilter, game: gameFilter }),
+  // Fetch videos
+  const { data: videos, isLoading, error, refetch } = useQuery({
+    queryKey: ['tournament-videos', searchTerm, gameFilter, categoryFilter, visibilityFilter],
+    queryFn: () => tournamentVideoAPI.getAll({ 
+      search: searchTerm, 
+      game: gameFilter, 
+      category: categoryFilter,
+      visibility: visibilityFilter
+    }),
   });
 
   // Real-time socket updates
   React.useEffect(() => {
     if (!lastMessage) return;
     
-    console.log('Admin Panel - Received socket message:', lastMessage);
+    console.log('Admin Panel Videos - Received socket message:', lastMessage);
     
-    if (lastMessage.type === 'tournamentAdded' || 
-        lastMessage.type === 'tournamentUpdated' || 
-        lastMessage.type === 'tournamentDeleted') {
-      console.log('Admin Panel - Refreshing tournament list due to socket event');
-      queryClient.invalidateQueries(['tournaments']);
+    if (lastMessage.type === 'videoAdded' || 
+        lastMessage.type === 'videoUpdated' || 
+        lastMessage.type === 'videoDeleted') {
+      console.log('Admin Panel Videos - Refreshing video list due to socket event');
+      queryClient.invalidateQueries(['tournament-videos']);
       refetch();
     }
   }, [lastMessage, queryClient, refetch]);
 
-  // Auto-refresh tournaments every 30 seconds
+  // Auto-refresh videos every 30 seconds
   React.useEffect(() => {
     const interval = setInterval(() => {
-      console.log('Admin Panel - Auto-refreshing tournaments...');
+      console.log('Admin Panel Videos - Auto-refreshing videos...');
       refetch();
     }, 30000);
 
     return () => clearInterval(interval);
   }, [refetch]);
 
-  // Delete tournament mutation
+  // Delete video mutation
   const deleteMutation = useMutation({
-    mutationFn: (id) => tournamentAPI.delete(id),
+    mutationFn: (id) => tournamentVideoAPI.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['tournaments']);
+      queryClient.invalidateQueries(['tournament-videos']);
       setDeleteDialogOpen(false);
-      setSelectedTournament(null);
+      setSelectedVideo(null);
     },
   });
 
-  // Update tournament status mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => tournamentAPI.updateStatus(id, status),
+  // Toggle visibility mutation
+  const toggleVisibilityMutation = useMutation({
+    mutationFn: ({ id, isVisible }) => tournamentVideoAPI.toggleVisibility(id, isVisible),
     onSuccess: () => {
-      queryClient.invalidateQueries(['tournaments']);
+      queryClient.invalidateQueries(['tournament-videos']);
     },
   });
 
-  // Release room credentials mutation
-  const releaseCredentialsMutation = useMutation({
-    mutationFn: (id) => tournamentAPI.releaseCredentials(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tournaments']);
-    },
-  });
-
-  const handleDelete = (tournament) => {
-    setSelectedTournament(tournament);
+  const handleDelete = (video) => {
+    setSelectedVideo(video);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (selectedTournament) {
-      deleteMutation.mutate(selectedTournament._id);
+    if (selectedVideo) {
+      deleteMutation.mutate(selectedVideo._id);
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    updateStatusMutation.mutate({ id, status: newStatus });
+  const handleToggleVisibility = (id, currentVisibility) => {
+    toggleVisibilityMutation.mutate({ id, isVisible: !currentVisibility });
   };
 
   const handleMenuOpen = (event, row) => {
@@ -144,35 +139,8 @@ const TournamentList = () => {
     setSelectedRow(null);
   };
 
-  const handleReleaseCredentials = (tournamentId) => {
-    releaseCredentialsMutation.mutate(tournamentId);
-    handleMenuClose();
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'upcoming': return 'info';
-      case 'completed': return 'default';
-      case 'cancelled': return 'error';
-      case 'draft': return 'warning';
-      default: return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Active';
-      case 'upcoming': return 'Upcoming';
-      case 'completed': return 'Completed';
-      case 'cancelled': return 'Cancelled';
-      case 'draft': return 'Draft';
-      default: return status;
-    }
-  };
-
   const getGameIcon = (game) => {
-    switch (game.toLowerCase()) {
+    switch (game?.toLowerCase()) {
       case 'pubg':
       case 'bgmi':
         return '🎮';
@@ -188,19 +156,15 @@ const TournamentList = () => {
   const columns = [
     {
       field: 'title',
-      headerName: 'Tournament',
+      headerName: 'Video Title',
       flex: 1,
-      minWidth: 200,
+      minWidth: 250,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <VideoLibrary sx={{ fontSize: 16, color: 'primary.main' }} />
           <Typography variant="body2" fontWeight={600}>
             {params.row.title}
           </Typography>
-          <Chip
-            label={params.row.game}
-            size="small"
-            sx={{ fontSize: '0.7rem' }}
-          />
         </Box>
       ),
     },
@@ -216,21 +180,65 @@ const TournamentList = () => {
       ),
     },
     {
-      field: 'status',
-      headerName: 'Status',
+      field: 'category',
+      headerName: 'Category',
       width: 130,
       renderCell: (params) => (
         <Chip
-          label={getStatusLabel(params.value)}
-          color={getStatusColor(params.value)}
+          label={params.value || 'General'}
           size="small"
           variant="outlined"
+          color="primary"
         />
       ),
     },
     {
-      field: 'startDate',
-      headerName: 'Start Date',
+      field: 'tournament',
+      headerName: 'Tournament',
+      width: 180,
+      renderCell: (params) => (
+        <Typography variant="body2">
+          {params.row.tournament?.title || 'No Tournament'}
+        </Typography>
+      ),
+    },
+    {
+      field: 'isVisible',
+      headerName: 'Visibility',
+      width: 120,
+      renderCell: (params) => (
+        <FormControlLabel
+          control={
+            <Switch
+              checked={params.value}
+              onChange={() => handleToggleVisibility(params.row._id, params.value)}
+              size="small"
+            />
+          }
+          label={params.value ? 'Visible' : 'Hidden'}
+          sx={{ margin: 0 }}
+        />
+      ),
+    },
+    {
+      field: 'youtubeUrl',
+      headerName: 'YouTube',
+      width: 100,
+      renderCell: (params) => (
+        <Tooltip title="Open in YouTube">
+          <IconButton
+            size="small"
+            onClick={() => window.open(params.value, '_blank')}
+            color="error"
+          >
+            <YouTube />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Created',
       width: 150,
       renderCell: (params) => (
         <Typography variant="body2">
@@ -239,55 +247,22 @@ const TournamentList = () => {
       ),
     },
     {
-      field: 'participants',
-      headerName: 'Participants',
-      width: 120,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <People sx={{ fontSize: 16 }} />
-          <Typography variant="body2">
-            {params.row.currentParticipants || 0}/{params.row.maxParticipants}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'prizePool',
-      headerName: 'Prize Pool',
-      width: 120,
-      renderCell: (params) => (
-        <Typography variant="body2" fontWeight={600}>
-          ₹{params.value?.toLocaleString() || 0}
-        </Typography>
-      ),
-    },
-    {
-      field: 'createdBy',
-      headerName: 'Created By',
-      width: 150,
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {params.row.createdBy?.username || 'Admin'}
-        </Typography>
-      ),
-    },
-    {
       field: 'actions',
       headerName: 'Actions',
       type: 'actions',
-      width: 100,
+      width: 120,
       getActions: (params) => [
-        <GridActionsCellItem
-          icon={<Visibility />}
-          label="View"
-          onClick={() => navigate(`/tournaments/${params.row._id}`)}
-          color="primary"
-        />,
         <GridActionsCellItem
           icon={<Edit />}
           label="Edit"
-          onClick={() => navigate(`/tournaments/${params.row._id}/edit`)}
+          onClick={() => navigate(`/tournament-videos/${params.row._id}/edit`)}
           color="primary"
+        />,
+        <GridActionsCellItem
+          icon={<Delete />}
+          label="Delete"
+          onClick={() => handleDelete(params.row)}
+          color="error"
         />,
         <GridActionsCellItem
           icon={<MoreVert />}
@@ -299,24 +274,7 @@ const TournamentList = () => {
     },
   ];
 
-  // Handle different response structures
-  const filteredData = (() => {
-    console.log('Admin Panel - Tournament data structure:', tournaments);
-    
-    if (Array.isArray(tournaments?.data?.tournaments)) {
-      return tournaments.data.tournaments;
-    }
-    if (Array.isArray(tournaments?.data?.data)) {
-      return tournaments.data.data;
-    }
-    if (Array.isArray(tournaments?.data)) {
-      return tournaments.data;
-    }
-    if (Array.isArray(tournaments)) {
-      return tournaments;
-    }
-    return [];
-  })();
+  const filteredData = Array.isArray(videos?.data?.data) ? videos.data.data : [];
 
   return (
     <Box>
@@ -324,16 +282,16 @@ const TournamentList = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-            Tournaments
+            Tournament Videos
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage all tournaments and their settings
+            Manage YouTube videos for tournaments and highlights
           </Typography>
         </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => navigate('/tournaments/new')}
+          onClick={() => navigate('/tournament-videos/new')}
           sx={{
             background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
             '&:hover': {
@@ -341,7 +299,7 @@ const TournamentList = () => {
             },
           }}
         >
-          Create Tournament
+          Add Video
         </Button>
       </Box>
 
@@ -349,10 +307,10 @@ const TournamentList = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
-                placeholder="Search tournaments..."
+                placeholder="Search videos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 InputProps={{
@@ -364,23 +322,7 @@ const TournamentList = () => {
                 }}
               />
             </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={statusFilter}
-                  label="Status"
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="live">Live</MenuItem>
-                  <MenuItem value="upcoming">Upcoming</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                  <MenuItem value="cancelled">Cancelled</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <FormControl fullWidth>
                 <InputLabel>Game</InputLabel>
                 <Select
@@ -393,11 +335,40 @@ const TournamentList = () => {
                   <MenuItem value="BGMI">BGMI</MenuItem>
                   <MenuItem value="Free Fire">Free Fire</MenuItem>
                   <MenuItem value="COD">COD</MenuItem>
-                  <MenuItem value="Others">Others</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} md={2}>
+              <FormControl fullWidth>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={categoryFilter}
+                  label="Category"
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <MenuItem value="all">All Categories</MenuItem>
+                  <MenuItem value="highlights">Highlights</MenuItem>
+                  <MenuItem value="tutorials">Tutorials</MenuItem>
+                  <MenuItem value="live">Live Streams</MenuItem>
+                  <MenuItem value="interviews">Interviews</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <FormControl fullWidth>
+                <InputLabel>Visibility</InputLabel>
+                <Select
+                  value={visibilityFilter}
+                  label="Visibility"
+                  onChange={(e) => setVisibilityFilter(e.target.value)}
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="visible">Visible</MenuItem>
+                  <MenuItem value="hidden">Hidden</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -451,67 +422,19 @@ const TournamentList = () => {
         </CardContent>
       </Card>
 
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            mt: 1,
-            minWidth: 200,
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          },
-        }}
-      >
-        <MenuItem onClick={() => {
-          navigate(`/tournaments/${selectedRow?._id}/results`);
-          handleMenuClose();
-        }}>
-          <EmojiEvents sx={{ mr: 1 }} />
-          Post Results
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleStatusChange(selectedRow?._id, 'live');
-          handleMenuClose();
-        }}>
-          <Schedule sx={{ mr: 1 }} />
-          Activate
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleStatusChange(selectedRow?._id, 'completed');
-          handleMenuClose();
-        }}>
-          <Payment sx={{ mr: 1 }} />
-          Mark Complete
-        </MenuItem>
-        <MenuItem onClick={() => handleReleaseCredentials(selectedRow?._id)}>
-          <VpnKey sx={{ mr: 1 }} />
-          Release Room Credentials
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleDelete(selectedRow);
-          handleMenuClose();
-        }} sx={{ color: 'error.main' }}>
-          <Delete sx={{ mr: 1 }} />
-          Delete
-        </MenuItem>
-      </Menu>
-
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Tournament</DialogTitle>
+        <DialogTitle>Delete Video</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{selectedTournament?.title}"? This action cannot be undone.
+            Are you sure you want to delete "{selectedVideo?.title}"? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={confirmDelete}
-            color="error"
+          <Button 
+            onClick={confirmDelete} 
+            color="error" 
             variant="contained"
             disabled={deleteMutation.isLoading}
           >
@@ -520,14 +443,28 @@ const TournamentList = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Failed to load tournaments. Please try again.
-        </Alert>
-      )}
+      {/* Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => {
+          window.open(selectedRow?.youtubeUrl, '_blank');
+          handleMenuClose();
+        }}>
+          <YouTube sx={{ mr: 1 }} />
+          Open in YouTube
+        </MenuItem>
+        <MenuItem onClick={() => {
+          navigator.clipboard.writeText(selectedRow?.youtubeUrl);
+          handleMenuClose();
+        }}>
+          Copy YouTube URL
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
 
-export default TournamentList; 
+export default VideoList;

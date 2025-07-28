@@ -23,9 +23,24 @@ const TournamentVideoSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: function(v) {
-        return /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]+/.test(v);
+        if (!v) return false;
+        
+        // Use a simpler validation approach
+        const patterns = [
+          /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+          /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+          /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+          /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+          /youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+          /(?:m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/
+        ];
+        
+        const isValid = patterns.some(pattern => pattern.test(v));
+        console.log('Validating YouTube URL:', v, 'Valid:', isValid);
+        
+        return isValid;
       },
-      message: 'Please provide a valid YouTube URL'
+      message: 'Please provide a valid YouTube URL (youtube.com/watch?v=... or youtu.be/...)'
     }
   },
   youtubeId: {
@@ -122,9 +137,39 @@ TournamentVideoSchema.statics.getVisibleVideos = function(options = {}) {
 
 // Method to extract YouTube ID from URL
 TournamentVideoSchema.statics.extractYouTubeId = function(url) {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
+  if (!url || typeof url !== 'string') return null;
+  
+  console.log('Extracting YouTube ID from URL:', url);
+  
+  // Clean the URL
+  url = url.trim();
+  
+  // Handle different YouTube URL formats
+  const patterns = [
+    // Standard watch URLs
+    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+    // Short URLs
+    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    // Embed URLs
+    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    // Old format
+    /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+    // Watch URLs with additional parameters
+    /youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+    // Mobile URLs
+    /(?:m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1] && match[1].length === 11) {
+      console.log('Successfully extracted YouTube ID:', match[1]);
+      return match[1];
+    }
+  }
+  
+  console.log('Failed to extract YouTube ID from URL:', url);
+  return null;
 };
 
 // Pre-save middleware to extract YouTube ID

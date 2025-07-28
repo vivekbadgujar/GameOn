@@ -42,11 +42,20 @@ export const authAPI = {
 
 // Tournament APIs
 export const tournamentAPI = {
-  getAll: (params = {}) => api.get('/admin/tournaments', { params }),
+  getAll: (params = {}) => {
+    console.log('API: Fetching tournaments with params:', params);
+    return api.get('/admin/tournaments', { params }).then(response => {
+      console.log('API: Tournament fetch response:', response.data);
+      return response;
+    });
+  },
   getById: (id) => api.get(`/admin/tournaments/${id}`),
   create: (data) => {
     console.log('API: Creating tournament with data:', data);
-    return api.post('/admin/tournaments', data);
+    return api.post('/admin/tournaments', data).then(response => {
+      console.log('API: Tournament creation response:', response.data);
+      return response;
+    });
   },
   update: (id, data) => {
     console.log('API: Updating tournament with data:', data);
@@ -150,6 +159,39 @@ export const searchExportAPI = {
   getExportStats: () => api.get('/admin/export/stats'),
   getDataPreview: (type, params = {}) => api.get(`/admin/export/preview/${type}`, { params }),
   downloadExport: (filename) => api.get(`/admin/export/download/${filename}`, { responseType: 'blob' }),
+};
+
+// Tournament Videos APIs
+export const tournamentVideoAPI = {
+  getAll: (params = {}) => api.get('/admin/tournament-videos', { params }),
+  getById: (id) => api.get(`/admin/tournament-videos/${id}`),
+  create: (data) => {
+    console.log('API: Creating tournament video with data:', data);
+    return api.post('/admin/tournament-videos', data);
+  },
+  update: (id, data) => {
+    console.log('API: Updating tournament video with data:', data);
+    return api.put(`/admin/tournament-videos/${id}`, data);
+  },
+  delete: (id) => api.delete(`/admin/tournament-videos/${id}`),
+  toggleVisibility: (id, isVisible) => api.patch(`/admin/tournament-videos/${id}/visibility`, { isVisible }),
+  getVisible: (params = {}) => api.get('/admin/tournament-videos/visible', { params }),
+};
+
+// Notifications APIs
+export const notificationAPI = {
+  getAll: (params = {}) => api.get('/admin/notifications', { params }),
+  getById: (id) => api.get(`/admin/notifications/${id}`),
+  create: (data) => {
+    console.log('API: Creating notification with data:', data);
+    return api.post('/admin/notifications', data);
+  },
+  update: (id, data) => {
+    console.log('API: Updating notification with data:', data);
+    return api.put(`/admin/notifications/${id}`, data);
+  },
+  delete: (id) => api.delete(`/admin/notifications/${id}`),
+  send: (id) => api.post(`/admin/notifications/${id}/send`),
 };
 
 export default api; 

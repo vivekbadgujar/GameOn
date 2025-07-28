@@ -138,6 +138,44 @@ export const SocketProvider = ({ children }) => {
       setLastMessage({ type: 'ai_verification', data: verification });
     });
 
+    // Video real-time events
+    newSocket.on('videoAdded', (video) => {
+      console.log('Video added:', video);
+      setLastMessage({ type: 'videoAdded', data: video });
+    });
+    newSocket.on('videoUpdated', (video) => {
+      console.log('Video updated:', video);
+      setLastMessage({ type: 'videoUpdated', data: video });
+    });
+    newSocket.on('videoDeleted', (videoId) => {
+      console.log('Video deleted:', videoId);
+      setLastMessage({ type: 'videoDeleted', data: videoId });
+    });
+    
+    // Notification real-time events
+    newSocket.on('notificationAdded', (notification) => {
+      console.log('Notification added:', notification);
+      setLastMessage({ type: 'notificationAdded', data: notification });
+    });
+    newSocket.on('notificationUpdated', (notification) => {
+      console.log('Notification updated:', notification);
+      setLastMessage({ type: 'notificationUpdated', data: notification });
+    });
+    newSocket.on('notificationSent', (notification) => {
+      console.log('Notification sent:', notification);
+      setLastMessage({ type: 'notificationSent', data: notification });
+    });
+    newSocket.on('notificationDeleted', (notificationId) => {
+      console.log('Notification deleted:', notificationId);
+      setLastMessage({ type: 'notificationDeleted', data: notificationId });
+    });
+    
+    // New notification for users (when admin sends notification)
+    newSocket.on('newNotification', (notification) => {
+      console.log('New notification received:', notification);
+      setLastMessage({ type: 'newNotification', data: notification });
+    });
+
     setSocket(newSocket);
 
     return () => {

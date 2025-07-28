@@ -108,7 +108,16 @@ const TournamentForm = () => {
     },
     onSuccess: (response) => {
       console.log('Tournament created/updated successfully:', response);
+      
+      // Invalidate and refetch tournament queries
       queryClient.invalidateQueries(['tournaments']);
+      queryClient.refetchQueries(['tournaments']);
+      
+      // Force refresh the tournament list
+      setTimeout(() => {
+        queryClient.invalidateQueries(['tournaments']);
+      }, 1000);
+      
       navigate('/tournaments');
     },
     onError: (error) => {
@@ -312,6 +321,9 @@ const TournamentForm = () => {
       startDate: formData.startDate.toISOString(),
       endDate: formData.endDate.toISOString(),
       rules: Array.isArray(formData.rules) ? formData.rules.filter(rule => rule.trim()) : [],
+      status: 'upcoming',
+      isVisible: true,
+      isPublic: true,
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),

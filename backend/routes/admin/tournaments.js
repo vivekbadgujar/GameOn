@@ -26,9 +26,12 @@ router.get('/',
 
       // Build filter object
       const filter = {};
-      if (req.query.status) filter.status = req.query.status;
-      if (req.query.game) filter.game = req.query.game;
-      if (req.query.type) filter.tournamentType = req.query.type;
+      if (req.query.status && req.query.status !== 'all') filter.status = req.query.status;
+      if (req.query.game && req.query.game !== 'all') filter.game = req.query.game;
+      if (req.query.type && req.query.type !== 'all') filter.tournamentType = req.query.type;
+      
+      // For admin panel, show all tournaments including hidden ones
+      // Don't filter by isVisible or isPublic
       if (req.query.startDate) {
         filter.startDate = {
           $gte: new Date(req.query.startDate),
@@ -235,26 +238,28 @@ router.post('/',
 
       // Create tournament with proper field mapping
       const tournamentData = {
-        title: req.body.title,
-        description: req.body.description,
-        game: req.body.game,
-        map: req.body.map,
-        tournamentType: req.body.tournamentType,
-        entryFee: req.body.entryFee,
-        prizePool: req.body.prizePool,
-        maxParticipants: req.body.maxParticipants,
+        title: req.body.title || 'Untitled Tournament',
+        description: req.body.description || '',
+        game: req.body.game || 'BGMI',
+        map: req.body.map || 'TBD',
+        tournamentType: req.body.tournamentType || 'squad',
+        entryFee: parseInt(req.body.entryFee) || 0,
+        prizePool: parseInt(req.body.prizePool) || 0,
+        maxParticipants: parseInt(req.body.maxParticipants) || 16,
         currentParticipants: 0,
-        startDate: req.body.startDate,
-        endDate: req.body.endDate,
-        rules: req.body.rules || [],
-        status: 'upcoming',
+        startDate: req.body.startDate ? new Date(req.body.startDate) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+        endDate: req.body.endDate ? new Date(req.body.endDate) : new Date(Date.now() + 26 * 60 * 60 * 1000),
+        rules: Array.isArray(req.body.rules) ? req.body.rules : ['No cheating allowed', 'Follow fair play guidelines'],
+        status: req.body.status || 'upcoming',
         roomDetails: req.body.roomDetails || {},
         createdBy: req.admin._id,
         participants: [],
-        winners: []
+        winners: [],
+        isVisible: req.body.isVisible !== undefined ? req.body.isVisible : true,
+        isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true
       };
 
-      console.log('Creating tournament with data:', tournamentData);
+      console.log('Creating tournament with data:', JSON.stringify(tournamentData, null, 2));
       
       const tournament = new Tournament(tournamentData);
       await tournament.save();
@@ -268,11 +273,24 @@ router.post('/',
       const io = req.app.get('io');
       if (io) {
         console.log('Emitting socket events for tournament creation');
+        console.log('Emitting tournamentAdded', tournament._id);
         io.emit('tournamentAdded', tournament);
+        console.log('Emitting tournamentUpdated', tournament._id);
         io.emit('tournamentUpdated', tournament);
       } else {
         console.warn('Socket.IO not available for real-time updates');
       }
+
+      // Populate the tournament with admin details for response
+      await tournament.populate('createdBy', 'name username');
+      
+      console.log('Sending tournament response:', {
+        id: tournament._id,
+        title: tournament.title,
+        status: tournament.status,
+        isVisible: tournament.isVisible,
+        isPublic: tournament.isPublic
+      });
 
       res.status(201).json({
         success: true,

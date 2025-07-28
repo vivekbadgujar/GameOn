@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const TournamentVideo = require('../models/TournamentVideo');
 require('dotenv').config();
 
 // Middleware to check if API key is set
@@ -10,6 +11,50 @@ const checkApiKey = (req, res, next) => {
   }
   next();
 };
+
+// Get tournament videos from database (for frontend)
+router.get('/videos', async (req, res) => {
+  try {
+    const { game, category, tournament, limit = 20 } = req.query;
+    
+    const filter = { isVisible: true };
+    if (game) filter.game = game;
+    if (category) filter.category = category;
+    if (tournament) filter.tournament = tournament;
+
+    const videos = await TournamentVideo.find(filter)
+      .populate('tournament', 'title game')
+      .sort({ displayOrder: 1, createdAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+
+    // Transform for frontend compatibility
+    const transformedVideos = videos.map(video => ({
+      id: video._id,
+      youtubeId: video.youtubeId,
+      title: video.title,
+      description: video.description,
+      thumbnail: `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
+      url: video.youtubeUrl,
+      game: video.game,
+      category: video.category,
+      tournament: video.tournament,
+      createdAt: video.createdAt
+    }));
+
+    res.json({
+      success: true,
+      videos: transformedVideos,
+      total: transformedVideos.length
+    });
+  } catch (error) {
+    console.error('Error fetching tournament videos:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch videos'
+    });
+  }
+});
 
 router.get('/search', checkApiKey, async (req, res) => {
   const { q } = req.query;

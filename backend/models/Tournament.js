@@ -14,6 +14,14 @@ const TournamentSchema = new mongoose.Schema({
     type: String,
     maxlength: 500
   },
+  poster: {
+    type: String,
+    default: ''
+  },
+  posterUrl: {
+    type: String,
+    default: ''
+  },
   game: {
     type: String,
     required: true
@@ -59,8 +67,20 @@ const TournamentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['upcoming', 'live', 'completed', 'cancelled'],
+    enum: ['upcoming', 'active', 'live', 'completed', 'cancelled'],
     default: 'upcoming'
+  },
+  isVisible: {
+    type: Boolean,
+    default: true
+  },
+  isPublic: {
+    type: Boolean,
+    default: true
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
   },
   participants: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

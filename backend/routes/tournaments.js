@@ -6,6 +6,7 @@
 const express = require('express');
 const Tournament = require('../models/Tournament');
 const User = require('../models/User');
+const { authenticateUser } = require('../middleware/auth');
 const router = express.Router();
 
 // Get all tournaments
@@ -19,9 +20,14 @@ router.get('/', async (req, res) => {
     if (game) filter.game = game;
     if (type) filter.tournamentType = type;
     
-    // Only show upcoming and active tournaments to users
+    // For frontend, only show visible and public tournaments
+    filter.isVisible = true;
+    filter.isPublic = true;
+    
+    // Show all tournaments if no status filter is specified
+    // This allows frontend to handle filtering by tabs
     if (!status) {
-      filter.status = { $in: ['upcoming', 'active'] };
+      // Don't filter by status - show all tournaments
     }
 
     const tournaments = await Tournament.find(filter)
@@ -119,10 +125,16 @@ router.get('/:id', async (req, res) => {
 });
 
 // Join tournament
-router.post('/:id/join', async (req, res) => {
+router.post('/:id/join', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentData } = req.body;
+    
+    console.log('Tournament join request:', {
+      tournamentId: id,
+      userId: req.user._id,
+      paymentData: paymentData ? 'provided' : 'none'
+    });
     
     // Find the tournament
     const tournament = await Tournament.findById(id);
@@ -149,8 +161,8 @@ router.post('/:id/join', async (req, res) => {
       });
     }
 
-    // Mock user ID (in real app, get from auth middleware)
-    const userId = req.user?.id || 'mock_user_' + Date.now();
+    // Get user ID from authenticated user
+    const userId = req.user._id;
 
     // Check if user already joined
     const alreadyJoined = tournament.participants.some(p => 
@@ -205,6 +217,22 @@ router.post('/:id/join', async (req, res) => {
     });
   } catch (error) {
     console.error('Error joining tournament:', error);
+    
+    // Handle specific error types
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tournament data'
+      });
+    }
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tournament ID'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to join tournament'

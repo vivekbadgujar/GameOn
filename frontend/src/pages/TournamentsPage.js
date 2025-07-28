@@ -20,10 +20,12 @@ export default function TournamentsPage() {
     setLoading(true);
     getTournaments()
       .then(data => {
-        setTournaments(data);
+        console.log('Fetched tournaments:', data);
+        setTournaments(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
+        console.error('Error fetching tournaments:', err);
         setError('Failed to load tournaments');
         setLoading(false);
       });
@@ -58,7 +60,8 @@ export default function TournamentsPage() {
       console.log('Refreshing tournaments data...');
       getTournaments()
         .then(data => {
-          setTournaments(data);
+          console.log('Refreshed tournaments:', data);
+          setTournaments(Array.isArray(data) ? data : []);
         })
         .catch(err => {
           console.error('Error refreshing tournaments:', err);
@@ -69,11 +72,16 @@ export default function TournamentsPage() {
   }, []);
 
   const filtered = tournaments.filter(t => {
-    if (activeTab === 'live') return t.status === 'live';
+    console.log('Filtering tournament:', t.title, 'Status:', t.status, 'Active tab:', activeTab);
+    
+    if (activeTab === 'live') return t.status === 'active' || t.status === 'live';
     if (activeTab === 'upcoming') return t.status === 'upcoming';
-    if (activeTab === 'past') return t.status === 'past';
+    if (activeTab === 'past') return t.status === 'completed' || t.status === 'finished' || t.status === 'past';
     return true;
   });
+  
+  console.log('Total tournaments:', tournaments.length);
+  console.log('Filtered tournaments for', activeTab, ':', filtered.length);
 
   return (
     <div className="flex flex-col gap-8 mt-8">
@@ -91,11 +99,48 @@ export default function TournamentsPage() {
           {filtered.length === 0 ? (
             <div className="col-span-full text-center text-secondary">No tournaments found.</div>
           ) : filtered.map(t => (
-            <div key={t._id} className="bg-card-bg rounded-card shadow-glass p-6 flex flex-col gap-2 hover:scale-105 transition-transform">
-              <h3 className="font-bold text-xl mb-1">{t.name}</h3>
-              <span className="text-secondary">Prize: <span className="text-accent-green font-bold">₹{t.prizePool}</span></span>
-              <span className="text-secondary">Players: {t.participants?.length || 0}</span>
-              <button className="mt-2 px-4 py-2 rounded-lg bg-accent-blue text-primary font-semibold hover:bg-accent-purple transition">View Details</button>
+            <div key={t._id} className="bg-card-bg rounded-card shadow-glass overflow-hidden hover:scale-105 transition-transform">
+              {/* Tournament Poster */}
+              <div className="h-48 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center">
+                {t.poster || t.posterUrl ? (
+                  <img 
+                    src={t.poster || t.posterUrl} 
+                    alt={t.title || 'Tournament'} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className="flex items-center justify-center text-4xl font-bold text-accent-blue/50">
+                  🏆
+                </div>
+              </div>
+              
+              <div className="p-6 flex flex-col gap-2">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-xl">{t.title || t.name || 'Unnamed Tournament'}</h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  t.status === 'live' || t.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                  t.status === 'upcoming' ? 'bg-blue-500/20 text-blue-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {t.status?.toUpperCase()}
+                </span>
+              </div>
+              <span className="text-secondary">Game: <span className="text-accent-blue font-semibold">{t.game}</span></span>
+              <span className="text-secondary">Prize: <span className="text-accent-green font-bold">₹{t.prizePool?.toLocaleString()}</span></span>
+              <span className="text-secondary">Players: {t.currentParticipants || t.participants?.length || 0}/{t.maxParticipants}</span>
+              {t.startDate && (
+                <span className="text-secondary text-sm">
+                  Start: {new Date(t.startDate).toLocaleDateString()} {new Date(t.startDate).toLocaleTimeString()}
+                </span>
+              )}
+                <button className="mt-2 px-4 py-2 rounded-lg bg-accent-blue text-primary font-semibold hover:bg-accent-purple transition">
+                  View Details
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -192,6 +192,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/anticheat', require('./routes/anticheat'));
 app.use('/api/youtube', require('./routes/youtube'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));

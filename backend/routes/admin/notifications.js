@@ -56,6 +56,13 @@ router.post('/', adminAuth, async (req, res) => {
     });
 
     await notification.save();
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting notificationAdded event:', notification._id);
+      io.emit('notificationAdded', notification);
+    }
 
     // If no scheduling, send immediately
     if (!scheduledAt) {
@@ -96,6 +103,13 @@ router.put('/:id', adminAuth, async (req, res) => {
 
     Object.assign(notification, req.body);
     await notification.save();
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting notificationUpdated event:', notification._id);
+      io.emit('notificationUpdated', notification);
+    }
 
     res.json({
       success: true,
@@ -130,6 +144,15 @@ router.post('/:id/send', adminAuth, async (req, res) => {
     }
 
     await sendNotification(notification);
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting notificationSent event:', notification._id);
+      io.emit('notificationSent', notification);
+      // Also emit to all users for frontend notifications
+      io.emit('newNotification', notification);
+    }
 
     res.json({
       success: true,
@@ -161,6 +184,13 @@ router.delete('/:id', adminAuth, async (req, res) => {
     
     // Delete the notification
     await Notification.findByIdAndDelete(req.params.id);
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting notificationDeleted event:', req.params.id);
+      io.emit('notificationDeleted', req.params.id);
+    }
 
     res.json({
       success: true,

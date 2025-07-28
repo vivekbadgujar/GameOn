@@ -90,20 +90,35 @@ const TournamentDetailsRedesigned = () => {
   const processJoin = async (paymentData = null) => {
     try {
       setJoining(true);
-      await joinTournament(id, paymentData);
+      setError('');
       
-      // Generate slot number
-      const slotNumber = tournament.participants?.length + 1 || 1;
-      setUserSlot(slotNumber);
+      console.log('Attempting to join tournament:', id);
+      console.log('Payment data:', paymentData);
       
-      // Refresh tournament data
-      await fetchTournamentDetails();
+      const response = await joinTournament(id, paymentData);
+      console.log('Join tournament response:', response);
       
-      toast.success(`✅ Successfully joined! Your slot: #${slotNumber}`);
-      setShowPaymentModal(false);
+      if (response.data?.success) {
+        // Generate slot number
+        const slotNumber = tournament.participants?.length + 1 || 1;
+        setUserSlot(slotNumber);
+        
+        // Refresh tournament data
+        await fetchTournamentDetails();
+        
+        toast.success(`✅ Successfully joined! Your slot: #${slotNumber}`);
+        setShowPaymentModal(false);
+      } else {
+        throw new Error(response.data?.error || 'Failed to join tournament');
+      }
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to join tournament');
-      toast.error('Failed to join tournament');
+      console.error('Error joining tournament:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to join tournament. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setJoining(false);
     }

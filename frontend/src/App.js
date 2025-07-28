@@ -15,6 +15,7 @@ import Header from './components/Layout/Header';
 import LoadingSpinner from './components/UI/LoadingSpinner';
 import SupportChat from './components/UI/SupportChat';
 import NotificationSystem from './components/UI/NotificationSystem';
+import NotificationToast from './components/UI/NotificationToast';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -103,6 +104,7 @@ function App() {
             {/* Global Components */}
             <Header />
             <NotificationSystem />
+            <NotificationToast />
             <SupportChat />
             
             {/* Main Content */}

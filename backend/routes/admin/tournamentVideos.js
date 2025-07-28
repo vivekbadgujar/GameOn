@@ -67,10 +67,13 @@ router.post('/', adminAuth, async (req, res) => {
 
     // Extract YouTube ID
     const youtubeId = TournamentVideo.extractYouTubeId(youtubeUrl);
+    console.log('YouTube URL:', youtubeUrl);
+    console.log('Extracted YouTube ID:', youtubeId);
+    
     if (!youtubeId) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid YouTube URL'
+        error: 'Invalid YouTube URL. Please use a valid YouTube URL format like: https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID'
       });
     }
 
@@ -83,12 +86,28 @@ router.post('/', adminAuth, async (req, res) => {
       game,
       category,
       tags: tags || [],
-      isVisible: isVisible || false,
+      isVisible: isVisible !== undefined ? isVisible : false,
       displayOrder: displayOrder || 0,
       createdBy: req.admin._id
     });
+    
+    console.log('Creating video with data:', {
+      title,
+      youtubeUrl,
+      youtubeId,
+      game,
+      category,
+      isVisible
+    });
 
     await video.save();
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting videoAdded event:', video._id);
+      io.emit('videoAdded', video);
+    }
 
     // Populate the response
     await video.populate('tournament', 'title game');
@@ -100,9 +119,19 @@ router.post('/', adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating tournament video:', error);
+    
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed: ' + validationErrors.join(', ')
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message || 'Failed to create tournament video'
     });
   }
 });
@@ -133,6 +162,13 @@ router.put('/:id', adminAuth, async (req, res) => {
 
     Object.assign(video, req.body);
     await video.save();
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting videoUpdated event:', video._id);
+      io.emit('videoUpdated', video);
+    }
 
     // Populate the response
     await video.populate('tournament', 'title game');
@@ -194,6 +230,13 @@ router.delete('/:id', adminAuth, async (req, res) => {
     }
 
     await TournamentVideo.findByIdAndDelete(req.params.id);
+    
+    // Emit Socket.IO events for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting videoDeleted event:', req.params.id);
+      io.emit('videoDeleted', req.params.id);
+    }
 
     res.json({
       success: true,
