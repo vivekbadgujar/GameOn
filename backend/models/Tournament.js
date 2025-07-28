@@ -52,7 +52,10 @@ const TournamentSchema = new mongoose.Schema({
   },
   roomDetails: {
     roomId: String,
-    password: String
+    password: String,
+    credentialsReleased: { type: Boolean, default: false },
+    manualRelease: { type: Boolean, default: false },
+    releaseTime: Date // When credentials should be auto-released
   },
   status: {
     type: String,
@@ -62,8 +65,10 @@ const TournamentSchema = new mongoose.Schema({
   participants: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date, default: Date.now },
+    slotNumber: { type: Number, required: true },
     kills: { type: Number, default: 0 },
-    rank: { type: Number }
+    rank: { type: Number },
+    paymentData: { type: mongoose.Schema.Types.Mixed }
   }],
   winners: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

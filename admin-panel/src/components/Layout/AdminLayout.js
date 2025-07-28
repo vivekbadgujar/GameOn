@@ -40,7 +40,9 @@ import {
   Logout,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  NotificationsActive,
+  VideoLibrary
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -50,6 +52,8 @@ const drawerWidth = 280;
 const menuItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { text: 'Tournaments', icon: <EmojiEvents />, path: '/tournaments' },
+  { text: 'Notifications', icon: <NotificationsActive />, path: '/notifications' },
+  { text: 'Tournament Videos', icon: <VideoLibrary />, path: '/tournament-videos' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'AI Reports', icon: <Security />, path: '/ai-reports' },
   { text: 'Broadcast', icon: <Campaign />, path: '/broadcast' },

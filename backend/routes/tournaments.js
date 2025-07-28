@@ -122,11 +122,86 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/join', async (req, res) => {
   try {
     const { id } = req.params;
+    const { paymentData } = req.body;
     
+    // Find the tournament
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Check if tournament is still accepting participants
+    if (tournament.status === 'completed' || tournament.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        error: 'Tournament is no longer accepting participants'
+      });
+    }
+
+    // Check if tournament is full
+    if (tournament.currentParticipants >= tournament.maxParticipants) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tournament is full'
+      });
+    }
+
+    // Mock user ID (in real app, get from auth middleware)
+    const userId = req.user?.id || 'mock_user_' + Date.now();
+
+    // Check if user already joined
+    const alreadyJoined = tournament.participants.some(p => 
+      p.user.toString() === userId
+    );
+
+    if (alreadyJoined) {
+      return res.status(400).json({
+        success: false,
+        error: 'You have already joined this tournament'
+      });
+    }
+
+    // Generate unique slot number
+    const slotNumber = tournament.currentParticipants + 1;
+
+    // Add participant to tournament
+    tournament.participants.push({
+      user: userId,
+      joinedAt: new Date(),
+      slotNumber: slotNumber,
+      paymentData: paymentData || null
+    });
+
+    // Update participant count
+    tournament.currentParticipants += 1;
+
+    // Save tournament
+    await tournament.save();
+
+    // Generate room credentials if close to start time (for demo)
+    const roomCredentials = {
+      roomId: `ROOM${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      password: `PASS${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+    };
+
+    // Update tournament with room details if not already set
+    if (!tournament.roomDetails || !tournament.roomDetails.roomId) {
+      tournament.roomDetails = roomCredentials;
+      await tournament.save();
+    }
+
     res.json({
       success: true,
       message: 'Successfully joined tournament',
-      data: { tournamentId: id }
+      data: { 
+        tournamentId: id,
+        slotNumber: slotNumber,
+        participantCount: tournament.currentParticipants,
+        roomCredentials: tournament.roomDetails
+      }
     });
   } catch (error) {
     console.error('Error joining tournament:', error);

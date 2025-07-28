@@ -72,7 +72,11 @@ const TournamentForm = () => {
       { position: 1, percentage: 50, amount: 0 },
       { position: 2, percentage: 30, amount: 0 },
       { position: 3, percentage: 20, amount: 0 }
-    ]
+    ],
+    // Room Credentials
+    roomId: '',
+    roomPassword: '',
+    manualRelease: false
   });
 
   const [errors, setErrors] = useState({});
@@ -143,7 +147,11 @@ const TournamentForm = () => {
           { position: 1, percentage: 50, amount: 0 },
           { position: 2, percentage: 30, amount: 0 },
           { position: 3, percentage: 20, amount: 0 }
-        ]
+        ],
+        // Room Credentials
+        roomId: data.roomDetails?.roomId || '',
+        roomPassword: data.roomDetails?.password || '',
+        manualRelease: data.roomDetails?.manualRelease || false
       });
       if (data.image) {
         setImagePreview(data.image);
@@ -303,7 +311,13 @@ const TournamentForm = () => {
       maxParticipants: parseInt(formData.maxParticipants),
       startDate: formData.startDate.toISOString(),
       endDate: formData.endDate.toISOString(),
-      rules: Array.isArray(formData.rules) ? formData.rules.filter(rule => rule.trim()) : []
+      rules: Array.isArray(formData.rules) ? formData.rules.filter(rule => rule.trim()) : [],
+      roomDetails: {
+        roomId: formData.roomId.trim(),
+        password: formData.roomPassword.trim(),
+        manualRelease: formData.manualRelease,
+        releaseTime: formData.manualRelease ? null : new Date(formData.startDate.valueOf() - 30 * 60 * 1000).toISOString()
+      }
     };
 
     console.log('Submit data prepared:', submitData);
@@ -681,6 +695,54 @@ const TournamentForm = () => {
                   }
                   label="Auto Start"
                 />
+              </CardContent>
+            </Card>
+
+            {/* Room Credentials */}
+            <Card sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Room Credentials
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Room ID"
+                      value={formData.roomId}
+                      onChange={(e) => handleChange('roomId', e.target.value)}
+                      placeholder="Enter room ID"
+                      helperText="Room ID for tournament match"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Room Password"
+                      value={formData.roomPassword}
+                      onChange={(e) => handleChange('roomPassword', e.target.value)}
+                      placeholder="Enter room password"
+                      helperText="Password for tournament room"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={formData.manualRelease}
+                          onChange={(e) => handleChange('manualRelease', e.target.checked)}
+                        />
+                      }
+                      label="Manual Release Override"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      When enabled, credentials won't auto-release 30 minutes before start
+                    </Typography>
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
 

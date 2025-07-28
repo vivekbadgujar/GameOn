@@ -19,7 +19,7 @@ import NotificationSystem from './components/UI/NotificationSystem';
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Tournaments = lazy(() => import('./pages/Tournaments'));
-const TournamentDetails = lazy(() => import('./pages/TournamentDetails'));
+const TournamentDetails = lazy(() => import('./pages/TournamentDetailsRedesigned'));
 const Videos = lazy(() => import('./pages/Videos'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Support = lazy(() => import('./pages/Support'));

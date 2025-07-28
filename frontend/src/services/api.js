@@ -72,7 +72,7 @@ export const getTournamentById = async (id) => {
   return response.data?.tournament;
 };
 
-export const joinTournament = (id) => api.post(`/tournaments/${id}/join`);
+export const joinTournament = (id, paymentData = null) => api.post(`/tournaments/${id}/join`, { paymentData });
 export const submitResult = (id, data) => api.post(`/tournaments/${id}/submit-result`, data);
 
 // Wallet endpoints

@@ -24,6 +24,7 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
 import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
+import TournamentSlots from '../components/Dashboard/TournamentSlots';
 import { useAuthModal } from '../hooks/useAuthModal';
 
 const Dashboard = () => {
@@ -241,11 +242,23 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        {/* My Tournaments (for authenticated users) */}
+        {isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-8"
+          >
+            <TournamentSlots />
+          </motion.div>
+        )}
+
         {/* Upcoming Tournaments */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
+          transition={{ duration: 0.6, delay: isAuthenticated ? 0.4 : 0.3 }}
           className="mb-8"
         >
           <div className="flex items-center justify-between mb-6">
@@ -293,7 +306,7 @@ const Dashboard = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
+          transition={{ duration: 0.6, delay: isAuthenticated ? 0.5 : 0.4 }}
           className="mb-8"
         >
           <div className="flex items-center justify-between mb-6">
@@ -310,7 +323,7 @@ const Dashboard = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
+          transition={{ duration: 0.6, delay: isAuthenticated ? 0.6 : 0.5 }}
         >
           <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
           <div className="glass-card p-6">

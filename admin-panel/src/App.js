@@ -25,6 +25,8 @@ import ScheduleManager from './components/Scheduling/ScheduleManager';
 import SuggestionsPanel from './components/AISuggestions/SuggestionsPanel';
 import SearchFilter from './components/SearchExport/SearchFilter';
 import ExportData from './components/SearchExport/ExportData';
+import NotificationManager from './components/Notifications/NotificationManager';
+import TournamentVideoManager from './components/Videos/TournamentVideoManager';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -68,6 +70,8 @@ function AppRoutes() {
         <Route path="/tournaments/new" element={<TournamentForm />} />
         <Route path="/tournaments/:id/edit" element={<TournamentForm />} />
         <Route path="/tournaments/:id/results" element={<TournamentResults />} />
+        <Route path="/notifications" element={<NotificationManager />} />
+        <Route path="/tournament-videos" element={<TournamentVideoManager />} />
         <Route path="/analytics" element={<AnalyticsDashboard />} />
         <Route path="/ai-reports" element={<SuspiciousLogs />} />
         <Route path="/broadcast" element={<BroadcastMessage />} />
