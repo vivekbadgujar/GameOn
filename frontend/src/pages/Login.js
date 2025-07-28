@@ -62,24 +62,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      // Fallback to hardcoded credentials if API fails
-      if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
-        const mockUser = {
-          _id: '1',
-          username: 'GameOn Admin',
-          email: 'gamonoffice04@gmail.com',
-          phone: '+91 9876543210',
-          avatar: null,
-          createdAt: new Date().toISOString()
-        };
-        
-        const mockToken = 'mock-jwt-token-' + Date.now();
-        
-        login(mockUser, mockToken);
-        navigate('/dashboard');
-      } else {
-        setError('Login failed. Please try again.');
-      }
+      setError('Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }

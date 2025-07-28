@@ -19,7 +19,7 @@ import {
   Shield,
   Settings
 } from 'lucide-react';
-import { getUserProfile, updateUserProfile } from '../services/api';
+import { getUserProfile, updateUserProfile, getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
@@ -29,6 +29,60 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [userStats, setUserStats] = useState({
+    tournamentsPlayed: 0,
+    tournamentsWon: 0,
+    winRate: 0,
+    totalEarnings: 0,
+    currentRank: 0,
+    bestRank: 0,
+    averagePosition: 0,
+    favoriteGame: profile?.favoriteGame || 'bgmi'
+  });
+
+  const [achievements, setAchievements] = useState([
+    {
+      id: 1,
+      title: 'First Victory',
+      description: 'Won your first tournament',
+      icon: Trophy,
+      color: 'text-yellow-400',
+      bgColor: 'bg-yellow-500/20',
+      earned: true,
+      date: '2024-01-15'
+    },
+    {
+      id: 2,
+      title: 'Winning Streak',
+      description: 'Won 3 tournaments in a row',
+      icon: Crown,
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-500/20',
+      earned: true,
+      date: '2024-01-20'
+    },
+    {
+      id: 3,
+      title: 'Top Player',
+      description: 'Reached top 50 in rankings',
+      icon: Star,
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/20',
+      earned: true,
+      date: '2024-01-25'
+    },
+    {
+      id: 4,
+      title: 'Big Winner',
+      description: 'Earn ₹10,000 in a single tournament',
+      icon: Target,
+      color: 'text-green-400',
+      bgColor: 'bg-green-500/20',
+      earned: false,
+      date: null
+    }
+  ]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [editForm, setEditForm] = useState({
     username: '',
@@ -60,9 +114,26 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await getUserProfile();
-      const profileData = response.data || user;
+      const [profileResponse, statsResponse] = await Promise.all([
+        getUserProfile(),
+        getUserStats()
+      ]);
+      
+      const profileData = profileResponse.data || user;
+      const statsData = statsResponse || {};
+      
       setProfile(profileData);
+      setUserStats({
+        tournamentsPlayed: statsData.tournamentsPlayed || 0,
+        tournamentsWon: statsData.tournamentsWon || 0,
+        winRate: statsData.winRate || 0,
+        totalEarnings: statsData.totalEarnings || 0,
+        currentRank: statsData.currentRank || 0,
+        bestRank: statsData.bestRank || 0,
+        averagePosition: statsData.averagePosition || 0,
+        favoriteGame: profileData.favoriteGame || 'bgmi'
+      });
+      
       setEditForm({
         username: profileData.username || '',
         email: profileData.email || '',
@@ -132,60 +203,6 @@ const Profile = () => {
     const game = games.find(g => g.id === gameId);
     return game?.name || 'Unknown Game';
   };
-
-  const mockStats = {
-    tournamentsPlayed: 24,
-    tournamentsWon: 8,
-    winRate: 33.3,
-    totalEarnings: 15420,
-    currentRank: 156,
-    bestRank: 42,
-    averagePosition: 3.2,
-    favoriteGame: profile?.favoriteGame || 'bgmi'
-  };
-
-  const mockAchievements = [
-    {
-      id: 1,
-      title: 'First Victory',
-      description: 'Won your first tournament',
-      icon: Trophy,
-      color: 'text-yellow-400',
-      bgColor: 'bg-yellow-500/20',
-      earned: true,
-      date: '2024-01-15'
-    },
-    {
-      id: 2,
-      title: 'Winning Streak',
-      description: 'Won 3 tournaments in a row',
-      icon: Crown,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/20',
-      earned: true,
-      date: '2024-01-20'
-    },
-    {
-      id: 3,
-      title: 'Top Player',
-      description: 'Reached top 50 in rankings',
-      icon: Star,
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-500/20',
-      earned: true,
-      date: '2024-01-25'
-    },
-    {
-      id: 4,
-      title: 'Big Winner',
-      description: 'Earn ₹10,000 in a single tournament',
-      icon: Target,
-      color: 'text-green-400',
-      bgColor: 'bg-green-500/20',
-      earned: false,
-      date: null
-    }
-  ];
 
   if (loading) {
     return (
@@ -314,25 +331,25 @@ const Profile = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">
-                  {mockStats.tournamentsPlayed}
+                  {userStats.tournamentsPlayed}
                 </div>
                 <div className="text-white/60 text-sm">Tournaments</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">
-                  {mockStats.tournamentsWon}
+                  {userStats.tournamentsWon}
                 </div>
                 <div className="text-white/60 text-sm">Wins</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">
-                  {mockStats.winRate}%
+                  {userStats.winRate}%
                 </div>
                 <div className="text-white/60 text-sm">Win Rate</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-400">
-                  #{mockStats.currentRank}
+                  #{userStats.currentRank}
                 </div>
                 <div className="text-white/60 text-sm">Rank</div>
               </div>
@@ -486,16 +503,16 @@ const Profile = () => {
                       <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                         <span className="text-white/80">Total Earnings</span>
                         <span className="text-green-400 font-bold">
-                          ₹{mockStats.totalEarnings.toLocaleString()}
+                          ₹{userStats.totalEarnings.toLocaleString()}
                         </span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                         <span className="text-white/80">Best Rank</span>
-                        <span className="text-yellow-400 font-bold">#{mockStats.bestRank}</span>
+                        <span className="text-yellow-400 font-bold">#{userStats.bestRank}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                         <span className="text-white/80">Average Position</span>
-                        <span className="text-blue-400 font-bold">{mockStats.averagePosition}</span>
+                        <span className="text-blue-400 font-bold">{userStats.averagePosition}</span>
                       </div>
                     </div>
                   </div>
@@ -512,7 +529,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    {mockStats.tournamentsWon}
+                    {userStats.tournamentsWon}
                   </div>
                   <div className="text-white/60">Tournaments Won</div>
                 </div>
@@ -520,7 +537,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <Gamepad2 className="w-12 h-12 text-blue-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    {mockStats.tournamentsPlayed}
+                    {userStats.tournamentsPlayed}
                   </div>
                   <div className="text-white/60">Tournaments Played</div>
                 </div>
@@ -528,7 +545,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <TrendingUp className="w-12 h-12 text-green-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    {mockStats.winRate}%
+                    {userStats.winRate}%
                   </div>
                   <div className="text-white/60">Win Rate</div>
                 </div>
@@ -536,7 +553,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <Target className="w-12 h-12 text-purple-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    ₹{mockStats.totalEarnings.toLocaleString()}
+                    ₹{userStats.totalEarnings.toLocaleString()}
                   </div>
                   <div className="text-white/60">Total Earnings</div>
                 </div>
@@ -544,7 +561,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <Star className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    #{mockStats.currentRank}
+                    #{userStats.currentRank}
                   </div>
                   <div className="text-white/60">Current Rank</div>
                 </div>
@@ -552,7 +569,7 @@ const Profile = () => {
                 <div className="text-center p-6 bg-white/5 rounded-xl">
                   <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
                   <div className="text-3xl font-bold text-white mb-2">
-                    #{mockStats.bestRank}
+                    #{userStats.bestRank}
                   </div>
                   <div className="text-white/60">Best Rank</div>
                 </div>
@@ -565,7 +582,7 @@ const Profile = () => {
               <h3 className="text-xl font-bold text-white mb-6">Achievements</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockAchievements.map((achievement) => {
+                {achievements.map((achievement) => {
                   const Icon = achievement.icon;
                   return (
                     <div

@@ -56,6 +56,7 @@ export const tournamentAPI = {
   updateStatus: (id, status) => api.patch(`/admin/tournaments/${id}/status`, { status }),
   postResult: (id, result) => api.post(`/admin/tournaments/${id}/results`, result),
   getParticipants: (id) => api.get(`/admin/tournaments/${id}/participants`),
+  releaseCredentials: (id) => api.post(`/admin/tournaments/${id}/release-credentials`),
 };
 
 // User APIs

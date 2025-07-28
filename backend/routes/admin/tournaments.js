@@ -233,18 +233,46 @@ router.post('/',
         });
       }
 
-      const tournament = new Tournament({
-        ...req.body,
-        createdBy: req.admin._id
-      });
+      // Create tournament with proper field mapping
+      const tournamentData = {
+        title: req.body.title,
+        description: req.body.description,
+        game: req.body.game,
+        map: req.body.map,
+        tournamentType: req.body.tournamentType,
+        entryFee: req.body.entryFee,
+        prizePool: req.body.prizePool,
+        maxParticipants: req.body.maxParticipants,
+        currentParticipants: 0,
+        startDate: req.body.startDate,
+        endDate: req.body.endDate,
+        rules: req.body.rules || [],
+        status: 'upcoming',
+        roomDetails: req.body.roomDetails || {},
+        createdBy: req.admin._id,
+        participants: [],
+        winners: []
+      };
 
+      console.log('Creating tournament with data:', tournamentData);
+      
+      const tournament = new Tournament(tournamentData);
       await tournament.save();
+
+      console.log('Tournament saved to database:', tournament._id);
 
       // Update admin stats
       await req.admin.updateOne({ $inc: { totalTournamentsCreated: 1 } });
 
-      // Emit Socket.IO event
-      req.app.get('io').emit('tournamentAdded', tournament);
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        console.log('Emitting socket events for tournament creation');
+        io.emit('tournamentAdded', tournament);
+        io.emit('tournamentUpdated', tournament);
+      } else {
+        console.warn('Socket.IO not available for real-time updates');
+      }
 
       res.status(201).json({
         success: true,

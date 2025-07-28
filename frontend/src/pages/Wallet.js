@@ -78,34 +78,8 @@ const Wallet = () => {
       setTransactions(transactionsRes.transactions || []);
     } catch (error) {
       console.error('Error fetching wallet data:', error);
-      // Mock data for demo
-      setBalance(2450);
-      setTransactions([
-        {
-          _id: '1',
-          type: 'credit',
-          amount: 500,
-          description: 'Tournament Win - BGMI Championship',
-          timestamp: '2024-01-15T10:30:00Z',
-          status: 'completed'
-        },
-        {
-          _id: '2',
-          type: 'debit',
-          amount: 100,
-          description: 'Tournament Entry - VALORANT Cup',
-          timestamp: '2024-01-14T15:45:00Z',
-          status: 'completed'
-        },
-        {
-          _id: '3',
-          type: 'credit',
-          amount: 1000,
-          description: 'Funds Added via UPI',
-          timestamp: '2024-01-13T09:20:00Z',
-          status: 'completed'
-        }
-      ]);
+      setBalance(0);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }

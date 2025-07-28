@@ -19,6 +19,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
 import { getTournaments, getWalletBalance, getUserStats } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
@@ -29,6 +30,7 @@ import { useAuthModal } from '../hooks/useAuthModal';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
+  const { lastMessage } = useSocket();
   const { 
     isAuthModalOpen, 
     authModalTab, 
@@ -49,6 +51,35 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Real-time updates via socket
+  useEffect(() => {
+    if (!lastMessage) return;
+    
+    if (lastMessage.type === 'tournamentAdded') {
+      setDashboardData(prev => ({
+        ...prev,
+        tournaments: [lastMessage.data, ...prev.tournaments.slice(0, 5)]
+      }));
+    } else if (lastMessage.type === 'tournamentUpdated') {
+      setDashboardData(prev => ({
+        ...prev,
+        tournaments: prev.tournaments.map(t => 
+          t._id === lastMessage.data._id ? lastMessage.data : t
+        )
+      }));
+    } else if (lastMessage.type === 'walletUpdated') {
+      setDashboardData(prev => ({
+        ...prev,
+        walletBalance: lastMessage.data.balance
+      }));
+    } else if (lastMessage.type === 'statsUpdated') {
+      setDashboardData(prev => ({
+        ...prev,
+        userStats: { ...prev.userStats, ...lastMessage.data }
+      }));
+    }
+  }, [lastMessage]);
 
   const fetchDashboardData = async () => {
     try {

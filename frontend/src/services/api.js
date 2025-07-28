@@ -26,11 +26,7 @@ export const getUserProfile = async () => {
     const response = await api.get('/users/profile');
     return response.data;
   } catch (error) {
-    // Return mock data if API fails
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      return JSON.parse(storedUser);
-    }
+    console.error('Error fetching user profile:', error);
     throw error;
   }
 };
@@ -40,8 +36,8 @@ export const updateUserProfile = async (data) => {
     const response = await api.put('/users/profile', data);
     return response;
   } catch (error) {
-    // Mock successful update
-    return { data: { ...data, _id: '1', updatedAt: new Date().toISOString() } };
+    console.error('Error updating user profile:', error);
+    throw error;
   }
 };
 
@@ -51,13 +47,7 @@ export const getUserStats = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching user stats:', error);
-    return {
-      tournamentsJoined: 0,
-      tournamentsWon: 0,
-      totalEarnings: 0,
-      currentRank: 'N/A',
-      recentActivity: []
-    };
+    throw error;
   }
 };
 
@@ -87,7 +77,7 @@ export const getWalletBalance = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching wallet balance:', error);
-    return { balance: 2500 }; // Mock balance
+    throw error;
   }
 };
 
@@ -97,35 +87,7 @@ export const getTransactionHistory = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching transaction history:', error);
-    // Mock transaction history
-    return {
-      transactions: [
-        {
-          _id: '1',
-          type: 'credit',
-          amount: 1000,
-          description: 'Tournament Win - BGMI Championship',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          status: 'completed'
-        },
-        {
-          _id: '2',
-          type: 'debit',
-          amount: 50,
-          description: 'Tournament Entry - VALORANT Pro League',
-          date: new Date(Date.now() - 172800000).toISOString(),
-          status: 'completed'
-        },
-        {
-          _id: '3',
-          type: 'credit',
-          amount: 500,
-          description: 'Added Funds via UPI',
-          date: new Date(Date.now() - 259200000).toISOString(),
-          status: 'completed'
-        }
-      ]
-    };
+    throw error;
   }
 };
 
@@ -134,20 +96,8 @@ export const addFunds = async (data) => {
     const response = await api.post('/wallet/add-funds', data);
     return response.data;
   } catch (error) {
-    // Mock successful fund addition
-    return {
-      success: true,
-      message: 'Funds added successfully',
-      newBalance: 2500 + data.amount,
-      transaction: {
-        _id: Date.now().toString(),
-        type: 'credit',
-        amount: data.amount,
-        description: `Added Funds via ${data.method}`,
-        date: new Date().toISOString(),
-        status: 'completed'
-      }
-    };
+    console.error('Error adding funds:', error);
+    throw error;
   }
 };
 
@@ -156,20 +106,8 @@ export const withdrawFunds = async (data) => {
     const response = await api.post('/wallet/withdraw', data);
     return response.data;
   } catch (error) {
-    // Mock successful withdrawal
-    return {
-      success: true,
-      message: 'Withdrawal request submitted successfully',
-      newBalance: 2500 - data.amount,
-      transaction: {
-        _id: Date.now().toString(),
-        type: 'debit',
-        amount: data.amount,
-        description: `Withdrawal to ${data.method}`,
-        date: new Date().toISOString(),
-        status: 'pending'
-      }
-    };
+    console.error('Error withdrawing funds:', error);
+    throw error;
   }
 };
 

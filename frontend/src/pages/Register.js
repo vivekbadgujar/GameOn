@@ -115,29 +115,7 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      // Fallback to mock registration
-      const mockUser = {
-        _id: Date.now().toString(),
-        username: formData.username,
-        email: formData.email,
-        phone: '+91 9876543210',
-        avatar: null,
-        createdAt: new Date().toISOString()
-      };
-      
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Login the user
-      login(mockUser, mockToken);
-      setSuccess(true);
-      
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

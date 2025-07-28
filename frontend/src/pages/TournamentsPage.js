@@ -32,14 +32,41 @@ export default function TournamentsPage() {
   // Real-time updates
   useEffect(() => {
     if (!lastMessage) return;
+    
+    console.log('Received socket message:', lastMessage);
+    
     if (lastMessage.type === 'tournamentAdded') {
-      setTournaments(prev => [lastMessage.data, ...prev]);
+      console.log('Adding new tournament:', lastMessage.data);
+      setTournaments(prev => {
+        // Check if tournament already exists to avoid duplicates
+        const exists = prev.find(t => t._id === lastMessage.data._id);
+        if (exists) return prev;
+        return [lastMessage.data, ...prev];
+      });
     } else if (lastMessage.type === 'tournamentUpdated') {
+      console.log('Updating tournament:', lastMessage.data);
       setTournaments(prev => prev.map(t => t._id === lastMessage.data._id ? lastMessage.data : t));
     } else if (lastMessage.type === 'tournamentDeleted') {
+      console.log('Deleting tournament:', lastMessage.data);
       setTournaments(prev => prev.filter(t => t._id !== lastMessage.data));
     }
   }, [lastMessage]);
+
+  // Refresh tournaments periodically to ensure data consistency
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Refreshing tournaments data...');
+      getTournaments()
+        .then(data => {
+          setTournaments(data);
+        })
+        .catch(err => {
+          console.error('Error refreshing tournaments:', err);
+        });
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const filtered = tournaments.filter(t => {
     if (activeTab === 'live') return t.status === 'live';

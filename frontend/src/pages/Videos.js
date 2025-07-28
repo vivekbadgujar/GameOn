@@ -55,47 +55,7 @@ const Videos = () => {
       const response = await getYouTubeVideos();
       const videosData = response.videos || [];
       
-      // Add mock data if no videos from API
-      const mockVideos = [
-        {
-          id: '1',
-          title: 'BGMI Tournament Finals - Epic Clutch Moments',
-          description: 'Watch the most intense moments from our recent BGMI tournament finals',
-          thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
-          duration: '12:34',
-          views: '45.2K',
-          publishedAt: '2024-01-15T10:00:00Z',
-          game: 'bgmi',
-          type: 'finals',
-          videoId: 'dQw4w9WgXcQ'
-        },
-        {
-          id: '2',
-          title: 'VALORANT Pro Tips - Aim Training Guide',
-          description: 'Learn from the pros with these essential VALORANT aim training techniques',
-          thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
-          duration: '8:45',
-          views: '23.1K',
-          publishedAt: '2024-01-12T14:30:00Z',
-          game: 'valorant',
-          type: 'tutorials',
-          videoId: 'dQw4w9WgXcQ'
-        },
-        {
-          id: '3',
-          title: 'Chess Championship Highlights',
-          description: 'Best moments from our online chess championship',
-          thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
-          duration: '15:20',
-          views: '12.8K',
-          publishedAt: '2024-01-10T16:45:00Z',
-          game: 'chess',
-          type: 'highlights',
-          videoId: 'dQw4w9WgXcQ'
-        }
-      ];
-      
-      setVideos(videosData.length > 0 ? videosData : mockVideos);
+      setVideos(videosData);
     } catch (error) {
       console.error('Error fetching videos:', error);
       setVideos([]);

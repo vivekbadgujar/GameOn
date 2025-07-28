@@ -41,11 +41,13 @@ import {
   EmojiEvents,
   Schedule,
   People,
-  Payment
+  Payment,
+  VpnKey
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { tournamentAPI } from '../../services/api';
+import { useSocket } from '../../contexts/SocketContext';
 
 const TournamentList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,12 +60,38 @@ const TournamentList = () => {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { lastMessage } = useSocket();
 
-  // Fetch tournaments
+  // Fetch tournaments - MUST be defined before using refetch in useEffect
   const { data: tournaments, isLoading, error, refetch } = useQuery({
     queryKey: ['tournaments', searchTerm, statusFilter, gameFilter],
     queryFn: () => tournamentAPI.getAll({ search: searchTerm, status: statusFilter, game: gameFilter }),
   });
+
+  // Real-time socket updates
+  React.useEffect(() => {
+    if (!lastMessage) return;
+    
+    console.log('Admin Panel - Received socket message:', lastMessage);
+    
+    if (lastMessage.type === 'tournamentAdded' || 
+        lastMessage.type === 'tournamentUpdated' || 
+        lastMessage.type === 'tournamentDeleted') {
+      console.log('Admin Panel - Refreshing tournament list due to socket event');
+      queryClient.invalidateQueries(['tournaments']);
+      refetch();
+    }
+  }, [lastMessage, queryClient, refetch]);
+
+  // Auto-refresh tournaments every 30 seconds
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Admin Panel - Auto-refreshing tournaments...');
+      refetch();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   // Delete tournament mutation
   const deleteMutation = useMutation({
@@ -78,6 +106,14 @@ const TournamentList = () => {
   // Update tournament status mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }) => tournamentAPI.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['tournaments']);
+    },
+  });
+
+  // Release room credentials mutation
+  const releaseCredentialsMutation = useMutation({
+    mutationFn: (id) => tournamentAPI.releaseCredentials(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['tournaments']);
     },
@@ -106,6 +142,11 @@ const TournamentList = () => {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedRow(null);
+  };
+
+  const handleReleaseCredentials = (tournamentId) => {
+    releaseCredentialsMutation.mutate(tournamentId);
+    handleMenuClose();
   };
 
   const getStatusColor = (status) => {
@@ -427,6 +468,10 @@ const TournamentList = () => {
         }}>
           <Payment sx={{ mr: 1 }} />
           Mark Complete
+        </MenuItem>
+        <MenuItem onClick={() => handleReleaseCredentials(selectedRow?._id)}>
+          <VpnKey sx={{ mr: 1 }} />
+          Release Room Credentials
         </MenuItem>
         <MenuItem onClick={() => {
           handleDelete(selectedRow);
