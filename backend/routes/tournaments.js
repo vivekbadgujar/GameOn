@@ -6,53 +6,91 @@
 const express = require('express');
 const Tournament = require('../models/Tournament');
 const User = require('../models/User');
-const { authenticateUser } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 // Get all tournaments
 router.get('/', async (req, res) => {
   try {
-    const { status, game, type } = req.query;
+    console.log('Public tournaments route - Query params:', req.query);
+    
+    // Extract and validate query parameters
+    const { status, game, type, limit } = req.query;
     
     // Build filter object
     const filter = {};
-    if (status) filter.status = status;
-    if (game) filter.game = game;
-    if (type) filter.tournamentType = type;
     
-    // For frontend, only show visible and public tournaments
-    filter.isVisible = true;
-    filter.isPublic = true;
-    
-    // Show all tournaments if no status filter is specified
-    // This allows frontend to handle filtering by tabs
-    if (!status) {
-      // Don't filter by status - show all tournaments
+    // Handle status parameter (avoid nested object issues)
+    if (status && typeof status === 'string') {
+      filter.status = status;
     }
+    
+    if (game && typeof game === 'string') {
+      filter.game = game;
+    }
+    
+    if (type && typeof type === 'string') {
+      filter.tournamentType = type;
+    }
+    
+    // For frontend, show ALL tournaments without any visibility filtering
+    // Removed visibility filter to ensure all tournaments are shown
+    // filter.$or = [
+    //   { isVisible: true },
+    //   { isVisible: { $exists: false } },
+    //   { isVisible: null }
+    // ];
+    
+    console.log('Public tournaments route - Filter:', filter);
 
-    const tournaments = await Tournament.find(filter)
+    // Build query with optional limit
+    let query = Tournament.find(filter)
       .sort({ startDate: 1 })
-      .populate('participants.user', 'username displayName gameProfile.bgmiId')
-      .lean();
+      .populate('participants.user', 'username displayName gameProfile.bgmiId');
+    
+    // Apply limit if specified and valid
+    if (limit && !isNaN(parseInt(limit)) && parseInt(limit) > 0) {
+      query = query.limit(parseInt(limit));
+      console.log('Public tournaments route - Applied limit:', parseInt(limit));
+    }
+    
+    const tournaments = await query.lean();
+
+    console.log('Public tournaments found:', tournaments.length);
+    console.log('Sample tournament data:', tournaments[0] ? {
+      id: tournaments[0]._id,
+      title: tournaments[0].title,
+      status: tournaments[0].status,
+      isVisible: tournaments[0].isVisible,
+      isPublic: tournaments[0].isPublic
+    } : 'No tournaments');
 
     // Transform data for frontend compatibility
     const transformedTournaments = tournaments.map(tournament => ({
       _id: tournament._id,
       title: tournament.title,
+      name: tournament.title, // Add name field for compatibility
       description: tournament.description,
       status: tournament.status,
       game: tournament.game,
       map: tournament.map || 'TBD',
       teamType: tournament.tournamentType,
+      tournamentType: tournament.tournamentType,
       maxParticipants: tournament.maxParticipants,
       currentParticipants: tournament.currentParticipants,
       participants: tournament.participants || [],
       entryFee: tournament.entryFee,
       prizePool: tournament.prizePool,
+      startDate: tournament.startDate,
+      endDate: tournament.endDate,
       scheduledAt: tournament.startDate,
+      poster: tournament.poster || '',
+      posterUrl: tournament.posterUrl || '',
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
       createdAt: tournament.createdAt
     }));
+    
+    console.log('Transformed tournaments count:', transformedTournaments.length);
 
     res.json({
       success: true,
@@ -61,10 +99,13 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching tournaments:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Query params that caused error:', req.query);
+    
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch tournaments',
-      tournaments: []
+      message: 'Failed to fetch tournaments',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -125,7 +166,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Join tournament
-router.post('/:id/join', authenticateUser, async (req, res) => {
+router.post('/:id/join', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentData } = req.body;

@@ -161,9 +161,47 @@ const TournamentVideoManager = () => {
   });
 
   const extractYouTubeId = (url) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    if (!url || typeof url !== 'string') return null;
+    
+    // Add protocol if missing
+    let processedUrl = url.trim();
+    if (!processedUrl.startsWith('http')) {
+      processedUrl = 'https://' + processedUrl;
+    }
+    
+    console.log('Extracting YouTube ID from URL:', processedUrl);
+    
+    // More comprehensive YouTube URL patterns
+    const patterns = [
+      // Standard YouTube URLs
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+      // Shortened URLs
+      /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      // Embed URLs
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+      // Mobile URLs
+      /(?:https?:\/\/)?m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+      // YouTube Shorts
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+      // Legacy patterns
+      /(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+      // General query param
+      /[?&]v=([a-zA-Z0-9_-]{11})/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = processedUrl.match(pattern);
+      if (match && match[1] && match[1].length === 11) {
+        console.log('Extracted YouTube ID:', match[1]);
+        return match[1];
+      }
+    }
+    
+    // Fallback: last 11-char segment
+    const fallback = processedUrl.split(/[/?=&]+/).find(s => s.length === 11 && /^[a-zA-Z0-9_-]+$/.test(s));
+    console.log('Fallback YouTube ID:', fallback);
+    return fallback || null;
   };
 
   const fetchYouTubeData = async (url) => {
@@ -200,8 +238,19 @@ const TournamentVideoManager = () => {
     }
   };
 
+  const normalizeYouTubeUrl = (url) => {
+    const videoId = extractYouTubeId(url);
+    if (!videoId) return url;
+    
+    // Convert to standard watch URL format for consistency
+    return `https://www.youtube.com/watch?v=${videoId}`;
+  };
+
   const handleYouTubeUrlChange = (url) => {
-    handleChange('youtubeUrl', url);
+    // Normalize the URL before storing
+    const normalizedUrl = url ? normalizeYouTubeUrl(url) : url;
+    handleChange('youtubeUrl', normalizedUrl);
+    
     if (url && extractYouTubeId(url)) {
       fetchYouTubeData(url);
     }

@@ -66,6 +66,14 @@ const TournamentList = () => {
   const { data: tournaments, isLoading, error, refetch } = useQuery({
     queryKey: ['tournaments', searchTerm, statusFilter, gameFilter],
     queryFn: () => tournamentAPI.getAll({ search: searchTerm, status: statusFilter, game: gameFilter }),
+    onSuccess: (data) => {
+      console.log('Admin Panel - Query success:', data);
+      console.log('Admin Panel - Tournaments data:', data?.data?.tournaments);
+      console.log('Admin Panel - Tournaments count:', data?.data?.tournaments?.length || 0);
+    },
+    onError: (error) => {
+      console.error('Admin Panel - Query error:', error);
+    }
   });
 
   // Real-time socket updates
@@ -74,12 +82,21 @@ const TournamentList = () => {
     
     console.log('Admin Panel - Received socket message:', lastMessage);
     
-    if (lastMessage.type === 'tournamentAdded' || 
-        lastMessage.type === 'tournamentUpdated' || 
-        lastMessage.type === 'tournamentDeleted') {
-      console.log('Admin Panel - Refreshing tournament list due to socket event');
+    // Handle both old and new message formats
+    const messageType = lastMessage.type || lastMessage;
+    
+    if (
+      messageType === 'tournamentAdded' ||
+      messageType === 'tournamentUpdated' ||
+      messageType === 'tournamentDeleted' ||
+      messageType === 'adminUpdate'
+    ) {
+      console.log('Admin Panel - Refreshing tournament list due to socket event:', messageType);
       queryClient.invalidateQueries(['tournaments']);
-      refetch();
+      // Force immediate refetch
+      setTimeout(() => {
+        refetch();
+      }, 100);
     }
   }, [lastMessage, queryClient, refetch]);
 
@@ -299,23 +316,46 @@ const TournamentList = () => {
     },
   ];
 
-  // Handle different response structures
+  // Handle different response structures and ensure all tournaments are visible
   const filteredData = (() => {
-    console.log('Admin Panel - Tournament data structure:', tournaments);
+    console.log('Admin Panel - Raw tournament response:', tournaments);
     
+    let tournamentList = [];
+    
+    // Extract tournaments from various possible response structures
     if (Array.isArray(tournaments?.data?.tournaments)) {
-      return tournaments.data.tournaments;
+      tournamentList = tournaments.data.tournaments;
+    } else if (Array.isArray(tournaments?.data?.data)) {
+      tournamentList = tournaments.data.data;
+    } else if (Array.isArray(tournaments?.data)) {
+      tournamentList = tournaments.data;
+    } else if (Array.isArray(tournaments)) {
+      tournamentList = tournaments;
     }
-    if (Array.isArray(tournaments?.data?.data)) {
-      return tournaments.data.data;
+    
+    console.log('Admin Panel - Extracted tournament list:', tournamentList);
+    console.log('Admin Panel - Tournament count:', tournamentList.length);
+    
+    // Apply filters if any
+    let filtered = tournamentList;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(t => 
+        t.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.game?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-    if (Array.isArray(tournaments?.data)) {
-      return tournaments.data;
+    
+    if (statusFilter && statusFilter !== 'all') {
+      filtered = filtered.filter(t => t.status === statusFilter);
     }
-    if (Array.isArray(tournaments)) {
-      return tournaments;
+    
+    if (gameFilter && gameFilter !== 'all') {
+      filtered = filtered.filter(t => t.game === gameFilter);
     }
-    return [];
+    
+    console.log('Admin Panel - Filtered tournament count:', filtered.length);
+    return filtered;
   })();
 
   return (

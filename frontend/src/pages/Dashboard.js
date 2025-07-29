@@ -56,27 +56,49 @@ const Dashboard = () => {
   useEffect(() => {
     if (!lastMessage) return;
     
-    if (lastMessage.type === 'tournamentAdded') {
-      setDashboardData(prev => ({
-        ...prev,
-        tournaments: [lastMessage.data, ...prev.tournaments.slice(0, 5)]
-      }));
-    } else if (lastMessage.type === 'tournamentUpdated') {
+    console.log('Dashboard: Received socket message:', lastMessage);
+    
+    // Handle both old and new message formats
+    const messageType = lastMessage.type || lastMessage;
+    const messageData = lastMessage.data || lastMessage;
+    
+    if (messageType === 'tournamentAdded') {
+      console.log('Dashboard: Processing tournamentAdded event');
+      setDashboardData(prev => {
+        // Check if tournament already exists to prevent duplicates
+        const exists = prev.tournaments.some(t => t._id === messageData._id);
+        if (!exists) {
+          console.log('Dashboard: Adding new tournament to list');
+          const newTournaments = [messageData, ...prev.tournaments.slice(0, 5)];
+          // Ensure unique tournaments
+          const uniqueTournaments = newTournaments.filter((tournament, index, self) => 
+            index === self.findIndex(t => t._id === tournament._id)
+          );
+          return {
+            ...prev,
+            tournaments: uniqueTournaments
+          };
+        }
+        console.log('Dashboard: Tournament already exists, skipping');
+        return prev;
+      });
+    } else if (messageType === 'tournamentUpdated') {
+      console.log('Dashboard: Processing tournamentUpdated event');
       setDashboardData(prev => ({
         ...prev,
         tournaments: prev.tournaments.map(t => 
-          t._id === lastMessage.data._id ? lastMessage.data : t
+          t._id === messageData._id ? messageData : t
         )
       }));
-    } else if (lastMessage.type === 'walletUpdated') {
+    } else if (messageType === 'walletUpdated') {
       setDashboardData(prev => ({
         ...prev,
-        walletBalance: lastMessage.data.balance
+        walletBalance: messageData.balance
       }));
-    } else if (lastMessage.type === 'statsUpdated') {
+    } else if (messageType === 'statsUpdated') {
       setDashboardData(prev => ({
         ...prev,
-        userStats: { ...prev.userStats, ...lastMessage.data }
+        userStats: { ...prev.userStats, ...messageData }
       }));
     }
   }, [lastMessage]);
@@ -86,12 +108,23 @@ const Dashboard = () => {
       setLoading(true);
       const [tournamentsRes, walletRes, statsRes] = await Promise.all([
         getTournaments({ limit: 6, status: 'upcoming' }),
-        getWalletBalance(),
-        getUserStats()
+        getWalletBalance().catch(() => ({ balance: 0 })), // Handle 404 gracefully
+        getUserStats().catch(() => ({})) // Handle errors gracefully
       ]);
 
+      // Handle new API response structure
+      const tournaments = tournamentsRes?.tournaments || [];
+      console.log('Dashboard: Received tournaments:', tournaments.length);
+      
+      // Ensure unique tournaments to prevent duplicate key warnings
+      const uniqueTournaments = tournaments.filter((tournament, index, self) => 
+        index === self.findIndex(t => t._id === tournament._id)
+      );
+      
+      console.log('Dashboard: Unique tournaments after filtering:', uniqueTournaments.length);
+      
       setDashboardData({
-        tournaments: tournamentsRes.tournaments || [],
+        tournaments: uniqueTournaments,
         walletBalance: walletRes.balance || 0,
         userStats: statsRes || {},
         recentActivity: statsRes.recentActivity || []

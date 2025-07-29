@@ -90,7 +90,18 @@ export default function VideosPage() {
           videos.map((v, i) => (
             <div key={v.id || i} className="bg-glass rounded-xl shadow-glass p-4 flex flex-col items-center hover:scale-105 transition-transform cursor-pointer">
               <div className="w-full aspect-video bg-secondary-bg rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                {v.thumbnail ? (
+                {v.youtubeId ? (
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${v.youtubeId}`}
+                    title={v.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="rounded-lg w-full h-full object-cover"
+                  />
+                ) : v.thumbnail ? (
                   <img 
                     src={v.thumbnail} 
                     alt={v.title} 
@@ -100,7 +111,7 @@ export default function VideosPage() {
                     }}
                   />
                 ) : (
-                  <div className="text-secondary">No thumbnail</div>
+                  <div className="text-secondary">No video</div>
                 )}
               </div>
               <span className="text-lg font-semibold line-clamp-2 text-center mb-2">

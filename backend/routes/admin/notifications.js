@@ -3,10 +3,10 @@ const router = express.Router();
 const { Notification, UserNotification } = require('../../models/Notification');
 const Tournament = require('../../models/Tournament');
 const User = require('../../models/User');
-const adminAuth = require('../../middleware/adminAuth');
+const { authenticateAdmin } = require('../../middleware/adminAuth');
 
 // Get all notifications
-router.get('/', adminAuth, async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const notifications = await Notification.find()
       .populate('createdBy', 'name')
@@ -27,7 +27,7 @@ router.get('/', adminAuth, async (req, res) => {
 });
 
 // Create notification
-router.post('/', adminAuth, async (req, res) => {
+router.post('/', authenticateAdmin, async (req, res) => {
   try {
     const {
       title,
@@ -83,7 +83,7 @@ router.post('/', adminAuth, async (req, res) => {
 });
 
 // Update notification
-router.put('/:id', adminAuth, async (req, res) => {
+router.put('/:id', authenticateAdmin, async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
     
@@ -125,7 +125,7 @@ router.put('/:id', adminAuth, async (req, res) => {
 });
 
 // Send notification
-router.post('/:id/send', adminAuth, async (req, res) => {
+router.post('/:id/send', authenticateAdmin, async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
     
@@ -168,7 +168,7 @@ router.post('/:id/send', adminAuth, async (req, res) => {
 });
 
 // Delete notification
-router.delete('/:id', adminAuth, async (req, res) => {
+router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
     

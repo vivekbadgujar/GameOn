@@ -17,6 +17,7 @@ import {
 import { getTournaments } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
+import { useSocket } from '../contexts/SocketContext';
 
 const Tournaments = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -24,6 +25,7 @@ const Tournaments = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ongoing');
   const [searchQuery, setSearchQuery] = useState('');
+  const { lastMessage } = useSocket();
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedPrizeRange, setSelectedPrizeRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -59,16 +61,57 @@ const Tournaments = () => {
     filterTournaments();
   }, [tournaments, activeTab, searchQuery, selectedGame, selectedPrizeRange]);
 
+  // Real-time updates via socket
+  useEffect(() => {
+    if (!lastMessage) return;
+    
+    console.log('Tournaments Page: Received socket message:', lastMessage);
+    
+    // Handle both old and new message formats
+    const messageType = lastMessage.type || lastMessage;
+    const messageData = lastMessage.data || lastMessage;
+    
+    if (messageType === 'tournamentAdded') {
+      console.log('Tournaments Page: Processing tournamentAdded event');
+      // Add new tournament to the list
+      setTournaments(prev => {
+        const exists = prev.some(t => t._id === messageData._id);
+        if (!exists) {
+          console.log('Tournaments Page: Adding new tournament to list');
+          return [messageData, ...prev];
+        }
+        return prev;
+      });
+    } else if (messageType === 'tournamentUpdated') {
+      console.log('Tournaments Page: Processing tournamentUpdated event');
+      // Update existing tournament
+      setTournaments(prev => 
+        prev.map(t => t._id === messageData._id ? messageData : t)
+      );
+    } else if (messageType === 'tournamentDeleted') {
+      console.log('Tournaments Page: Processing tournamentDeleted event');
+      // Remove tournament from list
+      setTournaments(prev => 
+        prev.filter(t => t._id !== messageData._id)
+      );
+    }
+  }, [lastMessage]);
+
   const fetchTournaments = async () => {
     try {
       setLoading(true);
       const response = await getTournaments();
-      setTournaments(response.tournaments || []);
+      const tournaments = response?.tournaments || [];
+      console.log('Tournaments Page: Received tournaments:', tournaments.length);
+      
+      setTournaments(tournaments);
       
       // Update tab counts
-      const ongoing = response.tournaments?.filter(t => t.status === 'ongoing').length || 0;
-      const upcoming = response.tournaments?.filter(t => t.status === 'upcoming').length || 0;
-      const completed = response.tournaments?.filter(t => t.status === 'completed').length || 0;
+      const ongoing = tournaments.filter(t => t.status === 'ongoing' || t.status === 'live').length;
+      const upcoming = tournaments.filter(t => t.status === 'upcoming' || t.status === 'registration').length;
+      const completed = tournaments.filter(t => t.status === 'completed' || t.status === 'finished').length;
+      
+      console.log('Tournaments Page: Tab counts - Ongoing:', ongoing, 'Upcoming:', upcoming, 'Completed:', completed);
       
       tabs[0].count = ongoing;
       tabs[1].count = upcoming;
@@ -95,6 +138,7 @@ const Tournaments = () => {
     // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(t => 
+        t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.game?.toLowerCase().includes(searchQuery.toLowerCase())
       );

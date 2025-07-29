@@ -192,6 +192,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/anticheat', require('./routes/anticheat'));
 app.use('/api/youtube', require('./routes/youtube'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/notifications', require('./routes/notifications'));
 
 // Admin API Routes
@@ -247,6 +248,9 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 });
+
+// Make Socket.IO available to routes
+app.set('io', io);
 
 // Socket.IO Configuration for Real-time Features
 io.on('connection', (socket) => {

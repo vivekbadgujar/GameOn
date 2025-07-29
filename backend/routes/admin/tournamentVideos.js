@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const TournamentVideo = require('../../models/TournamentVideo');
 const Tournament = require('../../models/Tournament');
-const adminAuth = require('../../middleware/adminAuth');
+const { authenticateAdmin } = require('../../middleware/adminAuth');
 
 // Get all tournament videos
-router.get('/', adminAuth, async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const videos = await TournamentVideo.find()
       .populate('tournament', 'title game')
@@ -51,7 +51,7 @@ router.get('/visible', async (req, res) => {
 });
 
 // Create tournament video
-router.post('/', adminAuth, async (req, res) => {
+router.post('/', authenticateAdmin, async (req, res) => {
   try {
     const {
       title,
@@ -106,7 +106,16 @@ router.post('/', adminAuth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       console.log('Emitting videoAdded event:', video._id);
-      io.emit('videoAdded', video);
+      // Emit to all clients with structured data
+      io.emit('videoAdded', {
+        type: 'videoAdded',
+        data: video
+      });
+      // Emit specifically to admin clients
+      io.emit('adminUpdate', {
+        type: 'videoAdded',
+        data: video
+      });
     }
 
     // Populate the response
@@ -137,7 +146,7 @@ router.post('/', adminAuth, async (req, res) => {
 });
 
 // Update tournament video
-router.put('/:id', adminAuth, async (req, res) => {
+router.put('/:id', authenticateAdmin, async (req, res) => {
   try {
     const video = await TournamentVideo.findById(req.params.id);
     
@@ -167,7 +176,16 @@ router.put('/:id', adminAuth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       console.log('Emitting videoUpdated event:', video._id);
-      io.emit('videoUpdated', video);
+      // Emit to all clients with structured data
+      io.emit('videoUpdated', {
+        type: 'videoUpdated',
+        data: video
+      });
+      // Emit specifically to admin clients
+      io.emit('adminUpdate', {
+        type: 'videoUpdated',
+        data: video
+      });
     }
 
     // Populate the response
@@ -188,7 +206,7 @@ router.put('/:id', adminAuth, async (req, res) => {
 });
 
 // Toggle video visibility
-router.patch('/:id/visibility', adminAuth, async (req, res) => {
+router.patch('/:id/visibility', authenticateAdmin, async (req, res) => {
   try {
     const { isVisible } = req.body;
     
@@ -218,7 +236,7 @@ router.patch('/:id/visibility', adminAuth, async (req, res) => {
 });
 
 // Delete tournament video
-router.delete('/:id', adminAuth, async (req, res) => {
+router.delete('/:id', authenticateAdmin, async (req, res) => {
   try {
     const video = await TournamentVideo.findById(req.params.id);
     
@@ -235,7 +253,16 @@ router.delete('/:id', adminAuth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       console.log('Emitting videoDeleted event:', req.params.id);
-      io.emit('videoDeleted', req.params.id);
+      // Emit to all clients with structured data
+      io.emit('videoDeleted', {
+        type: 'videoDeleted',
+        data: { id: req.params.id }
+      });
+      // Emit specifically to admin clients
+      io.emit('adminUpdate', {
+        type: 'videoDeleted',
+        data: { id: req.params.id }
+      });
     }
 
     res.json({
@@ -252,7 +279,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
 });
 
 // Get video by ID
-router.get('/:id', adminAuth, async (req, res) => {
+router.get('/:id', authenticateAdmin, async (req, res) => {
   try {
     const video = await TournamentVideo.findById(req.params.id)
       .populate('tournament', 'title game')

@@ -52,17 +52,46 @@ export const getUserStats = async () => {
 };
 
 // Tournament endpoints
-export const getTournaments = async (status = null) => {
+export const getTournaments = async (params = {}) => {
   try {
-    const params = {};
-    if (status) params.status = status;
+    // Handle different parameter formats
+    let queryParams = {};
     
-    const response = await api.get('/tournaments', { params });
-    console.log('Tournaments API response:', response.data);
-    return response.data?.tournaments || [];
+    // If params is a string (status), convert to object
+    if (typeof params === 'string') {
+      queryParams.status = params;
+    } else if (typeof params === 'object' && params !== null) {
+      queryParams = { ...params };
+    }
+    
+    console.log('API: Fetching tournaments with params:', queryParams);
+    
+    const response = await api.get('/tournaments', { params: queryParams });
+    console.log('API: Full tournament response:', response.data);
+    console.log('API: Response structure:', {
+      success: response.data?.success,
+      tournaments: response.data?.tournaments?.length || 0,
+      message: response.data?.message
+    });
+    
+    // Return standardized response structure
+    const tournaments = response.data?.tournaments || [];
+    console.log('API: Returning tournaments:', tournaments.length);
+    console.log('API: Tournament titles:', tournaments.map(t => t.title));
+    
+    return {
+      success: response.data?.success || true,
+      tournaments: tournaments,
+      message: response.data?.message || 'Tournaments fetched successfully'
+    };
   } catch (error) {
-    console.error('Error fetching tournaments:', error);
-    return [];
+    console.error('API: Error fetching tournaments:', error);
+    console.error('API: Error details:', error.response?.data);
+    return {
+      success: false,
+      tournaments: [],
+      message: 'Failed to fetch tournaments'
+    };
   }
 };
 

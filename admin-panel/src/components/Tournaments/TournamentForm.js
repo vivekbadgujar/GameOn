@@ -109,16 +109,25 @@ const TournamentForm = () => {
     onSuccess: (response) => {
       console.log('Tournament created/updated successfully:', response);
       
-      // Invalidate and refetch tournament queries
+      // Invalidate and refetch tournament queries immediately
       queryClient.invalidateQueries(['tournaments']);
       queryClient.refetchQueries(['tournaments']);
       
-      // Force refresh the tournament list
+      // Force multiple refreshes to ensure data consistency
       setTimeout(() => {
         queryClient.invalidateQueries(['tournaments']);
-      }, 1000);
+        queryClient.refetchQueries(['tournaments']);
+      }, 500);
       
-      navigate('/tournaments');
+      setTimeout(() => {
+        queryClient.invalidateQueries(['tournaments']);
+        queryClient.refetchQueries(['tournaments']);
+      }, 1500);
+      
+      // Navigate after ensuring data is refreshed
+      setTimeout(() => {
+        navigate('/tournaments');
+      }, 2000);
     },
     onError: (error) => {
       console.error('Tournament creation/update failed:', error);
@@ -336,11 +345,29 @@ const TournamentForm = () => {
 
     // Handle image upload if there's a new image
     if (imageFile) {
-      const formDataImage = new FormData();
-      formDataImage.append('file', imageFile);
-      formDataImage.append('type', 'tournament');
-      // You would typically upload the image first and get the URL
-      // For now, we'll skip this step
+      try {
+        console.log('Uploading tournament image...');
+        const formDataImage = new FormData();
+        formDataImage.append('file', imageFile);
+        formDataImage.append('type', 'tournament');
+        
+        // Upload image and get URL
+        const uploadResponse = await mediaAPI.upload(imageFile, 'tournament');
+        if (uploadResponse.data.success) {
+          submitData.poster = uploadResponse.data.url;
+          submitData.posterUrl = uploadResponse.data.url;
+          console.log('Image uploaded successfully:', uploadResponse.data.url);
+        }
+      } catch (uploadError) {
+        console.error('Image upload failed:', uploadError);
+        // Continue with tournament creation even if image upload fails
+      }
+    }
+    
+    // Add image preview URL if available
+    if (imagePreview && !submitData.poster) {
+      submitData.poster = imagePreview;
+      submitData.posterUrl = imagePreview;
     }
 
     console.log('Calling mutation.mutate...');

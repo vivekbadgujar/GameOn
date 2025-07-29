@@ -17,66 +17,75 @@ export default function TournamentsPage() {
 
   // Fetch tournaments
   useEffect(() => {
-    setLoading(true);
-    getTournaments()
-      .then(data => {
-        console.log('Fetched tournaments:', data);
-        setTournaments(Array.isArray(data) ? data : []);
+    const fetchTournaments = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch all tournaments from backend
+        const data = await getTournaments();
+        console.log('TournamentsPage: Raw API response:', data);
+        console.log('TournamentsPage: Data type:', typeof data);
+        console.log('TournamentsPage: Is array:', Array.isArray(data));
+        
+        if (Array.isArray(data)) {
+          console.log('TournamentsPage: Setting tournaments:', data.length, 'items');
+          console.log('TournamentsPage: Tournament titles:', data.map(t => t.title));
+          setTournaments(data);
+        } else {
+          console.error('TournamentsPage: Unexpected data format:', data);
+          setTournaments([]);
+        }
+      } catch (err) {
+        console.error('TournamentsPage: Error fetching tournaments:', err);
+        setError('Failed to load tournaments: ' + err.message);
+        setTournaments([]);
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching tournaments:', err);
-        setError('Failed to load tournaments');
-        setLoading(false);
-      });
+      }
+    };
+    fetchTournaments();
   }, []);
 
   // Real-time updates
   useEffect(() => {
     if (!lastMessage) return;
     
-    console.log('Received socket message:', lastMessage);
+    console.log('TournamentsPage: Socket message received:', lastMessage.type, lastMessage.data);
     
     if (lastMessage.type === 'tournamentAdded') {
-      console.log('Adding new tournament:', lastMessage.data);
       setTournaments(prev => {
-        // Check if tournament already exists to avoid duplicates
-        const exists = prev.find(t => t._id === lastMessage.data._id);
-        if (exists) return prev;
-        return [lastMessage.data, ...prev];
+        // Check if tournament already exists to prevent duplicates
+        const exists = prev.some(t => t._id === lastMessage.data._id);
+        if (!exists) {
+          console.log('TournamentsPage: Adding new tournament:', lastMessage.data.title || lastMessage.data.name);
+          return [lastMessage.data, ...prev];
+        }
+        console.log('TournamentsPage: Tournament already exists, skipping duplicate');
+        return prev;
       });
     } else if (lastMessage.type === 'tournamentUpdated') {
-      console.log('Updating tournament:', lastMessage.data);
-      setTournaments(prev => prev.map(t => t._id === lastMessage.data._id ? lastMessage.data : t));
+      console.log('TournamentsPage: Updating tournament:', lastMessage.data._id);
+      setTournaments(prev => 
+        prev.map(t => t._id === lastMessage.data._id ? lastMessage.data : t)
+      );
     } else if (lastMessage.type === 'tournamentDeleted') {
-      console.log('Deleting tournament:', lastMessage.data);
-      setTournaments(prev => prev.filter(t => t._id !== lastMessage.data));
+      console.log('TournamentsPage: Deleting tournament:', lastMessage.data);
+      setTournaments(prev => 
+        prev.filter(t => t._id !== lastMessage.data)
+      );
     }
   }, [lastMessage]);
 
-  // Refresh tournaments periodically to ensure data consistency
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('Refreshing tournaments data...');
-      getTournaments()
-        .then(data => {
-          console.log('Refreshed tournaments:', data);
-          setTournaments(Array.isArray(data) ? data : []);
-        })
-        .catch(err => {
-          console.error('Error refreshing tournaments:', err);
-        });
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
   const filtered = tournaments.filter(t => {
-    console.log('Filtering tournament:', t.title, 'Status:', t.status, 'Active tab:', activeTab);
-    
-    if (activeTab === 'live') return t.status === 'active' || t.status === 'live';
-    if (activeTab === 'upcoming') return t.status === 'upcoming';
-    if (activeTab === 'past') return t.status === 'completed' || t.status === 'finished' || t.status === 'past';
+    // Normalize status for robust filtering
+    const status = (t.status || '').toLowerCase();
+    const now = new Date();
+    const start = t.startDate ? new Date(t.startDate) : null;
+    const end = t.endDate ? new Date(t.endDate) : null;
+
+    console.log('Filtering tournament:', t.title, 'Status:', status, 'Active tab:', activeTab);
+
+    // Show ALL tournaments in ALL tabs for now
     return true;
   });
   
@@ -101,26 +110,30 @@ export default function TournamentsPage() {
           ) : filtered.map(t => (
             <div key={t._id} className="bg-card-bg rounded-card shadow-glass overflow-hidden hover:scale-105 transition-transform">
               {/* Tournament Poster */}
-              <div className="h-48 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center">
-                {t.poster || t.posterUrl ? (
+              <div className="h-48 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center relative">
+                {(t.poster || t.posterUrl) ? (
                   <img 
                     src={t.poster || t.posterUrl} 
                     alt={t.title || 'Tournament'} 
                     className="w-full h-full object-cover"
                     onError={(e) => {
+                      console.log('Image failed to load:', t.poster || t.posterUrl);
                       e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
+                      e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
+                    }}
+                    onLoad={(e) => {
+                      console.log('Image loaded successfully:', t.poster || t.posterUrl);
                     }}
                   />
                 ) : null}
-                <div className="flex items-center justify-center text-4xl font-bold text-accent-blue/50">
-                  🏆
+                <div className="fallback-icon flex items-center justify-center text-4xl font-bold text-accent-blue/50 absolute inset-0" style={{display: (t.poster || t.posterUrl) ? 'none' : 'flex'}}>
+                  🏆 {t.game || 'TOURNAMENT'}
                 </div>
               </div>
               
               <div className="p-6 flex flex-col gap-2">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-xl">{t.title || t.name || 'Unnamed Tournament'}</h3>
+                  <h3 className="font-bold text-xl">{t.title || t.name || 'Tournament'}</h3>
                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                   t.status === 'live' || t.status === 'active' ? 'bg-green-500/20 text-green-400' :
                   t.status === 'upcoming' ? 'bg-blue-500/20 text-blue-400' :

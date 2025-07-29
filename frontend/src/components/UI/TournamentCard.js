@@ -85,12 +85,35 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
 
       {/* Tournament Image/Game Icon */}
       <div className="relative h-48 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 rounded-t-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-6xl opacity-80">
-            {getGameIcon(tournament.game)}
-          </div>
-        </div>
+        {tournament.poster || tournament.posterUrl || tournament.image ? (
+          <>
+            <img 
+              src={tournament.poster || tournament.posterUrl || tournament.image} 
+              alt={tournament.title || tournament.name || 'Tournament'}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="absolute inset-0 bg-black/30" />
+            {/* Fallback content - hidden by default */}
+            <div className="absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
+              <div className="text-6xl opacity-80">
+                {getGameIcon(tournament.game)}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-6xl opacity-80">
+                {getGameIcon(tournament.game)}
+              </div>
+            </div>
+          </>
+        )}
         <div className="absolute bottom-4 left-4">
           <div className="bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
             <span className="text-white text-sm font-semibold">
@@ -103,7 +126,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
       {/* Tournament Info */}
       <div className="p-6">
         <h3 className="text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors duration-300">
-          {tournament.name || 'Unnamed Tournament'}
+          {tournament.title || tournament.name || 'Unnamed Tournament'}
         </h3>
         
         <p className="text-white/60 text-sm mb-4 line-clamp-2">
@@ -148,7 +171,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
               <span className="text-white/80 text-sm">Start Time</span>
             </div>
             <span className="text-white font-semibold text-sm">
-              {formatDate(tournament.startTime)}
+              {formatDate(tournament.startDate || tournament.startTime)}
             </span>
           </div>
         </div>

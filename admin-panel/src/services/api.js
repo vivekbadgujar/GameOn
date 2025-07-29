@@ -46,7 +46,32 @@ export const tournamentAPI = {
     console.log('API: Fetching tournaments with params:', params);
     return api.get('/admin/tournaments', { params }).then(response => {
       console.log('API: Tournament fetch response:', response.data);
-      return response;
+      
+      // Handle different response structures
+      let tournaments = [];
+      if (response.data && Array.isArray(response.data.tournaments)) {
+        tournaments = response.data.tournaments;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        tournaments = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        tournaments = response.data;
+      }
+      
+      console.log('API: Processed tournaments count:', tournaments.length);
+      console.log('API: Tournament titles:', tournaments.map(t => t.title));
+      
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          tournaments: tournaments,
+          data: tournaments
+        }
+      };
+    }).catch(error => {
+      console.error('API: Error fetching tournaments:', error);
+      console.error('API: Error response:', error.response?.data);
+      throw error;
     });
   },
   getById: (id) => api.get(`/admin/tournaments/${id}`),

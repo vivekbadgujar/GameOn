@@ -32,11 +32,12 @@ const validateTournament = [
     .isNumeric().withMessage('Prize pool must be a number')
     .custom(value => value > 0).withMessage('Prize pool must be greater than 0')
     .custom((value, { req }) => {
-      const entryFee = req.body.entryFee;
-      const maxParticipants = req.body.maxParticipants;
+      const entryFee = parseFloat(req.body.entryFee) || 0;
+      const maxParticipants = parseInt(req.body.maxParticipants) || 1;
       const totalPotential = entryFee * maxParticipants;
-      return value <= totalPotential;
-    }).withMessage('Prize pool cannot exceed potential entry fees'),
+      // Allow prize pool to be up to 150% of total potential (for sponsored tournaments)
+      return value <= (totalPotential * 1.5) || entryFee === 0;
+    }).withMessage('Prize pool is too high compared to entry fees'),
   
   body('maxParticipants')
     .isInt({ min: 2 }).withMessage('Minimum 2 participants required')

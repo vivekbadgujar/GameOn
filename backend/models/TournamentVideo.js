@@ -25,14 +25,22 @@ const TournamentVideoSchema = new mongoose.Schema({
       validator: function(v) {
         if (!v) return false;
         
-        // Use a simpler validation approach
+        // More comprehensive YouTube URL validation
         const patterns = [
-          /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
-          /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-          /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-          /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
-          /youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
-          /(?:m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/
+          // Standard YouTube URLs
+          /^https?:\/\/(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+          /^https?:\/\/(www\.)?youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+          // Shortened URLs
+          /^https?:\/\/youtu\.be\/([a-zA-Z0-9_-]{11})/,
+          // Embed URLs
+          /^https?:\/\/(www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+          // Mobile URLs
+          /^https?:\/\/m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+          // YouTube Shorts
+          /^https?:\/\/(www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+          // Without protocol
+          /^(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+          /^youtu\.be\/([a-zA-Z0-9_-]{11})/
         ];
         
         const isValid = patterns.some(pattern => pattern.test(v));
@@ -138,38 +146,44 @@ TournamentVideoSchema.statics.getVisibleVideos = function(options = {}) {
 // Method to extract YouTube ID from URL
 TournamentVideoSchema.statics.extractYouTubeId = function(url) {
   if (!url || typeof url !== 'string') return null;
+  url = url.trim();
+  
+  // Add protocol if missing
+  if (!url.startsWith('http')) {
+    url = 'https://' + url;
+  }
   
   console.log('Extracting YouTube ID from URL:', url);
   
-  // Clean the URL
-  url = url.trim();
-  
-  // Handle different YouTube URL formats
+  // Try all common patterns
   const patterns = [
-    // Standard watch URLs
-    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
-    // Short URLs
-    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    // Standard YouTube URLs
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+    // Shortened URLs
+    /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
     // Embed URLs
-    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-    // Old format
-    /(?:youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
-    // Watch URLs with additional parameters
-    /youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
     // Mobile URLs
-    /(?:m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/
+    /(?:https?:\/\/)?m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    // YouTube Shorts
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    // General query param
+    /[?&]v=([a-zA-Z0-9_-]{11})/
   ];
   
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match && match[1] && match[1].length === 11) {
-      console.log('Successfully extracted YouTube ID:', match[1]);
+      console.log('Extracted YouTube ID:', match[1]);
       return match[1];
     }
   }
   
-  console.log('Failed to extract YouTube ID from URL:', url);
-  return null;
+  // Fallback: last 11-char segment
+  const fallback = url.split(/[/?=&]+/).find(s => s.length === 11 && /^[a-zA-Z0-9_-]+$/.test(s));
+  console.log('Fallback YouTube ID:', fallback);
+  return fallback || null;
 };
 
 // Pre-save middleware to extract YouTube ID

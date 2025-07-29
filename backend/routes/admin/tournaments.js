@@ -39,6 +39,9 @@ router.get('/',
         };
       }
 
+      console.log('Admin tournaments route - Query params:', req.query);
+      console.log('Admin tournaments route - Filter:', filter);
+
       // Get total count for pagination
       const total = await Tournament.countDocuments(filter);
 
@@ -61,14 +64,25 @@ router.get('/',
         }
       }));
 
+      console.log('Admin tournaments found:', tournamentsWithStats.length);
+      console.log('Sample tournament:', tournamentsWithStats[0] ? {
+        id: tournamentsWithStats[0]._id,
+        title: tournamentsWithStats[0].title,
+        status: tournamentsWithStats[0].status,
+        isVisible: tournamentsWithStats[0].isVisible,
+        isPublic: tournamentsWithStats[0].isPublic
+      } : 'No tournaments');
+      console.log('Filter used:', filter);
+      console.log('Total count:', total);
+
       res.json({
         success: true,
-        data: {
-          tournaments: tournamentsWithStats,
-          totalPages: Math.ceil(total / limit),
-          currentPage: page,
-          total
-        }
+        data: tournamentsWithStats,
+        tournaments: tournamentsWithStats, // Ensure this field is present
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        total,
+        message: 'Tournaments fetched successfully'
       });
     } catch (error) {
       console.error('Error fetching tournaments:', error);
@@ -80,6 +94,34 @@ router.get('/',
     }
   }
 );
+
+// Debug route - no authentication required
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('Debug route - No auth required');
+    
+    const tournaments = await Tournament.find({})
+      .sort({ startDate: -1 })
+      .lean();
+
+    console.log('Debug route - Found tournaments:', tournaments.length);
+    
+    res.json({
+      success: true,
+      data: tournaments,
+      tournaments: tournaments,
+      total: tournaments.length,
+      message: 'Debug tournaments fetched successfully'
+    });
+  } catch (error) {
+    console.error('Debug route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug route failed',
+      error: error.message
+    });
+  }
+});
 
 // Get tournament statistics
 router.get('/stats', 
@@ -238,8 +280,8 @@ router.post('/',
 
       // Create tournament with proper field mapping
       const tournamentData = {
-        title: req.body.title || 'Untitled Tournament',
-        description: req.body.description || '',
+        title: req.body.title && req.body.title.trim() ? req.body.title.trim() : 'Untitled Tournament',
+        description: req.body.description && req.body.description.trim() ? req.body.description.trim() : 'Tournament description not provided',
         game: req.body.game || 'BGMI',
         map: req.body.map || 'TBD',
         tournamentType: req.body.tournamentType || 'squad',
@@ -249,14 +291,16 @@ router.post('/',
         currentParticipants: 0,
         startDate: req.body.startDate ? new Date(req.body.startDate) : new Date(Date.now() + 24 * 60 * 60 * 1000),
         endDate: req.body.endDate ? new Date(req.body.endDate) : new Date(Date.now() + 26 * 60 * 60 * 1000),
-        rules: Array.isArray(req.body.rules) ? req.body.rules : ['No cheating allowed', 'Follow fair play guidelines'],
+        rules: Array.isArray(req.body.rules) ? req.body.rules.filter(rule => rule && rule.trim()) : ['No cheating allowed', 'Follow fair play guidelines'],
         status: req.body.status || 'upcoming',
         roomDetails: req.body.roomDetails || {},
         createdBy: req.admin._id,
         participants: [],
         winners: [],
         isVisible: req.body.isVisible !== undefined ? req.body.isVisible : true,
-        isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true
+        isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true,
+        poster: req.body.poster || req.body.posterUrl || req.body.image || '',
+        posterUrl: req.body.posterUrl || req.body.poster || req.body.image || ''
       };
 
       console.log('Creating tournament with data:', JSON.stringify(tournamentData, null, 2));
@@ -274,9 +318,16 @@ router.post('/',
       if (io) {
         console.log('Emitting socket events for tournament creation');
         console.log('Emitting tournamentAdded', tournament._id);
-        io.emit('tournamentAdded', tournament);
-        console.log('Emitting tournamentUpdated', tournament._id);
-        io.emit('tournamentUpdated', tournament);
+        // Emit to all clients with structured data
+        io.emit('tournamentAdded', {
+          type: 'tournamentAdded',
+          data: tournament
+        });
+        // Emit specifically to admin clients
+        io.emit('adminUpdate', {
+          type: 'tournamentAdded',
+          data: tournament
+        });
       } else {
         console.warn('Socket.IO not available for real-time updates');
       }
@@ -363,8 +414,21 @@ router.put('/:id',
       Object.assign(tournament, updates);
       await tournament.save();
 
-      // Emit Socket.IO event
-      req.app.get('io').emit('tournamentUpdated', tournament);
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        console.log('Emitting socket events for tournament update');
+        // Emit to all clients with structured data
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+        // Emit specifically to admin clients
+        io.emit('adminUpdate', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+      }
       
       res.json({
         success: true,
@@ -943,8 +1007,21 @@ router.patch('/:id/status',
       
       await tournament.save();
       
-      // Emit Socket.IO event
-      req.app.get('io').emit('tournamentUpdated', tournament);
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        console.log('Emitting socket events for tournament update');
+        // Emit to all clients with structured data
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+        // Emit specifically to admin clients
+        io.emit('adminUpdate', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+      }
       req.app.get('emitToTournament')(tournamentId, 'tournament_status_updated', {
         tournamentId,
         status,
@@ -1027,14 +1104,15 @@ router.patch('/:id/status',
         endDate: tournament.endDate
       });
       
+      const tournaments = await Tournament.find({ status: tournament.status })
+        .sort({ createdAt: -1 })
+        .populate('createdBy', 'name username')
+        .lean();
+        
       res.json({
         success: true,
         message: 'Tournament status updated successfully',
-        data: {
-          id: tournament._id,
-          status: tournament.status,
-          endDate: tournament.endDate
-        }
+        data: tournaments
       });
     } catch (error) {
       console.error('Error updating tournament status:', error);
