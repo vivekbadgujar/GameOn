@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getYouTubeVideos } from '../services/api';
+import { getTournamentVideos } from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
 
 export default function VideosPage() {
@@ -10,18 +10,31 @@ export default function VideosPage() {
 
   useEffect(() => {
     setLoading(true);
-    getYouTubeVideos()
+    getTournamentVideos()
       .then(data => {
-        console.log('Fetched videos data:', data);
+        console.log('Fetched tournament videos data:', data);
         if (data?.success) {
-          setVideos(data.videos || []);
+          // Transform backend video data to frontend format
+          const transformedVideos = (data.videos || []).map(video => ({
+            id: video._id,
+            youtubeId: video.youtubeId,
+            title: video.title,
+            description: video.description,
+            thumbnail: video.thumbnail || `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
+            url: video.youtubeUrl,
+            game: video.game,
+            category: video.category,
+            tournament: video.tournament,
+            createdAt: video.createdAt
+          }));
+          setVideos(transformedVideos);
         } else {
           setVideos([]);
         }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Error loading videos:', err);
+        console.error('Error loading tournament videos:', err);
         setError('Failed to load videos');
         setLoading(false);
       });

@@ -42,12 +42,15 @@ import {
   Schedule,
   People,
   Payment,
-  VpnKey
+  VpnKey,
+  VideoLibrary
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { tournamentAPI } from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
+import { useNotification } from '../../contexts/NotificationContext';
+import AddVideoDialog from './AddVideoDialog';
 
 const TournamentList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,10 +60,13 @@ const TournamentList = () => {
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [addVideoDialogOpen, setAddVideoDialogOpen] = useState(false);
+  const [videoTournament, setVideoTournament] = useState(null);
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { lastMessage } = useSocket();
+  const { showTournamentSuccess, showTournamentError } = useNotification();
 
   // Fetch tournaments - MUST be defined before using refetch in useEffect
   const { data: tournaments, isLoading, error, refetch } = useQuery({
@@ -114,10 +120,17 @@ const TournamentList = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => tournamentAPI.delete(id),
     onSuccess: () => {
+      const tournamentName = selectedTournament?.title || 'Tournament';
+      showTournamentSuccess('delete', tournamentName);
+      
       queryClient.invalidateQueries(['tournaments']);
       setDeleteDialogOpen(false);
       setSelectedTournament(null);
     },
+    onError: (error) => {
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      showTournamentError('delete', errorMessage);
+    }
   });
 
   // Update tournament status mutation
@@ -163,6 +176,12 @@ const TournamentList = () => {
 
   const handleReleaseCredentials = (tournamentId) => {
     releaseCredentialsMutation.mutate(tournamentId);
+    handleMenuClose();
+  };
+
+  const handleAddVideo = (tournament) => {
+    setVideoTournament(tournament);
+    setAddVideoDialogOpen(true);
     handleMenuClose();
   };
 
@@ -526,6 +545,10 @@ const TournamentList = () => {
           <Payment sx={{ mr: 1 }} />
           Mark Complete
         </MenuItem>
+        <MenuItem onClick={() => handleAddVideo(selectedRow)}>
+          <VideoLibrary sx={{ mr: 1 }} />
+          Add Video
+        </MenuItem>
         <MenuItem onClick={() => handleReleaseCredentials(selectedRow?._id)}>
           <VpnKey sx={{ mr: 1 }} />
           Release Room Credentials
@@ -566,6 +589,16 @@ const TournamentList = () => {
           Failed to load tournaments. Please try again.
         </Alert>
       )}
+
+      {/* Add Video Dialog */}
+      <AddVideoDialog
+        open={addVideoDialogOpen}
+        onClose={() => {
+          setAddVideoDialogOpen(false);
+          setVideoTournament(null);
+        }}
+        tournament={videoTournament}
+      />
     </Box>
   );
 };

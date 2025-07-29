@@ -1239,4 +1239,97 @@ router.get('/export',
   }
 );
 
+// Add video to tournament
+router.post('/:id/video',
+  requirePermission('tournaments_manage'),
+  auditLog('add_tournament_video'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { title, description, youtubeUrl, category, tags, isVisible, displayOrder } = req.body;
+
+      // Validate tournament exists
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      // Import TournamentVideo model
+      const TournamentVideo = require('../../models/TournamentVideo');
+
+      // Extract YouTube ID
+      const youtubeId = TournamentVideo.extractYouTubeId(youtubeUrl);
+      if (!youtubeId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid YouTube URL. Please use a valid YouTube URL format.'
+        });
+      }
+
+      // Create video
+      const video = new TournamentVideo({
+        title,
+        description,
+        youtubeUrl,
+        youtubeId,
+        tournament: tournamentId,
+        game: tournament.game,
+        category: category || 'highlights',
+        tags: tags || [],
+        isVisible: isVisible !== undefined ? isVisible : false,
+        displayOrder: displayOrder || 0,
+        createdBy: req.admin._id
+      });
+
+      await video.save();
+
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        console.log('Emitting videoAdded event for tournament:', tournamentId);
+        // Emit to all clients
+        io.emit('videoAdded', {
+          type: 'videoAdded',
+          data: video
+        });
+        // Emit specifically to admin clients
+        io.emit('adminUpdate', {
+          type: 'videoAdded',
+          data: video
+        });
+      }
+
+      // Populate the response
+      await video.populate('tournament', 'title game');
+      await video.populate('createdBy', 'name');
+
+      res.json({
+        success: true,
+        message: 'Video added to tournament successfully',
+        data: video
+      });
+    } catch (error) {
+      console.error('Error adding video to tournament:', error);
+      
+      // Handle validation errors
+      if (error.name === 'ValidationError') {
+        const validationErrors = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed: ' + validationErrors.join(', ')
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to add video to tournament',
+        error: error.message
+      });
+    }
+  }
+);
+
 module.exports = router;

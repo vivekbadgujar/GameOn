@@ -29,6 +29,7 @@ import NotificationManager from './components/Notifications/NotificationManager'
 import TournamentVideoManager from './components/Videos/TournamentVideoManager';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -96,11 +97,13 @@ function App() {
           <CssBaseline />
           <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
             <AuthProvider>
-              <SocketProvider>
-                <Router>
-                  <AppRoutes />
-                </Router>
-              </SocketProvider>
+              <NotificationProvider>
+                <SocketProvider>
+                  <Router>
+                    <AppRoutes />
+                  </Router>
+                </SocketProvider>
+              </NotificationProvider>
             </AuthProvider>
           </Box>
         </LocalizationProvider>

@@ -37,8 +37,9 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { tournamentAPI } from '../../services/api';
+import { tournamentAPI, mediaAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import dayjs from 'dayjs';
 
 const TournamentForm = () => {
@@ -46,6 +47,7 @@ const TournamentForm = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
+  const { showTournamentSuccess, showTournamentError } = useNotification();
   const isEditing = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -109,6 +111,12 @@ const TournamentForm = () => {
     onSuccess: (response) => {
       console.log('Tournament created/updated successfully:', response);
       
+      const tournamentName = formData.title || 'Tournament';
+      const action = isEditing ? 'update' : 'create';
+      
+      // Show success notification
+      showTournamentSuccess(action, tournamentName);
+      
       // Invalidate and refetch tournament queries immediately
       queryClient.invalidateQueries(['tournaments']);
       queryClient.refetchQueries(['tournaments']);
@@ -132,6 +140,13 @@ const TournamentForm = () => {
     onError: (error) => {
       console.error('Tournament creation/update failed:', error);
       console.error('Error response:', error.response?.data);
+      
+      const action = isEditing ? 'update' : 'create';
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      
+      // Show error notification
+      showTournamentError(action, errorMessage);
+      
       if (error.message === 'Request timeout') {
         console.error('Request timed out after 30 seconds');
       }

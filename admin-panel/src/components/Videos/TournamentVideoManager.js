@@ -45,11 +45,14 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
+import { tournamentAPI, videoAPI } from '../../services/api';
 import dayjs from 'dayjs';
 
 const TournamentVideoManager = () => {
   const { admin } = useAuth();
   const queryClient = useQueryClient();
+  const { showVideoSuccess, showVideoError } = useNotification();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -72,71 +75,40 @@ const TournamentVideoManager = () => {
   // Fetch videos
   const { data: videos, isLoading } = useQuery({
     queryKey: ['tournament-videos'],
-    queryFn: async () => {
-      const response = await fetch('/api/admin/tournament-videos', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch videos');
-      return response.json();
-    }
+    queryFn: () => videoAPI.getAll().then(res => res.data)
   });
 
   // Fetch tournaments for selection
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments-list'],
-    queryFn: async () => {
-      const response = await fetch('/api/admin/tournaments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch tournaments');
-      return response.json();
-    }
+    queryFn: () => tournamentAPI.getAll().then(res => res.data)
   });
 
   // Create/Update video mutation
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const url = editingVideo 
-        ? `/api/admin/tournament-videos/${editingVideo._id}`
-        : '/api/admin/tournament-videos';
-      
-      const response = await fetch(url, {
-        method: editingVideo ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify(data)
-      });
-      
-      if (!response.ok) throw new Error('Failed to save video');
-      return response.json();
+    mutationFn: (data) => {
+      return editingVideo 
+        ? videoAPI.update(editingVideo._id, data)
+        : videoAPI.create(data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const videoTitle = formData.title || 'Video';
+      const action = editingVideo ? 'update' : 'add';
+      showVideoSuccess(action, videoTitle);
+      
       queryClient.invalidateQueries(['tournament-videos']);
       handleCloseDialog();
+    },
+    onError: (error) => {
+      const action = editingVideo ? 'update' : 'add';
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
+      showVideoError(action, errorMessage);
     }
   });
 
   // Toggle visibility mutation
   const toggleVisibilityMutation = useMutation({
-    mutationFn: async ({ videoId, isVisible }) => {
-      const response = await fetch(`/api/admin/tournament-videos/${videoId}/visibility`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({ isVisible })
-      });
-      
-      if (!response.ok) throw new Error('Failed to update visibility');
-      return response.json();
-    },
+    mutationFn: ({ videoId, isVisible }) => videoAPI.toggleVisibility(videoId, isVisible),
     onSuccess: () => {
       queryClient.invalidateQueries(['tournament-videos']);
     }
@@ -144,19 +116,14 @@ const TournamentVideoManager = () => {
 
   // Delete video mutation
   const deleteMutation = useMutation({
-    mutationFn: async (videoId) => {
-      const response = await fetch(`/api/admin/tournament-videos/${videoId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to delete video');
-      return response.json();
-    },
+    mutationFn: (videoId) => videoAPI.delete(videoId),
     onSuccess: () => {
+      showVideoSuccess('delete', 'Video');
       queryClient.invalidateQueries(['tournament-videos']);
+    },
+    onError: (error) => {
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
+      showVideoError('delete', errorMessage);
     }
   });
 

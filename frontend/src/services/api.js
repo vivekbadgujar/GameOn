@@ -168,6 +168,28 @@ export const getYouTubeVideos = async (searchTerm = '') => {
   }
 };
 
+// Tournament Videos API
+export const getTournamentVideos = async (params = {}) => {
+  try {
+    console.log('API: Fetching tournament videos with params:', params);
+    const response = await api.get('/admin/tournament-videos/visible', { params });
+    console.log('API: Tournament videos response:', response.data);
+    
+    return {
+      success: response.data?.success || true,
+      videos: response.data?.data || [],
+      message: response.data?.message || 'Videos fetched successfully'
+    };
+  } catch (error) {
+    console.error('API: Error fetching tournament videos:', error);
+    return {
+      success: false,
+      videos: [],
+      message: 'Failed to fetch videos'
+    };
+  }
+};
+
 // Stats API
 export const getPlatformStats = async () => {
   const response = await api.get('/stats/platform');

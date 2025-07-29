@@ -157,6 +157,27 @@ export const mediaAPI = {
   update: (id, data) => api.put(`/admin/media/${id}`, data),
 };
 
+// Tournament Video APIs
+export const videoAPI = {
+  getAll: () => api.get('/admin/tournament-videos'),
+  getById: (id) => api.get(`/admin/tournament-videos/${id}`),
+  create: (data) => {
+    console.log('API: Creating video with data:', data);
+    return api.post('/admin/tournament-videos', data);
+  },
+  update: (id, data) => {
+    console.log('API: Updating video with data:', data);
+    return api.put(`/admin/tournament-videos/${id}`, data);
+  },
+  delete: (id) => api.delete(`/admin/tournament-videos/${id}`),
+  toggleVisibility: (id, isVisible) => api.patch(`/admin/tournament-videos/${id}/visibility`, { isVisible }),
+  // Add video to specific tournament
+  addToTournament: (tournamentId, data) => {
+    console.log('API: Adding video to tournament:', tournamentId, data);
+    return api.post(`/admin/tournaments/${tournamentId}/video`, data);
+  }
+};
+
 // Scheduling APIs
 export const schedulingAPI = {
   getScheduled: (params = {}) => api.get('/admin/scheduling', { params }),
