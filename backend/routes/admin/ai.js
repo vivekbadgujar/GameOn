@@ -9,6 +9,140 @@ const router = express.Router();
 // Middleware to protect all admin AI routes
 router.use(authenticateAdmin);
 
+// Get AI suggestions
+router.get('/suggestions', 
+  requirePermission('ai_monitoring'),
+  async (req, res) => {
+    try {
+      const suggestions = [];
+      
+      // Analyze suspicious activity patterns
+      const suspiciousUsers = await AIFlag.aggregate([
+        { $match: { type: 'suspicious_activity', status: 'pending' } },
+        { $group: { _id: '$user', count: { $sum: 1 } } },
+        { $match: { count: { $gte: 3 } } },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+        { $limit: 5 }
+      ]);
+      
+      suspiciousUsers.forEach(item => {
+        suggestions.push({
+          id: `sus_${item._id}`,
+          title: `Review Suspicious User: ${item.user.username}`,
+          category: 'security',
+          priority: 'high',
+          description: `User has ${item.count} suspicious activity flags. Recommend immediate review.`,
+          impact: 'Prevent potential cheating and maintain fair play',
+          confidence: 95,
+          actions: [
+            { id: 1, label: 'Ban user temporarily', type: 'auto' },
+            { id: 2, label: 'Manual investigation', type: 'manual' }
+          ],
+          applied: false,
+          data: { userId: item._id, flagCount: item.count }
+        });
+      });
+      
+      // Analyze tournament participation patterns
+      const lowParticipationTournaments = await Tournament.aggregate([
+        { $match: { status: 'upcoming', currentParticipants: { $lt: 5 } } },
+        { $sort: { startDate: 1 } },
+        { $limit: 3 }
+      ]);
+      
+      lowParticipationTournaments.forEach(tournament => {
+        suggestions.push({
+          id: `tour_${tournament._id}`,
+          title: `Boost Tournament Participation: ${tournament.title}`,
+          category: 'optimization',
+          priority: 'medium',
+          description: `Tournament has only ${tournament.currentParticipants} participants. Consider promotional strategies.`,
+          impact: 'Increase tournament engagement and revenue',
+          confidence: 78,
+          actions: [
+            { id: 1, label: 'Send promotional notification', type: 'auto' },
+            { id: 2, label: 'Reduce entry fee', type: 'manual' },
+            { id: 3, label: 'Increase prize pool', type: 'manual' }
+          ],
+          applied: false,
+          data: { tournamentId: tournament._id, currentParticipants: tournament.currentParticipants }
+        });
+      });
+      
+      // Analyze peak activity times
+      const recentTournaments = await Tournament.find({
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      }).select('startDate currentParticipants');
+      
+      if (recentTournaments.length > 0) {
+        const hourlyParticipation = {};
+        recentTournaments.forEach(t => {
+          const hour = new Date(t.startDate).getHours();
+          hourlyParticipation[hour] = (hourlyParticipation[hour] || 0) + (t.currentParticipants || 0);
+        });
+        
+        const peakHour = Object.keys(hourlyParticipation).reduce((a, b) => 
+          hourlyParticipation[a] > hourlyParticipation[b] ? a : b
+        );
+        
+        suggestions.push({
+          id: 'schedule_optimization',
+          title: 'Optimize Tournament Scheduling',
+          category: 'scheduling',
+          priority: 'medium',
+          description: `Peak participation occurs at ${peakHour}:00. Consider scheduling more tournaments during this time.`,
+          impact: `Expected 20-30% increase in participation`,
+          confidence: 85,
+          actions: [
+            { id: 1, label: 'Auto-schedule tournaments at peak hours', type: 'auto' },
+            { id: 2, label: 'Review current schedule', type: 'manual' }
+          ],
+          applied: false,
+          data: { peakHour, participation: hourlyParticipation[peakHour] }
+        });
+      }
+      
+      // Check for inactive users
+      const inactiveUsers = await User.countDocuments({
+        lastLogin: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        isActive: true
+      });
+      
+      if (inactiveUsers > 10) {
+        suggestions.push({
+          id: 'user_retention',
+          title: 'Re-engage Inactive Users',
+          category: 'optimization',
+          priority: 'low',
+          description: `${inactiveUsers} users haven't logged in for over a week. Consider re-engagement campaigns.`,
+          impact: 'Improve user retention and platform activity',
+          confidence: 70,
+          actions: [
+            { id: 1, label: 'Send comeback notification', type: 'auto' },
+            { id: 2, label: 'Offer special tournament entry', type: 'manual' }
+          ],
+          applied: false,
+          data: { inactiveCount: inactiveUsers }
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: suggestions,
+        total: suggestions.length,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error generating AI suggestions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate AI suggestions'
+      });
+    }
+  }
+);
+
 // Get suspicious activity
 router.get('/suspicious', 
   requirePermission('ai_monitoring'),

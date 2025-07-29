@@ -156,7 +156,11 @@ router.post('/:id/send', authenticateAdmin, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Notification sent successfully'
+      message: 'Notification sent successfully',
+      data: {
+        notification: notification,
+        totalRecipients: notification.totalRecipients
+      }
     });
   } catch (error) {
     console.error('Error sending notification:', error);

@@ -41,11 +41,13 @@ const SuggestionsPanel = () => {
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [detailDialog, setDetailDialog] = useState(false);
 
-  const { data: suggestions = [], isLoading } = useQuery({
+  const { data: suggestionsResponse, isLoading } = useQuery({
     queryKey: ['ai-suggestions'],
     queryFn: aiReportsAPI.getSuggestions,
     refetchInterval: 60000, // Refetch every minute
   });
+
+  const suggestions = suggestionsResponse?.data || [];
 
   const applySuggestionMutation = useMutation({
     mutationFn: ({ suggestionId, action }) => {

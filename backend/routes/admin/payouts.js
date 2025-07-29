@@ -102,7 +102,7 @@ router.patch('/:id/status',
         });
       }
 
-      const { status, adminNotes } = req.body;
+      const { status, adminNotes, transactionId, upiRefNo, bankRefNo, paymentMethod } = req.body;
       const payout = await Transaction.findById(req.params.id);
       
       if (!payout) {
@@ -118,6 +118,19 @@ router.patch('/:id/status',
       if (status === 'completed') {
         payout.processedBy = req.admin._id;
         payout.processedAt = new Date();
+        
+        // Add transaction details
+        if (transactionId) payout.transactionId = transactionId;
+        if (paymentMethod) payout.paymentMethod = paymentMethod;
+        if (upiRefNo) payout.upiRefNo = upiRefNo;
+        if (bankRefNo) payout.bankRefNo = bankRefNo;
+        
+        // Update user wallet balance if not already done
+        if (payout.status !== 'completed') {
+          await User.findByIdAndUpdate(payout.user, {
+            $inc: { 'wallet.balance': payout.amount }
+          });
+        }
       }
       
       await payout.save();
@@ -190,6 +203,76 @@ router.post('/:id/process',
       res.status(500).json({
         success: false,
         message: 'Failed to process payout'
+      });
+    }
+  }
+);
+
+// Mark payout as paid with transaction details
+router.patch('/:id/mark-paid', 
+  requirePermission('payouts_manage'),
+  [
+    body('transactionId').notEmpty().withMessage('Transaction ID is required'),
+    body('paymentMethod').isIn(['upi', 'bank_transfer', 'wallet']).withMessage('Invalid payment method'),
+    body('upiRefNo').optional().isString(),
+    body('bankRefNo').optional().isString(),
+    body('adminNotes').optional().isString()
+  ],
+  auditLog('mark_payout_paid'),
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { transactionId, paymentMethod, upiRefNo, bankRefNo, adminNotes } = req.body;
+      const payout = await Transaction.findById(req.params.id);
+      
+      if (!payout) {
+        return res.status(404).json({
+          success: false,
+          message: 'Payout not found'
+        });
+      }
+      
+      // Update payout with transaction details
+      payout.status = 'completed';
+      payout.transactionId = transactionId;
+      payout.paymentMethod = paymentMethod;
+      if (upiRefNo) payout.upiRefNo = upiRefNo;
+      if (bankRefNo) payout.bankRefNo = bankRefNo;
+      if (adminNotes) payout.adminNotes = adminNotes;
+      payout.processedBy = req.admin._id;
+      payout.processedAt = new Date();
+      
+      await payout.save();
+      
+      // Emit Socket.IO event for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('payoutCompleted', {
+          userId: payout.user,
+          amount: payout.amount,
+          transactionId: payout.transactionId,
+          paymentMethod: payout.paymentMethod
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Payout marked as paid successfully',
+        data: payout
+      });
+    } catch (error) {
+      console.error('Error marking payout as paid:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to mark payout as paid'
       });
     }
   }

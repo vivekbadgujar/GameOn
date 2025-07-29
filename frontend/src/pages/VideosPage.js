@@ -107,12 +107,13 @@ export default function VideosPage() {
                   <iframe
                     width="100%"
                     height="100%"
-                    src={`https://www.youtube.com/embed/${v.youtubeId}`}
+                    src={v.embedUrl || `https://www.youtube.com/embed/${v.youtubeId}?rel=0&modestbranding=1&enablejsapi=1`}
                     title={v.title}
                     frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                     className="rounded-lg w-full h-full object-cover"
+                    loading="lazy"
                   />
                 ) : v.thumbnail ? (
                   <img 

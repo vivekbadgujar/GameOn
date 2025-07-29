@@ -22,6 +22,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Tournaments = lazy(() => import('./pages/Tournaments'));
 const TournamentDetails = lazy(() => import('./pages/TournamentDetailsRedesigned'));
 const Videos = lazy(() => import('./pages/Videos'));
+const Gallery = lazy(() => import('./pages/Gallery'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -211,6 +212,20 @@ function App() {
                             <Videos />
                           </motion.div>
                         </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/gallery" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <Gallery />
+                        </motion.div>
                       } 
                     />
                     <Route 

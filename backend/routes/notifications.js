@@ -1,46 +1,56 @@
+/**
+ * User Notifications Routes
+ * Handles user-facing notification functionality
+ */
+
 const express = require('express');
 const router = express.Router();
 const { Notification, UserNotification } = require('../models/Notification');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateUser } = require('../middleware/auth');
 
 // Get user notifications
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/user/notifications', authenticateUser, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Get user-specific notifications
+    // Get user notifications with populated notification data
     const userNotifications = await UserNotification.find({ user: userId })
       .populate({
         path: 'notification',
-        match: { status: 'sent' },
+        match: { status: 'sent' }, // Only sent notifications
         populate: {
           path: 'targetTournament',
-          select: 'title'
+          select: 'title game'
         }
       })
       .sort({ createdAt: -1 })
       .limit(50);
 
-    // Filter out null notifications (where populate didn't match)
-    const validNotifications = userNotifications
-      .filter(un => un.notification)
-      .map(un => ({
-        _id: un.notification._id,
-        title: un.notification.title,
-        message: un.notification.message,
-        type: un.notification.type,
-        priority: un.notification.priority,
-        targetTournament: un.notification.targetTournament,
-        isRead: un.isRead,
-        readAt: un.readAt,
-        deliveredAt: un.deliveredAt,
-        createdAt: un.notification.createdAt
-      }));
+    // Filter out notifications where the notification was deleted
+    const validNotifications = userNotifications.filter(un => un.notification);
+    
+    // Count unread notifications
+    const unreadCount = validNotifications.filter(un => !un.isRead).length;
+    
+    // Format notifications for frontend
+    const notifications = validNotifications.map(un => ({
+      _id: un._id,
+      title: un.notification.title,
+      message: un.notification.message,
+      type: un.notification.type,
+      priority: un.notification.priority,
+      isRead: un.isRead,
+      readAt: un.readAt,
+      createdAt: un.createdAt,
+      tournament: un.notification.targetTournament,
+      expiresAt: un.notification.expiresAt
+    }));
 
     res.json({
       success: true,
-      notifications: validNotifications,
-      total: validNotifications.length
+      notifications,
+      unreadCount,
+      total: notifications.length
     });
   } catch (error) {
     console.error('Error fetching user notifications:', error);
@@ -52,27 +62,29 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Mark notification as read
-router.patch('/:id/read', authenticateToken, async (req, res) => {
+router.patch('/user/notifications/:id/read', authenticateUser, async (req, res) => {
   try {
     const userId = req.user._id;
     const notificationId = req.params.id;
-
-    const userNotification = await UserNotification.findOneAndUpdate(
-      { user: userId, notification: notificationId },
-      { 
-        isRead: true, 
-        readAt: new Date() 
-      },
-      { new: true }
-    );
-
+    
+    const userNotification = await UserNotification.findOne({
+      _id: notificationId,
+      user: userId
+    });
+    
     if (!userNotification) {
       return res.status(404).json({
         success: false,
         error: 'Notification not found'
       });
     }
-
+    
+    if (!userNotification.isRead) {
+      userNotification.isRead = true;
+      userNotification.readAt = new Date();
+      await userNotification.save();
+    }
+    
     res.json({
       success: true,
       message: 'Notification marked as read'
@@ -87,10 +99,10 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
 });
 
 // Mark all notifications as read
-router.patch('/mark-all-read', authenticateToken, async (req, res) => {
+router.patch('/user/notifications/read-all', authenticateUser, async (req, res) => {
   try {
     const userId = req.user._id;
-
+    
     await UserNotification.updateMany(
       { user: userId, isRead: false },
       { 
@@ -98,7 +110,7 @@ router.patch('/mark-all-read', authenticateToken, async (req, res) => {
         readAt: new Date() 
       }
     );
-
+    
     res.json({
       success: true,
       message: 'All notifications marked as read'
@@ -112,22 +124,22 @@ router.patch('/mark-all-read', authenticateToken, async (req, res) => {
   }
 });
 
-// Get unread notification count
-router.get('/unread-count', authenticateToken, async (req, res) => {
+// Get notification count
+router.get('/user/notifications/count', authenticateUser, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    const count = await UserNotification.countDocuments({
+    const unreadCount = await UserNotification.countDocuments({
       user: userId,
       isRead: false
     });
-
+    
     res.json({
       success: true,
-      count
+      unreadCount
     });
   } catch (error) {
-    console.error('Error fetching unread count:', error);
+    console.error('Error fetching notification count:', error);
     res.status(500).json({
       success: false,
       error: error.message

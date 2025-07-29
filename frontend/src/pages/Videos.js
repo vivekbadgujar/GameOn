@@ -138,6 +138,46 @@ const Videos = () => {
     return gameData?.icon || '🎮';
   };
 
+  // Extract YouTube video ID from various URL formats
+  const extractYouTubeVideoId = (url) => {
+    if (!url) return null;
+    
+    // If it's already just a video ID, return it
+    if (url.length === 11 && !url.includes('/') && !url.includes('?')) {
+      return url;
+    }
+    
+    const patterns = [
+      // Standard YouTube URLs
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      // YouTube Shorts
+      /youtube\.com\/shorts\/([^&\n?#]+)/,
+      // YouTube mobile URLs
+      /m\.youtube\.com\/watch\?v=([^&\n?#]+)/,
+      // YouTube playlist URLs (extract video ID)
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    
+    return null;
+  };
+
+  // Get proper YouTube embed URL
+  const getYouTubeEmbedUrl = (video) => {
+    const videoId = extractYouTubeVideoId(video.videoId || video.url || video.youtubeUrl);
+    if (!videoId) {
+      console.error('Could not extract video ID from:', video);
+      return null;
+    }
+    return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&showinfo=0`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -395,12 +435,23 @@ const Videos = () => {
                 {/* Video Player */}
                 <div className="p-6">
                   <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${selectedVideo.videoId}`}
-                      title={selectedVideo.title}
-                      className="w-full h-full"
-                      allowFullScreen
-                    />
+                    {getYouTubeEmbedUrl(selectedVideo) ? (
+                      <iframe
+                        src={getYouTubeEmbedUrl(selectedVideo)}
+                        title={selectedVideo.title}
+                        className="w-full h-full"
+                        allowFullScreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                        <div className="text-center text-white/60">
+                          <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                          <p>Unable to load video</p>
+                          <p className="text-sm">Invalid YouTube URL</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Video Details */}
@@ -417,15 +468,17 @@ const Videos = () => {
                         </div>
                       </div>
                       
-                      <a
-                        href={`https://www.youtube.com/watch?v=${selectedVideo.videoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-secondary flex items-center space-x-2"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        <span>Watch on YouTube</span>
-                      </a>
+                      {extractYouTubeVideoId(selectedVideo.videoId || selectedVideo.url || selectedVideo.youtubeUrl) && (
+                        <a
+                          href={`https://www.youtube.com/watch?v=${extractYouTubeVideoId(selectedVideo.videoId || selectedVideo.url || selectedVideo.youtubeUrl)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary flex items-center space-x-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          <span>Watch on YouTube</span>
+                        </a>
+                      )}
                     </div>
 
                     <p className="text-white/80 leading-relaxed">

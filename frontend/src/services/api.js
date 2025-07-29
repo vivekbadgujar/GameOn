@@ -175,9 +175,25 @@ export const getTournamentVideos = async (params = {}) => {
     const response = await api.get('/admin/tournament-videos/visible', { params });
     console.log('API: Tournament videos response:', response.data);
     
+    // Ensure proper YouTube ID extraction and embed URL format
+    const videos = (response.data?.data || []).map(video => {
+      // Extract YouTube ID if not present
+      let youtubeId = video.youtubeId;
+      if (!youtubeId && video.youtubeUrl) {
+        youtubeId = extractYouTubeIdFromUrl(video.youtubeUrl);
+      }
+      
+      return {
+        ...video,
+        youtubeId,
+        embedUrl: youtubeId ? `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1` : null,
+        thumbnail: video.thumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null)
+      };
+    });
+    
     return {
       success: response.data?.success || true,
-      videos: response.data?.data || [],
+      videos: videos,
       message: response.data?.message || 'Videos fetched successfully'
     };
   } catch (error) {
@@ -188,6 +204,30 @@ export const getTournamentVideos = async (params = {}) => {
       message: 'Failed to fetch videos'
     };
   }
+};
+
+// Helper function to extract YouTube ID from URL
+const extractYouTubeIdFromUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /[?&]v=([a-zA-Z0-9_-]{11})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1] && match[1].length === 11) {
+      return match[1];
+    }
+  }
+  
+  return null;
 };
 
 // Stats API
@@ -226,6 +266,43 @@ export const markNotificationAsRead = async (notificationId) => {
   } catch (error) {
     console.error('Error marking notification as read:', error);
     throw error;
+  }
+};
+
+export const getUserNotifications = async () => {
+  try {
+    const response = await api.get('/user/notifications');
+    return {
+      success: response.data?.success || true,
+      notifications: response.data?.notifications || [],
+      unreadCount: response.data?.unreadCount || 0
+    };
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
+    return {
+      success: false,
+      notifications: [],
+      unreadCount: 0
+    };
+  }
+};
+
+// Media API for frontend
+export const getPublicMedia = async (params = {}) => {
+  try {
+    const response = await api.get('/media/public', { params });
+    return {
+      success: response.data?.success || true,
+      media: response.data?.data || [],
+      total: response.data?.total || 0
+    };
+  } catch (error) {
+    console.error('Error fetching public media:', error);
+    return {
+      success: false,
+      media: [],
+      total: 0
+    };
   }
 };
 

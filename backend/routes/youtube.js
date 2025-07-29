@@ -31,15 +31,21 @@ router.get('/videos', async (req, res) => {
     // Transform for frontend compatibility
     const transformedVideos = videos.map(video => ({
       id: video._id,
-      youtubeId: video.youtubeId,
+      videoId: video.youtubeId, // Frontend expects videoId
+      youtubeId: video.youtubeId, // Keep for backward compatibility
       title: video.title,
       description: video.description,
       thumbnail: `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`,
       url: video.youtubeUrl,
+      youtubeUrl: video.youtubeUrl, // Frontend might look for this
       game: video.game,
       category: video.category,
+      type: video.category, // Frontend expects type
       tournament: video.tournament,
-      createdAt: video.createdAt
+      createdAt: video.createdAt,
+      publishedAt: video.createdAt, // Frontend expects publishedAt
+      views: video.views || 0,
+      duration: video.duration || '0:00'
     }));
 
     res.json({

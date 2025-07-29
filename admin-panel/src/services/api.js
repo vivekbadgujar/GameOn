@@ -137,9 +137,11 @@ export const broadcastAPI = {
 export const payoutAPI = {
   getAll: (params = {}) => api.get('/admin/payouts', { params }),
   getById: (id) => api.get(`/admin/payouts/${id}`),
-  updateStatus: (id, status) => api.patch(`/admin/payouts/${id}/status`, { status }),
+  updateStatus: (id, data) => api.patch(`/admin/payouts/${id}/status`, data),
   processPayout: (id) => api.post(`/admin/payouts/${id}/process`),
   getPending: () => api.get('/admin/payouts/pending'),
+  markAsPaid: (id, transactionDetails) => api.patch(`/admin/payouts/${id}/mark-paid`, transactionDetails),
+  addTransactionDetails: (id, details) => api.patch(`/admin/payouts/${id}/transaction`, details),
 };
 
 // Media APIs

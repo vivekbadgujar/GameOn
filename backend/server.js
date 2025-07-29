@@ -187,6 +187,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tournaments', require('./routes/tournaments'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api', require('./routes/notifications'));
+app.use('/api/media', require('./routes/media'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/anticheat', require('./routes/anticheat'));

@@ -16,7 +16,8 @@ import {
   Video,
   CreditCard,
   LogIn,
-  UserPlus
+  UserPlus,
+  Image
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -50,6 +51,7 @@ const Header = () => {
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/tournaments', label: 'Tournaments', icon: Trophy },
     { path: '/videos', label: 'Videos', icon: Video },
+    { path: '/gallery', label: 'Gallery', icon: Image },
     { path: '/wallet', label: 'Wallet', icon: CreditCard },
     { path: '/support', label: 'Support', icon: HelpCircle },
   ];

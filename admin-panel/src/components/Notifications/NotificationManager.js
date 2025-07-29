@@ -46,11 +46,13 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotification } from '../../contexts/NotificationContext';
 import dayjs from 'dayjs';
 
 const NotificationManager = () => {
   const { admin } = useAuth();
   const queryClient = useQueryClient();
+  const { showSuccess, showError } = useNotification();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -116,8 +118,14 @@ const NotificationManager = () => {
       return response.json();
     },
     onSuccess: () => {
+      const action = editingNotification ? 'updated' : 'created';
+      showSuccess(`Notification ${action} successfully`);
       queryClient.invalidateQueries(['notifications']);
       handleCloseDialog();
+    },
+    onError: (error) => {
+      const action = editingNotification ? 'update' : 'create';
+      showError(`Failed to ${action} notification: ${error.message}`);
     }
   });
 
@@ -134,8 +142,12 @@ const NotificationManager = () => {
       if (!response.ok) throw new Error('Failed to send notification');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      showSuccess(`📢 Notification sent to ${response.data?.totalRecipients || 'all'} users successfully!`);
       queryClient.invalidateQueries(['notifications']);
+    },
+    onError: (error) => {
+      showError(`Failed to send notification: ${error.message}`);
     }
   });
 
@@ -153,7 +165,11 @@ const NotificationManager = () => {
       return response.json();
     },
     onSuccess: () => {
+      showSuccess('Notification deleted successfully');
       queryClient.invalidateQueries(['notifications']);
+    },
+    onError: (error) => {
+      showError(`Failed to delete notification: ${error.message}`);
     }
   });
 

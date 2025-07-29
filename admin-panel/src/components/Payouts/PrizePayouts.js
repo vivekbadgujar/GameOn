@@ -65,7 +65,11 @@ const PrizePayouts = () => {
   const [updateDialog, setUpdateDialog] = useState(false);
   const [updateData, setUpdateData] = useState({
     status: '',
-    notes: ''
+    notes: '',
+    transactionId: '',
+    upiRefNo: '',
+    bankRefNo: '',
+    paymentMethod: 'upi'
   });
 
   const queryClient = useQueryClient();
@@ -101,7 +105,14 @@ const PrizePayouts = () => {
       queryClient.invalidateQueries(['pending-payouts']);
       setUpdateDialog(false);
       setSelectedPayout(null);
-      setUpdateData({ status: '', notes: '' });
+      setUpdateData({
+        status: '',
+        notes: '',
+        transactionId: '',
+        upiRefNo: '',
+        bankRefNo: '',
+        paymentMethod: 'upi'
+      });
     },
   });
 
@@ -481,6 +492,55 @@ const PrizePayouts = () => {
                 </Select>
               </FormControl>
             </Grid>
+            {updateData.status === 'completed' && (
+              <>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Method</InputLabel>
+                    <Select
+                      value={updateData.paymentMethod}
+                      label="Payment Method"
+                      onChange={(e) => setUpdateData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    >
+                      <MenuItem value="upi">UPI</MenuItem>
+                      <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                      <MenuItem value="wallet">Wallet</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Transaction ID"
+                    value={updateData.transactionId}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, transactionId: e.target.value }))}
+                    placeholder="Enter transaction ID"
+                  />
+                </Grid>
+                {updateData.paymentMethod === 'upi' && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="UPI Reference Number"
+                      value={updateData.upiRefNo}
+                      onChange={(e) => setUpdateData(prev => ({ ...prev, upiRefNo: e.target.value }))}
+                      placeholder="Enter UPI reference number"
+                    />
+                  </Grid>
+                )}
+                {updateData.paymentMethod === 'bank_transfer' && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Bank Reference Number"
+                      value={updateData.bankRefNo}
+                      onChange={(e) => setUpdateData(prev => ({ ...prev, bankRefNo: e.target.value }))}
+                      placeholder="Enter bank reference number"
+                    />
+                  </Grid>
+                )}
+              </>
+            )}
             <Grid item xs={12}>
               <TextField
                 fullWidth
