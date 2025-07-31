@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { login as apiLogin, register as apiRegister } from '../../services/api';
 import LoadingSpinner from '../UI/LoadingSpinner';
 
 const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
@@ -56,15 +57,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(loginData),
-      });
-
-      const data = await response.json();
+      const data = await apiLogin(loginData.email, loginData.password);
 
       if (data.success) {
         login(data.user, data.token);
@@ -78,25 +71,8 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      // Fallback to hardcoded credentials if API fails
-      if (loginData.email === 'gamonoffice04@gmail.com' && loginData.password === 'gamon@321') {
-        const mockUser = {
-          _id: '1',
-          username: 'GameOn Admin',
-          email: 'gamonoffice04@gmail.com',
-          phone: '+91 9876543210',
-          avatar: null,
-          createdAt: new Date().toISOString()
-        };
-        
-        const mockToken = 'mock-jwt-token-' + Date.now();
-        
-        login(mockUser, mockToken);
-        setSuccess(true);
-        setTimeout(() => {
-          onClose();
-          setSuccess(false);
-        }, 1500);
+      if (error.response?.status === 401) {
+        setError('Invalid email or password');
       } else {
         setError('Login failed. Please try again.');
       }
@@ -124,19 +100,12 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: registerData.username,
-          email: registerData.email,
-          password: registerData.password
-        }),
+      const data = await apiRegister({
+        username: registerData.username,
+        email: registerData.email,
+        password: registerData.password,
+        agreeToTerms: registerData.agreeToTerms
       });
-
-      const data = await response.json();
 
       if (data.success) {
         login(data.user, data.token);
@@ -150,24 +119,11 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      // Fallback to mock registration
-      const mockUser = {
-        _id: Date.now().toString(),
-        username: registerData.username,
-        email: registerData.email,
-        phone: '+91 9876543210',
-        avatar: null,
-        createdAt: new Date().toISOString()
-      };
-      
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      
-      login(mockUser, mockToken);
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        setSuccess(false);
-      }, 1500);
+      if (error.response?.status === 400) {
+        setError(error.response?.data?.message || 'Registration failed. Please check your details.');
+      } else {
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

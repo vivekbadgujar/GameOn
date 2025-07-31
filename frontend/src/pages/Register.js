@@ -72,7 +72,7 @@ const Register = () => {
       return false;
     }
     if (!formData.agreeToTerms) {
-      setError('Please agree to the terms and conditions');
+      setError('Please agree to GameOn\'s Terms & Conditions, Refund Policy, Privacy Policy, and Fair Play Policy');
       return false;
     }
     return true;
@@ -345,15 +345,24 @@ const Register = () => {
                       className="mt-1 w-4 h-4 text-blue-600 bg-transparent border-2 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
                       required
                     />
-                    <label className="text-white/80 text-sm">
-                      I agree to the{' '}
-                      <a href="#" className="text-blue-400 hover:text-blue-300">
-                        Terms of Service
-                      </a>
-                      {' '}and{' '}
-                      <a href="#" className="text-blue-400 hover:text-blue-300">
+                    <label className="text-white/80 text-sm leading-relaxed">
+                      I have read and agree to GameOn's{' '}
+                      <Link to="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                        Terms & Conditions
+                      </Link>
+                      ,{' '}
+                      <Link to="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                        Refund Policy
+                      </Link>
+                      ,{' '}
+                      <Link to="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                         Privacy Policy
-                      </a>
+                      </Link>
+                      , and{' '}
+                      <Link to="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                        Fair Play Policy
+                      </Link>
+                      .
                     </label>
                   </div>
 

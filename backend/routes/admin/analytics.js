@@ -11,7 +11,7 @@ const { authenticateAdmin } = require('../../middleware/adminAuth');
 
 // Simple in-memory cache for analytics data (in production, use Redis)
 const analyticsCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 30 * 1000; // 30 seconds for real-time updates
 
 // Cache helper function
 const getCachedData = (key) => {
@@ -63,12 +63,62 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
     if (!dashboardData) {
       // Get real data from database
       const totalTournaments = await Tournament.countDocuments();
-      const activeTournaments = await Tournament.countDocuments({ status: 'upcoming' });
+      const activeTournaments = await Tournament.countDocuments({ 
+        status: { $in: ['upcoming', 'live'] } 
+      });
+      const completedTournaments = await Tournament.countDocuments({ status: 'completed' });
+      const upcomingTournaments = await Tournament.countDocuments({ status: 'upcoming' });
+      
       const totalUsers = await User.countDocuments();
+      const activeUsersToday = await User.countDocuments({
+        'security.lastLogin': { 
+          $gte: new Date(new Date().setHours(0, 0, 0, 0)) 
+        }
+      });
+      
       const totalRevenue = await Transaction.aggregate([
         { $match: { type: 'tournament_entry' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
+
+      // Get game distribution from tournaments
+      const gameDistribution = await Tournament.aggregate([
+        { $group: { _id: '$game', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]);
+
+      const totalGameTournaments = gameDistribution.reduce((sum, game) => sum + game.count, 0);
+      const gameDistributionWithPercentage = gameDistribution.map((game, index) => {
+        const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
+        return {
+          name: game._id || 'Unknown',
+          value: totalGameTournaments > 0 ? Math.round((game.count / totalGameTournaments) * 100) : 0,
+          count: game.count,
+          color: colors[index % colors.length]
+        };
+      });
+
+      // Get player statistics
+      const playerRegistrations = await Tournament.aggregate([
+        { $unwind: '$participants' },
+        { $group: { _id: null, total: { $sum: 1 } } }
+      ]);
+
+      // Get win ratios and kill stats (simplified for now)
+      const tournamentResults = await Tournament.find({ 
+        status: 'completed',
+        winners: { $exists: true, $ne: [] }
+      }).select('winners participants');
+
+      let totalWins = 0;
+      let totalKills = 0;
+      tournamentResults.forEach(tournament => {
+        if (tournament.winners && tournament.winners.length > 0) {
+          totalWins += tournament.winners.length;
+          // Simulate kill stats (in real app, this would come from game data)
+          totalKills += tournament.winners.length * Math.floor(Math.random() * 10 + 5);
+        }
+      });
 
       // Get recent activity
       const recentTournaments = await Tournament.find()
@@ -83,20 +133,25 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
       const recentActivity = [
         ...recentTournaments.map(t => ({
           id: t._id,
-          type: 'tournament_created',
-          message: `New tournament "${t.title}" created`,
-          timestamp: t.createdAt.toISOString()
+          type: 'tournament',
+          message: `Tournament "${t.title}" ${t.status === 'completed' ? 'completed' : 'created'}`,
+          time: new Date(t.createdAt).toLocaleString(),
+          status: t.status === 'completed' ? 'success' : 'info'
         })),
         ...recentUsers.map(u => ({
           id: u._id,
-          type: 'user_registered',
+          type: 'user',
           message: `New user registered: ${u.username || u.email}`,
-          timestamp: u.createdAt.toISOString()
+          time: new Date(u.createdAt).toLocaleString(),
+          status: 'info'
         }))
-      ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
+      ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
 
       // Get chart data for last 6 months
-      const chartData = [];
+      const userGrowthData = [];
+      const tournamentStats = [];
+      const revenueData = [];
+      
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
@@ -121,10 +176,22 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
           { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
 
-        chartData.push({
-          date: date.toISOString().slice(0, 7),
-          tournaments,
-          users,
+        const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+        
+        userGrowthData.push({
+          name: monthName,
+          users: users,
+          tournaments: tournaments
+        });
+
+        tournamentStats.push({
+          name: monthName,
+          value: tournaments,
+          color: '#6366f1'
+        });
+
+        revenueData.push({
+          month: monthName,
           revenue: revenue[0]?.total || 0
         });
       }
@@ -132,19 +199,19 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
       dashboardData = {
         totalTournaments,
         activeTournaments,
+        completedTournaments,
+        upcomingTournaments,
         totalUsers,
+        activeUsersToday,
         totalRevenue: totalRevenue[0]?.total || 0,
-        recentActivity,
-        charts: {
-          tournamentStats: {
-            labels: chartData.map(d => d.date),
-            data: chartData.map(d => d.tournaments)
-          },
-          userGrowth: {
-            labels: chartData.map(d => d.date),
-            data: chartData.map(d => d.users)
-          }
-        }
+        playerRegistrations: playerRegistrations[0]?.total || 0,
+        totalWins,
+        totalKills,
+        gameDistribution: gameDistributionWithPercentage,
+        userGrowth: userGrowthData,
+        tournamentStats,
+        revenueData,
+        recentActivities: recentActivity
       };
       
       setCachedData(cacheKey, dashboardData);

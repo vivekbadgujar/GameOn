@@ -65,34 +65,30 @@ const AnalyticsDashboard = () => {
   const [timeRange, setTimeRange] = useState('30d');
   const [activeTab, setActiveTab] = useState(0);
 
-  // Fetch analytics data
+  // Fetch analytics data with auto-refresh every 30 seconds
   const { data: analyticsData, isLoading, error, refetch } = useQuery({
     queryKey: ['analytics', timeRange],
     queryFn: () => analyticsAPI.getDashboard({ timeRange }),
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchIntervalInBackground: true,
+  });
+
+  // Fetch tournament statistics for participation data
+  const { data: tournamentStatsData } = useQuery({
+    queryKey: ['tournament-stats', timeRange],
+    queryFn: () => analyticsAPI.getTournamentStats({ timeRange }),
+    refetchInterval: 30000,
   });
 
   // Real data from API
   const userGrowthData = analyticsData?.data?.userGrowth || [];
-
-  const gameDistribution = [
-    { name: 'PUBG', value: 35, color: '#8884d8' },
-    { name: 'Free Fire', value: 25, color: '#82ca9d' },
-    { name: 'BGMI', value: 20, color: '#ffc658' },
-    { name: 'COD', value: 15, color: '#ff7300' },
-    { name: 'Others', value: 5, color: '#8dd1e1' },
-  ];
-
+  const gameDistribution = analyticsData?.data?.gameDistribution || [];
   const revenueData = analyticsData?.data?.revenueData || [];
-
-  const participationData = [
-    { game: 'PUBG', participants: 1200, tournaments: 45, avgPrize: 2500 },
-    { game: 'Free Fire', participants: 800, tournaments: 32, avgPrize: 1800 },
-    { game: 'BGMI', participants: 950, tournaments: 38, avgPrize: 2200 },
-    { game: 'COD', participants: 600, tournaments: 25, avgPrize: 1500 },
-    { game: 'Valorant', participants: 400, tournaments: 18, avgPrize: 3000 },
-  ];
-
+  
+  // Get participation data from tournament stats
+  const participationData = tournamentStatsData?.data?.participationByType || [];
+  
+  // Get security data (simplified for now)
   const securityData = [
     { category: 'Suspicious Activity', value: 85 },
     { category: 'Hacking Attempts', value: 65 },
@@ -101,13 +97,8 @@ const AnalyticsDashboard = () => {
     { category: 'Multiple Accounts', value: 70 },
   ];
 
-  const topTournaments = [
-    { name: 'PUBG Championship 2024', participants: 256, prizePool: 50000, status: 'Completed' },
-    { name: 'Free Fire Pro League', participants: 128, prizePool: 30000, status: 'Active' },
-    { name: 'BGMI Masters', participants: 512, prizePool: 75000, status: 'Upcoming' },
-    { name: 'COD Warzone Cup', participants: 64, prizePool: 20000, status: 'Completed' },
-    { name: 'Valorant Tournament', participants: 32, prizePool: 15000, status: 'Active' },
-  ];
+  // Get top tournaments from tournament stats
+  const topTournaments = tournamentStatsData?.data?.topTournaments || [];
 
   const StatCard = ({ title, value, change, icon, color, subtitle }) => (
     <Card sx={{ height: '100%' }}>
@@ -143,16 +134,16 @@ const AnalyticsDashboard = () => {
             )}
           </Box>
           <Box
-            sx={{
+            sx={(theme) => ({
               width: 56,
               height: 56,
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: `${color}.light`,
-              color: `${color}.main`,
-            }}
+              bgcolor: color && theme.palette[color] ? theme.palette[color].light : theme.palette.primary.light,
+              color: color && theme.palette[color] ? theme.palette[color].main : theme.palette.primary.main,
+            })}
           >
             {icon}
           </Box>
@@ -180,6 +171,24 @@ const AnalyticsDashboard = () => {
           <Typography variant="body1" color="text.secondary">
             Comprehensive insights into platform performance and user engagement
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: isLoading ? 'warning.main' : 'success.main',
+                mr: 1,
+                animation: isLoading ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { opacity: 1 },
+                  '50%': { opacity: 0.5 },
+                  '100%': { opacity: 1 },
+                },
+              }}
+            />
+            {isLoading ? 'Updating...' : 'Live data • Auto-refresh every 30s'}
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -201,7 +210,7 @@ const AnalyticsDashboard = () => {
             onClick={() => refetch()}
             disabled={isLoading}
           >
-            Refresh
+            {isLoading ? 'Refreshing...' : 'Refresh'}
           </Button>
           <Button
             variant="outlined"
@@ -217,41 +226,41 @@ const AnalyticsDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={analyticsData?.data?.totalUsers || "4,234"}
-            change={12.5}
+            value={isLoading ? "..." : (analyticsData?.data?.totalUsers?.toLocaleString() || "0")}
+            change={null}
             icon={<People />}
             color="primary"
-            subtitle="+234 this month"
+            subtitle={`${analyticsData?.data?.activeUsersToday || 0} active today`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Tournaments"
-            value={analyticsData?.data?.activeTournaments || "23"}
-            change={-2.1}
+            value={isLoading ? "..." : (analyticsData?.data?.activeTournaments || "0")}
+            change={null}
             icon={<EmojiEvents />}
             color="secondary"
-            subtitle="5 ending today"
+            subtitle={`${analyticsData?.data?.upcomingTournaments || 0} upcoming`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-            value={`₹${analyticsData?.data?.totalRevenue || "2.4M"}`}
-            change={8.7}
+            value={isLoading ? "..." : `₹${(analyticsData?.data?.totalRevenue || 0).toLocaleString()}`}
+            change={null}
             icon={<Payment />}
-            sx={{ color: 'success.main' }}
-            subtitle="This month"
+            color="success"
+            subtitle="Tournament entries"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Security Alerts"
-            value={analyticsData?.data?.securityAlerts || "7"}
-            change={-15.3}
-            icon={<Security />}
-            color="warning"
-            subtitle="3 high priority"
+            title="Player Registrations"
+            value={isLoading ? "..." : (analyticsData?.data?.playerRegistrations || 0).toLocaleString()}
+            change={null}
+            icon={<Group />}
+            color="info"
+            subtitle={`${analyticsData?.data?.totalWins || 0} total wins`}
           />
         </Grid>
       </Grid>
@@ -313,45 +322,60 @@ const AnalyticsDashboard = () => {
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   Game Distribution
                 </Typography>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={gameDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {gameDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                {gameDistribution.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={gameDistribution}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {gameDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value, name, props) => [
+                            `${value}% (${props.payload.count} tournaments)`,
+                            props.payload.name
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <Box sx={{ mt: 2 }}>
+                      {gameDistribution.map((game, index) => (
+                        <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              bgcolor: game.color,
+                              mr: 1
+                            }}
+                          />
+                          <Typography variant="body2" sx={{ flex: 1 }}>
+                            {game.name}
+                          </Typography>
+                          <Typography variant="body2" fontWeight="bold">
+                            {game.value}% ({game.count})
+                          </Typography>
+                        </Box>
                       ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <Box sx={{ mt: 2 }}>
-                  {gameDistribution.map((game, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: '50%',
-                          bgcolor: game.color,
-                          mr: 1
-                        }}
-                      />
-                      <Typography variant="body2" sx={{ flex: 1 }}>
-                        {game.name}
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {game.value}%
-                      </Typography>
                     </Box>
-                  ))}
-                </Box>
+                  </>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {isLoading ? "Loading game distribution..." : "No tournament data available"}
+                    </Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -570,12 +594,12 @@ const AnalyticsDashboard = () => {
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2">
-                              {tournament.participants.toLocaleString()}
+                              {(tournament.participants || 0).toLocaleString()}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="bold" color="success.main">
-                              ₹{tournament.prizePool.toLocaleString()}
+                              ₹{(tournament.prizePool || 0).toLocaleString()}
                             </Typography>
                           </TableCell>
                           <TableCell align="center">

@@ -50,7 +50,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [isAuthenticated]);
 
   // Real-time updates via socket
   useEffect(() => {
@@ -106,11 +106,22 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [tournamentsRes, walletRes, statsRes] = await Promise.all([
-        getTournaments({ limit: 6, status: 'upcoming' }),
-        getWalletBalance().catch(() => ({ balance: 0 })), // Handle 404 gracefully
-        getUserStats().catch(() => ({})) // Handle errors gracefully
-      ]);
+      
+      // Always fetch tournaments
+      const tournamentsRes = await getTournaments({ limit: 6, status: 'upcoming' });
+      
+      // Only fetch wallet and stats if user is authenticated
+      let walletRes = { balance: 0 };
+      let statsRes = {};
+      
+      if (isAuthenticated) {
+        const [walletResponse, statsResponse] = await Promise.all([
+          getWalletBalance().catch(() => ({ balance: 0 })),
+          getUserStats().catch(() => ({}))
+        ]);
+        walletRes = walletResponse;
+        statsRes = statsResponse;
+      }
 
       // Handle new API response structure
       const tournaments = tournamentsRes?.tournaments || [];
@@ -221,19 +232,21 @@ const Dashboard = () => {
                 Ready to dominate some tournaments today?
               </p>
             </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="glass-card px-6 py-3">
-                <div className="flex items-center space-x-3">
-                  <Wallet className="w-5 h-5 text-green-400" />
-                  <div>
-                    <p className="text-sm text-white/60">Wallet Balance</p>
-                    <p className="text-xl font-bold text-green-400">
-                      ₹{dashboardData.walletBalance.toLocaleString()}
-                    </p>
+            {isAuthenticated && (
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="glass-card px-6 py-3">
+                  <div className="flex items-center space-x-3">
+                    <Wallet className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="text-sm text-white/60">Wallet Balance</p>
+                      <p className="text-xl font-bold text-green-400">
+                        ₹{dashboardData.walletBalance.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </motion.div>
 

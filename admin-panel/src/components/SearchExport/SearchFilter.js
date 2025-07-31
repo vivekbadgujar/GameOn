@@ -327,7 +327,7 @@ const SearchFilter = () => {
                             <Chip
                               label={result.status}
                               size="small"
-                              color={result.status === 'active' ? 'success' : 'default'}
+                              color={result.status === 'active' ? 'success' : 'secondary'}
                               sx={{ textTransform: 'capitalize' }}
                             />
                           </Box>

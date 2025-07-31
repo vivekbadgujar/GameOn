@@ -63,8 +63,12 @@ const Wallet = () => {
   ];
 
   useEffect(() => {
-    fetchWalletData();
-  }, []);
+    if (isAuthenticated) {
+      fetchWalletData();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const fetchWalletData = async () => {
     try {
@@ -176,6 +180,44 @@ const Wallet = () => {
   };
 
   const { totalCredits, totalDebits } = calculateStats();
+
+  // Show authentication modal if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen pt-20 pb-8">
+        <div className="container-custom">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="glass-card p-8 max-w-md">
+              <Lock className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-4">Authentication Required</h2>
+              <p className="text-white/60 mb-6">
+                Please log in to access your wallet and manage your funds.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={openLoginModal}
+                  className="btn-primary flex-1"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={openRegisterModal}
+                  className="btn-secondary flex-1"
+                >
+                  Register
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <AuthModal 
+          isOpen={isAuthModalOpen} 
+          onClose={closeAuthModal} 
+          defaultTab={authModalTab}
+        />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

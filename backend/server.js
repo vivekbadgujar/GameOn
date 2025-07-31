@@ -207,6 +207,7 @@ app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/ai-verification', require('./routes/admin/ai-verification'));
 app.use('/api/admin/wallet', require('./routes/admin/wallet'));
 app.use('/api/admin/analytics', require('./routes/admin/analytics'));
+app.use('/api/admin/ai', require('./routes/admin/ai-suggestions'));
 app.use('/api/admin/scheduling', require('./routes/admin/scheduling'));
 app.use('/api/admin/broadcast', require('./routes/admin/broadcast'));
 app.use('/api/admin/payouts', require('./routes/admin/payouts'));

@@ -6,10 +6,10 @@
 const express = require('express');
 const router = express.Router();
 const { Notification, UserNotification } = require('../models/Notification');
-const { authenticateUser } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // Get user notifications
-router.get('/user/notifications', authenticateUser, async (req, res) => {
+router.get('/user/notifications', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -62,7 +62,7 @@ router.get('/user/notifications', authenticateUser, async (req, res) => {
 });
 
 // Mark notification as read
-router.patch('/user/notifications/:id/read', authenticateUser, async (req, res) => {
+router.patch('/user/notifications/:id/read', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     const notificationId = req.params.id;
@@ -99,7 +99,7 @@ router.patch('/user/notifications/:id/read', authenticateUser, async (req, res) 
 });
 
 // Mark all notifications as read
-router.patch('/user/notifications/read-all', authenticateUser, async (req, res) => {
+router.patch('/user/notifications/read-all', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -125,7 +125,7 @@ router.patch('/user/notifications/read-all', authenticateUser, async (req, res) 
 });
 
 // Get notification count
-router.get('/user/notifications/count', authenticateUser, async (req, res) => {
+router.get('/user/notifications/count', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     

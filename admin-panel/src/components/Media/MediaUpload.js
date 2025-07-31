@@ -221,15 +221,22 @@ const MediaUpload = () => {
     { value: 'document', label: 'Document', icon: <Description /> }
   ];
 
-  const mediaData = mediaFiles?.data || [];
+  // Ensure mediaData is always an array
+  const mediaData = Array.isArray(mediaFiles?.data) 
+    ? mediaFiles.data 
+    : Array.isArray(mediaFiles) 
+      ? mediaFiles 
+      : [];
 
   // Filter media by type based on active tab
   const filteredMedia = activeTab === 0 
     ? mediaData 
-    : mediaData.filter(media => {
-        const tabTypes = ['poster', 'highlight', 'document'];
-        return media.type === tabTypes[activeTab - 1];
-      });
+    : Array.isArray(mediaData) 
+      ? mediaData.filter(media => {
+          const tabTypes = ['poster', 'highlight', 'document'];
+          return media.type === tabTypes[activeTab - 1];
+        })
+      : [];
 
   return (
     <Box>
@@ -279,7 +286,7 @@ const MediaUpload = () => {
                     Total Files
                   </Typography>
                   <Typography variant="h4" component="div" fontWeight="bold">
-                    {mediaData.length}
+                    {Array.isArray(mediaData) ? mediaData.length : 0}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
@@ -298,7 +305,7 @@ const MediaUpload = () => {
                     Posters
                   </Typography>
                   <Typography variant="h4" component="div" fontWeight="bold" color="primary.main">
-                    {mediaData.filter(m => m.type === 'poster').length}
+                    {Array.isArray(mediaData) ? mediaData.filter(m => m.type === 'poster').length : 0}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
@@ -317,7 +324,7 @@ const MediaUpload = () => {
                     Highlights
                   </Typography>
                   <Typography variant="h4" component="div" fontWeight="bold" color="secondary.main">
-                    {mediaData.filter(m => m.type === 'highlight').length}
+                    {Array.isArray(mediaData) ? mediaData.filter(m => m.type === 'highlight').length : 0}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.main' }}>
@@ -336,7 +343,7 @@ const MediaUpload = () => {
                     Documents
                   </Typography>
                   <Typography variant="h4" component="div" fontWeight="bold" color="info.main">
-                    {mediaData.filter(m => m.type === 'document').length}
+                    {Array.isArray(mediaData) ? mediaData.filter(m => m.type === 'document').length : 0}
                   </Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: 'info.light', color: 'info.main' }}>

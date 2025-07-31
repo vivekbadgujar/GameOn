@@ -20,18 +20,30 @@ router.post('/login', async (req, res) => {
       let user = await User.findOne({ email });
       
       if (!user) {
-        user = new User({
-          username: 'GameOnAdmin',
-          displayName: 'GameOn Admin',
-          email: 'gamonoffice04@gmail.com',
-          phone: '9876543210',
-          isVerified: true,
-          gameProfile: {
-            bgmiId: 'ADMIN123456',
-            bgmiName: 'GameOnAdmin'
-          }
-        });
-        await user.save();
+        // Check if phone number already exists
+        const existingPhoneUser = await User.findOne({ phone: '9876543210' });
+        if (existingPhoneUser) {
+          // Update existing user with admin email
+          user = existingPhoneUser;
+          user.email = 'gamonoffice04@gmail.com';
+          user.username = 'GameOnAdmin';
+          user.displayName = 'GameOn Admin';
+          await user.save();
+        } else {
+          user = new User({
+            username: 'GameOnAdmin',
+            displayName: 'GameOn Admin',
+            email: 'gamonoffice04@gmail.com',
+            phone: '9876543210',
+            password: 'gamon@321', // This will be hashed by the pre-save middleware
+            isVerified: true,
+            gameProfile: {
+              bgmiId: 'ADMIN123456',
+              bgmiName: 'GameOnAdmin'
+            }
+          });
+          await user.save();
+        }
       }
 
       // Generate JWT token
@@ -62,9 +74,12 @@ router.post('/login', async (req, res) => {
     }
   } catch (error) {
     console.error('Login Error:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Login failed'
+      message: 'Login failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -72,12 +87,19 @@ router.post('/login', async (req, res) => {
 // Simple email/password registration for testing
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, agreeToTerms } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Username, email, and password are required'
+      });
+    }
+
+    if (!agreeToTerms) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must agree to the Terms & Conditions and Policies to register'
       });
     }
 
@@ -95,13 +117,19 @@ router.post('/register', async (req, res) => {
       username,
       displayName: username,
       email,
-      phone: (Math.floor(Math.random() * 9000000000) + 1000000000).toString(), // Random 10-digit phone
+      password,
+      phone: '9' + Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random valid Indian phone
       isVerified: true,
       gameProfile: {
         bgmiId: 'USER' + Math.random().toString(36).substr(2, 9).toUpperCase(),
         bgmiName: username
       }
     });
+
+    // Accept all policies if user agreed to terms
+    if (agreeToTerms) {
+      await user.acceptPolicies('1.0');
+    }
     
     await user.save();
 
@@ -127,9 +155,12 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration Error:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Registration failed'
+      message: 'Registration failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -223,6 +254,42 @@ router.post('/verify-otp', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to verify OTP'
+    });
+  }
+});
+
+// Update policy acceptance
+router.post('/accept-policies', async (req, res) => {
+  try {
+    const { userId, version = '1.0' } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    await user.acceptPolicies(version);
+
+    res.json({
+      success: true,
+      message: 'Policy acceptance updated successfully',
+      policyAcceptance: user.policyAcceptance
+    });
+  } catch (error) {
+    console.error('Policy acceptance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update policy acceptance'
     });
   }
 });

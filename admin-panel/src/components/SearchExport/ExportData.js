@@ -61,7 +61,12 @@ const ExportData = () => {
     refetchInterval: 30000,
   });
 
-  const exportHistory = exportHistoryData?.data || [];
+  // Ensure exportHistory is always an array
+  const exportHistory = Array.isArray(exportHistoryData?.data) 
+    ? exportHistoryData.data 
+    : Array.isArray(exportHistoryData) 
+      ? exportHistoryData 
+      : [];
 
   const exportMutation = useMutation({
     mutationFn: ({ type, format, filters }) => searchExportAPI.exportData(type, format, filters),
@@ -118,7 +123,8 @@ const ExportData = () => {
     }
   };
 
-  const history = exportHistory;
+  // Ensure history is always an array
+  const history = Array.isArray(exportHistory) ? exportHistory : [];
 
   return (
     <Box>
@@ -335,6 +341,16 @@ const ExportData = () => {
 
               {isLoading ? (
                 <LinearProgress />
+              ) : history.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <History sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No Export History
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Your export history will appear here once you start exporting data
+                  </Typography>
+                </Box>
               ) : (
                 <List>
                   {history.map((exportItem, index) => (

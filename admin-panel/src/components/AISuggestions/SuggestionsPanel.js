@@ -43,7 +43,15 @@ const SuggestionsPanel = () => {
 
   const { data: suggestionsResponse, isLoading } = useQuery({
     queryKey: ['ai-suggestions'],
-    queryFn: aiReportsAPI.getSuggestions,
+    queryFn: async () => {
+      const response = await fetch('/api/admin/ai/suggestions', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch AI suggestions');
+      return response.json();
+    },
     refetchInterval: 60000, // Refetch every minute
   });
 
@@ -305,7 +313,7 @@ const SuggestionsPanel = () => {
                                   key={action.id}
                                   size="small"
                                   variant={action.type === 'auto' ? 'contained' : 'outlined'}
-                                  color={action.type === 'auto' ? 'primary' : 'default'}
+                                  color={action.type === 'auto' ? 'primary' : 'inherit'}
                                   onClick={() => handleApplySuggestion(suggestion.id, action.id)}
                                   disabled={suggestion.applied || applySuggestionMutation.isPending}
                                 >
@@ -378,7 +386,7 @@ const SuggestionsPanel = () => {
                   <Typography variant="h6" sx={{ mb: 1 }}>
                     Expected Impact
                   </Typography>
-                                              <Typography variant="body2" sx={{ color: 'success.main' }}>
+                  <Typography variant="body2" sx={{ color: 'success.main' }}>
                     {selectedSuggestion.impact}
                   </Typography>
                 </Grid>

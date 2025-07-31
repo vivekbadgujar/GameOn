@@ -176,6 +176,31 @@ const UserSchema = new mongoose.Schema({
     riskScore: { type: Number, default: 0, min: 0, max: 100 }
   },
 
+  // Legal & Policy Acceptance
+  policyAcceptance: {
+    termsAndConditions: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: Date,
+      version: { type: String, default: '1.0' }
+    },
+    privacyPolicy: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: Date,
+      version: { type: String, default: '1.0' }
+    },
+    refundPolicy: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: Date,
+      version: { type: String, default: '1.0' }
+    },
+    fairPlayPolicy: {
+      accepted: { type: Boolean, default: false },
+      acceptedAt: Date,
+      version: { type: String, default: '1.0' }
+    },
+    lastUpdated: { type: Date, default: Date.now }
+  },
+
   // Preferences
   preferences: {
     notifications: {
@@ -306,6 +331,34 @@ UserSchema.methods.addBadge = function(badgeData) {
     return this.save();
   }
   return Promise.resolve(this);
+};
+
+UserSchema.methods.acceptPolicies = function(version = '1.0') {
+  const now = new Date();
+  this.policyAcceptance = {
+    termsAndConditions: {
+      accepted: true,
+      acceptedAt: now,
+      version: version
+    },
+    privacyPolicy: {
+      accepted: true,
+      acceptedAt: now,
+      version: version
+    },
+    refundPolicy: {
+      accepted: true,
+      acceptedAt: now,
+      version: version
+    },
+    fairPlayPolicy: {
+      accepted: true,
+      acceptedAt: now,
+      version: version
+    },
+    lastUpdated: now
+  };
+  return this.save();
 };
 
 // Static methods

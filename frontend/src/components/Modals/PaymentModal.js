@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -11,13 +12,14 @@ import {
   Shield,
   Lock
 } from 'lucide-react';
-import { createPaymentOrder } from '../../services/api';
+import { createPaymentOrder, acceptPolicies } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) => {
   const [selectedMethod, setSelectedMethod] = useState('razorpay');
   const [processing, setProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState('method'); // method, processing, success
+  const [agreeToPolicies, setAgreeToPolicies] = useState(false);
 
   const paymentMethods = [
     {
@@ -44,6 +46,11 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
   ];
 
   const handlePayment = async () => {
+    if (!agreeToPolicies) {
+      toast.error('Please agree to the Terms & Conditions and Policies to proceed with payment');
+      return;
+    }
+
     try {
       setProcessing(true);
       setPaymentStep('processing');
@@ -62,8 +69,19 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
           name: 'GameOn Platform',
           description: `Entry fee for ${tournamentName}`,
           order_id: orderResponse.data.orderId,
-          handler: function (response) {
+          handler: async function (response) {
             setPaymentStep('success');
+            
+            // Save policy acceptance for the user
+            try {
+              const user = JSON.parse(localStorage.getItem('user'));
+              if (user && user._id) {
+                await acceptPolicies(user._id, '1.0');
+              }
+            } catch (error) {
+              console.error('Error saving policy acceptance:', error);
+            }
+            
             setTimeout(() => {
               onSuccess({
                 paymentId: response.razorpay_payment_id,
@@ -95,6 +113,17 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
       } else {
         // Mock payment success for other methods
         setPaymentStep('success');
+        
+        // Save policy acceptance for the user
+        try {
+          const user = JSON.parse(localStorage.getItem('user'));
+          if (user && user._id) {
+            await acceptPolicies(user._id, '1.0');
+          }
+        } catch (error) {
+          console.error('Error saving policy acceptance:', error);
+        }
+        
         setTimeout(() => {
           onSuccess({
             paymentId: `mock_${Date.now()}`,
@@ -216,12 +245,43 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
                 </div>
               </div>
 
+              {/* Policy Agreement */}
+              <div className="flex items-start space-x-3 mt-6">
+                <input
+                  type="checkbox"
+                  id="agreeToPolicies"
+                  checked={agreeToPolicies}
+                  onChange={(e) => setAgreeToPolicies(e.target.checked)}
+                  className="mt-1 w-4 h-4 text-blue-600 bg-transparent border-2 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
+                  required
+                />
+                <label htmlFor="agreeToPolicies" className="text-white/80 text-xs leading-relaxed">
+                  I have read and agree to GameOn's{' '}
+                  <Link to="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                    Terms & Conditions
+                  </Link>
+                  ,{' '}
+                  <Link to="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                    Refund Policy
+                  </Link>
+                  ,{' '}
+                  <Link to="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                    Privacy Policy
+                  </Link>
+                  , and{' '}
+                  <Link to="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                    Fair Play Policy
+                  </Link>
+                  .
+                </label>
+              </div>
+
               {/* Pay Button */}
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: agreeToPolicies && !processing ? 1.02 : 1 }}
+                whileTap={{ scale: agreeToPolicies && !processing ? 0.98 : 1 }}
                 onClick={handlePayment}
-                disabled={processing}
+                disabled={processing || !agreeToPolicies}
                 className="w-full btn-primary py-4 text-lg font-bold mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center justify-center space-x-2">

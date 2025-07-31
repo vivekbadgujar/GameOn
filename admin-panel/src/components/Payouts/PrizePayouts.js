@@ -173,7 +173,7 @@ const PrizePayouts = () => {
     return (
       <Chip
         label={`${position}${position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th'}`}
-        color={colors[position] || 'default'}
+        color={colors[position] || 'primary'}
         size="small"
       />
     );

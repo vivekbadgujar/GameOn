@@ -114,6 +114,9 @@ export const theme = createTheme({
           padding: '8px 16px',
         },
       },
+      defaultProps: {
+        disableElevation: true,
+      },
     },
     MuiCard: {
       styleOverrides: {

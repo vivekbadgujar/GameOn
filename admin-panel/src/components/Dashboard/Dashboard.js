@@ -71,12 +71,12 @@ const StatCard = ({ title, value, change, icon, color, subtitle }) => (
           )}
         </Box>
         <Avatar
-          sx={{
-            bgcolor: `${color}.light`,
-            color: `${color}.main`,
+          sx={(theme) => ({
+            bgcolor: color && theme.palette[color] ? theme.palette[color].light : theme.palette.primary.light,
+            color: color && theme.palette[color] ? theme.palette[color].main : theme.palette.primary.main,
             width: 56,
             height: 56,
-          }}
+          })}
         >
           {icon}
         </Avatar>
@@ -92,6 +92,7 @@ const Dashboard = () => {
     queryKey: ['dashboard', refreshKey],
     queryFn: analyticsAPI.getDashboard,
     refetchInterval: 30000, // Refresh every 30 seconds
+    refetchIntervalInBackground: true,
   });
 
   const handleRefresh = () => {
@@ -101,7 +102,7 @@ const Dashboard = () => {
 
   // Real data from API
   const userGrowthData = dashboardData?.data?.userGrowth || [];
-  const tournamentStats = dashboardData?.data?.tournamentStats || [];
+  const tournamentStats = dashboardData?.data?.gameDistribution || [];
   const revenueData = dashboardData?.data?.revenueData || [];
   const recentActivities = dashboardData?.data?.recentActivities || [];
 
@@ -143,6 +144,24 @@ const Dashboard = () => {
           <Typography variant="body1" color="text.secondary">
             Welcome back! Here's what's happening with your platform.
           </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: isLoading ? 'warning.main' : 'success.main',
+                mr: 1,
+                animation: isLoading ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { opacity: 1 },
+                  '50%': { opacity: 0.5 },
+                  '100%': { opacity: 1 },
+                },
+              }}
+            />
+            {isLoading ? 'Updating...' : 'Live data • Auto-refresh every 30s'}
+          </Typography>
         </Box>
         <Button
           variant="outlined"
@@ -150,7 +169,7 @@ const Dashboard = () => {
           onClick={handleRefresh}
           disabled={isLoading}
         >
-          Refresh
+          {isLoading ? 'Refreshing...' : 'Refresh'}
         </Button>
       </Box>
 
@@ -159,41 +178,41 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={dashboardData?.data?.totalUsers || "4,234"}
-            change={12.5}
+            value={isLoading ? "..." : (dashboardData?.data?.totalUsers || "0")}
+            change={null}
             icon={<People />}
             color="primary"
-            subtitle="+234 this month"
+            subtitle="Registered users"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Tournaments"
-            value={dashboardData?.data?.activeTournaments || "23"}
-            change={-2.1}
+            value={isLoading ? "..." : (dashboardData?.data?.activeTournaments || "0")}
+            change={null}
             icon={<EmojiEvents />}
             color="secondary"
-            subtitle="5 ending today"
+            subtitle="Currently running"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-                                    value={`₹${dashboardData?.data?.totalRevenue || "0"}`}
-            change={8.7}
+            value={isLoading ? "..." : `₹${(dashboardData?.data?.totalRevenue || 0).toLocaleString()}`}
+            change={null}
             icon={<Payment />}
-            sx={{ color: 'success.main' }}
-            subtitle="This month"
+            color="success"
+            subtitle="Tournament entries"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Security Alerts"
-            value={dashboardData?.data?.securityAlerts || "7"}
-            change={-15.3}
-            icon={<Security />}
-            color="warning"
-            subtitle="3 high priority"
+            title="Total Tournaments"
+            value={isLoading ? "..." : (dashboardData?.data?.totalTournaments || "0")}
+            change={null}
+            icon={<EmojiEvents />}
+            color="info"
+            subtitle="All time"
           />
         </Grid>
       </Grid>
@@ -229,52 +248,67 @@ const Dashboard = () => {
           </Card>
         </Grid>
 
-        {/* Tournament Distribution */}
+        {/* Game Distribution */}
         <Grid item xs={12} lg={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Tournament Distribution
+                Game Distribution
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={tournamentStats}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {tournamentStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+              {tournamentStats.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={tournamentStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {tournamentStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip 
+                        formatter={(value, name, props) => [
+                          `${value}% (${props.payload.count} tournaments)`,
+                          props.payload.name
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <Box sx={{ mt: 2 }}>
+                    {tournamentStats.map((stat, index) => (
+                      <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            bgcolor: stat.color,
+                            mr: 1
+                          }}
+                        />
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {stat.name}
+                        </Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {stat.value}% ({stat.count})
+                        </Typography>
+                      </Box>
                     ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <Box sx={{ mt: 2 }}>
-                {tournamentStats.map((stat, index) => (
-                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        bgcolor: stat.color,
-                        mr: 1
-                      }}
-                    />
-                    <Typography variant="body2" sx={{ flex: 1 }}>
-                      {stat.name}
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {stat.value}%
-                    </Typography>
                   </Box>
-                ))}
-              </Box>
+                </>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {isLoading ? "Loading game distribution..." : "No tournament data available"}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

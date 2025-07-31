@@ -16,9 +16,30 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth endpoints
+export const login = async (email, password) => {
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  } catch (error) {
+    console.error('Login API Error:', error);
+    throw error;
+  }
+};
+
+export const register = async (userData) => {
+  try {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
+  } catch (error) {
+    console.error('Register API Error:', error);
+    throw error;
+  }
+};
+
 export const sendOTP = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOTP = (phone, otp) => api.post('/auth/verify-otp', { phone, otp });
 export const logout = () => api.post('/auth/logout');
+export const acceptPolicies = (userId, version = '1.0') => api.post('/auth/accept-policies', { userId, version });
 
 // User endpoints
 export const getUserProfile = async () => {

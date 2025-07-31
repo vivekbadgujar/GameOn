@@ -12,6 +12,7 @@ import { isMobileApp, getDeviceType } from './utils/deviceDetection';
 
 // Layout Components
 import Header from './components/Layout/Header';
+import Footer from './components/Layout/Footer';
 import LoadingSpinner from './components/UI/LoadingSpinner';
 import SupportChat from './components/UI/SupportChat';
 import NotificationSystem from './components/UI/NotificationSystem';
@@ -21,13 +22,18 @@ import NotificationToast from './components/UI/NotificationToast';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Tournaments = lazy(() => import('./pages/Tournaments'));
 const TournamentDetails = lazy(() => import('./pages/TournamentDetailsRedesigned'));
-const Videos = lazy(() => import('./pages/Videos'));
-const Gallery = lazy(() => import('./pages/Gallery'));
+const MediaGallery = lazy(() => import('./pages/MediaGallery'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+
+// Policy Pages
+const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
+const FairPlayPolicy = lazy(() => import('./pages/FairPlayPolicy'));
 
 // Page transition variants
 const pageVariants = {
@@ -199,23 +205,7 @@ function App() {
                       } 
                     />
                     <Route 
-                      path="/videos" 
-                      element={
-                        <ProtectedRoute>
-                          <motion.div
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            variants={pageVariants}
-                            transition={pageTransition}
-                          >
-                            <Videos />
-                          </motion.div>
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/gallery" 
+                      path="/media" 
                       element={
                         <motion.div
                           initial="initial"
@@ -224,10 +214,13 @@ function App() {
                           variants={pageVariants}
                           transition={pageTransition}
                         >
-                          <Gallery />
+                          <MediaGallery />
                         </motion.div>
                       } 
                     />
+                    {/* Redirect old routes to new combined page */}
+                    <Route path="/videos" element={<Navigate to="/media" replace />} />
+                    <Route path="/gallery" element={<Navigate to="/media" replace />} />
                     <Route 
                       path="/wallet" 
                       element={
@@ -277,6 +270,64 @@ function App() {
                       } 
                     />
                     
+                    {/* Policy Pages - Public Routes */}
+                    <Route 
+                      path="/terms" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <TermsAndConditions />
+                        </motion.div>
+                      } 
+                    />
+                    <Route 
+                      path="/privacy" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <PrivacyPolicy />
+                        </motion.div>
+                      } 
+                    />
+                    <Route 
+                      path="/refund" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <RefundPolicy />
+                        </motion.div>
+                      } 
+                    />
+                    <Route 
+                      path="/fairplay" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <FairPlayPolicy />
+                        </motion.div>
+                      } 
+                    />
+                    
                     {/* Redirects */}
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -284,6 +335,9 @@ function App() {
                 </Suspense>
               </AnimatePresence>
             </main>
+            
+            {/* Footer */}
+            <Footer />
             
             {/* Toast Notifications */}
             <Toaster

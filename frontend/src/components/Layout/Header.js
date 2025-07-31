@@ -17,7 +17,8 @@ import {
   CreditCard,
   LogIn,
   UserPlus,
-  Image
+  Image,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -50,8 +51,7 @@ const Header = () => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/tournaments', label: 'Tournaments', icon: Trophy },
-    { path: '/videos', label: 'Videos', icon: Video },
-    { path: '/gallery', label: 'Gallery', icon: Image },
+    { path: '/media', label: 'Videos & Gallery', icon: Play },
     { path: '/wallet', label: 'Wallet', icon: CreditCard },
     { path: '/support', label: 'Support', icon: HelpCircle },
   ];
@@ -284,22 +284,77 @@ const Header = () => {
               </>
             ) : (
               <>
-                {/* Login/Signup Buttons for Non-authenticated Users */}
-                <button
-                  onClick={openLoginModal}
-                  className="flex items-center space-x-2 px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:block font-medium">Login</span>
-                </button>
-                
-                <button
-                  onClick={openRegisterModal}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden sm:block font-medium">Sign Up</span>
-                </button>
+                {/* Single Auth Button with Dropdown for Non-authenticated Users */}
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span className="font-medium">Join GameOn</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${
+                      isProfileOpen ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isProfileOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-64 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                      >
+                        <div className="p-4 border-b border-white/10">
+                          <h3 className="text-white font-semibold mb-1">Welcome to GameOn!</h3>
+                          <p className="text-white/60 text-sm">Join India's premier gaming platform</p>
+                        </div>
+                        
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              openLoginModal();
+                              setIsProfileOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-300 text-left group"
+                          >
+                            <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                              <LogIn className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">Login</div>
+                              <div className="text-white/60 text-xs">Access your account</div>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              openRegisterModal();
+                              setIsProfileOpen(false);
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-300 text-left group"
+                          >
+                            <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
+                              <UserPlus className="w-4 h-4 text-purple-400" />
+                            </div>
+                            <div>
+                              <div className="text-white font-medium">Sign Up</div>
+                              <div className="text-white/60 text-xs">Create new account</div>
+                            </div>
+                          </button>
+                        </div>
+                        
+                        <div className="p-4 bg-gradient-to-r from-blue-600/10 to-purple-600/10 border-t border-white/10">
+                          <div className="flex items-center space-x-2 text-xs text-white/60">
+                            <Trophy className="w-3 h-3" />
+                            <span>Join 50,000+ gamers competing daily</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </>
             )}
 
