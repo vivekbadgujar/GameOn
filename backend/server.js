@@ -201,6 +201,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin/auth', require('./routes/admin/auth'));
 app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
 app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
+app.use('/api/admin/tournaments', require('./routes/admin/tournamentParticipants'));
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
 app.use('/api/admin/tournament-videos', require('./routes/admin/tournamentVideos'));
 app.use('/api/admin/users', require('./routes/admin/users'));

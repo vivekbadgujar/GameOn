@@ -226,7 +226,7 @@ const AnalyticsDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={isLoading ? "..." : (analyticsData?.data?.totalUsers?.toLocaleString() || "0")}
+            value={isLoading ? "..." : ((analyticsData?.data?.totalUsers || 0).toLocaleString())}
             change={null}
             icon={<People />}
             color="primary"
@@ -465,7 +465,7 @@ const AnalyticsDashboard = () => {
                           Participants:
                         </Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {game.participants.toLocaleString()}
+                          {(game.participants || 0).toLocaleString()}
                         </Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -481,7 +481,7 @@ const AnalyticsDashboard = () => {
                           Avg Prize:
                         </Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          ₹{game.avgPrize.toLocaleString()}
+                          ₹{(game.avgPrize || 0).toLocaleString()}
                         </Typography>
                       </Box>
                     </Box>

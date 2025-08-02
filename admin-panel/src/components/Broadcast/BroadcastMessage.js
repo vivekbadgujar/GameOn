@@ -138,6 +138,7 @@ const BroadcastMessage = () => {
 
     const submitData = {
       ...messageData,
+      message: messageData.content, // Backend expects 'message' field
       scheduledFor: messageData.scheduledFor ? messageData.scheduledFor.toISOString() : null
     };
 

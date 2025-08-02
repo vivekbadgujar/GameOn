@@ -189,6 +189,39 @@ router.post('/verify',
         await processReferralBonus(user.referral.referredBy, transaction.amount);
       }
 
+      // If this is a tournament payment, automatically confirm participant
+      if (transaction.type === 'tournament_entry' && transaction.tournamentId) {
+        try {
+          const tournament = await Tournament.findById(transaction.tournamentId);
+          if (tournament) {
+            const participant = tournament.participants.find(p => 
+              p.user.toString() === userId.toString()
+            );
+            
+            if (participant && participant.status !== 'confirmed') {
+              participant.status = 'confirmed';
+              participant.paymentConfirmedAt = new Date();
+              await tournament.save();
+
+              // Emit Socket.IO event for real-time updates
+              const io = req.app.get('io');
+              if (io) {
+                io.emit('participantConfirmed', {
+                  tournamentId: transaction.tournamentId,
+                  participantId: participant._id,
+                  userId: userId
+                });
+              }
+
+              console.log(`Auto-confirmed participant ${userId} for tournament ${transaction.tournamentId}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error auto-confirming participant:', error);
+          // Don't fail the payment verification if participant confirmation fails
+        }
+      }
+
       res.json({
         success: true,
         message: 'Payment verified successfully',

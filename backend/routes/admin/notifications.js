@@ -29,6 +29,8 @@ router.get('/', authenticateAdmin, async (req, res) => {
 // Create notification
 router.post('/', authenticateAdmin, async (req, res) => {
   try {
+    console.log('Creating notification with data:', req.body);
+    
     const {
       title,
       message,
@@ -41,21 +43,31 @@ router.post('/', authenticateAdmin, async (req, res) => {
       expiresAt
     } = req.body;
 
+    // Validate required fields
+    if (!title || !message || !type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Title, message, and type are required'
+      });
+    }
+
     const notification = new Notification({
       title,
       message,
       type,
-      targetAudience,
-      targetUsers,
-      targetTournament,
-      priority,
+      targetAudience: targetAudience || 'all_users',
+      targetUsers: targetUsers || [],
+      targetTournament: targetTournament || null,
+      priority: priority || 'normal',
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       createdBy: req.admin._id,
       status: scheduledAt ? 'scheduled' : 'draft'
     });
 
+    console.log('Saving notification:', notification);
     await notification.save();
+    console.log('Notification saved successfully:', notification._id);
     
     // Emit Socket.IO events for real-time updates
     const io = req.app.get('io');
@@ -66,7 +78,14 @@ router.post('/', authenticateAdmin, async (req, res) => {
 
     // If no scheduling, send immediately
     if (!scheduledAt) {
-      await sendNotification(notification);
+      console.log('Sending notification immediately...');
+      try {
+        await sendNotification(notification);
+        console.log('Notification sent successfully');
+      } catch (sendError) {
+        console.error('Error sending notification:', sendError);
+        // Don't fail the creation if sending fails
+      }
     }
 
     res.json({
@@ -75,9 +94,20 @@ router.post('/', authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating notification:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed: ' + validationErrors.join(', ')
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message || 'Failed to create notification'
     });
   }
 });

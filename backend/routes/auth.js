@@ -14,8 +14,13 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Hardcoded credentials for testing
-    if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
+    // Check if user exists in database first
+    let user = await User.findOne({ email });
+    
+    if (user && user.password === password) {
+      // User exists and password matches
+    } else if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
+      // Fallback to hardcoded admin credentials
       // Create or find user
       let user = await User.findOne({ email });
       

@@ -1,5 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 
+// Create theme with error handling
 export const theme = createTheme({
   palette: {
     mode: 'dark',

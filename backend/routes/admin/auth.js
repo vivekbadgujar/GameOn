@@ -48,15 +48,30 @@ router.post('/login',
       }
 
       const { email, password, rememberMe = false } = req.body;
+      
+      console.log('Admin login attempt:', { email, passwordLength: password.length });
 
       // Find admin by email
       const admin = await Admin.findOne({ 
         email: email.toLowerCase(),
         status: 'active'
       });
+      
+      console.log('Admin found:', admin ? 'Yes' : 'No');
+      if (admin) {
+        console.log('Admin details:', { 
+          id: admin._id, 
+          email: admin.email, 
+          status: admin.status,
+          role: admin.role 
+        });
+      }
 
       // Check if admin exists and password is correct
-      if (!admin || !(await admin.comparePassword(password))) {
+      const passwordMatch = admin ? await admin.comparePassword(password) : false;
+      console.log('Password match:', passwordMatch);
+      
+      if (!admin || !passwordMatch) {
         // If admin exists, increment login attempts
         if (admin) {
           await admin.incrementLoginAttempts();

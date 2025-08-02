@@ -281,4 +281,200 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
   }
 });
 
+// Join tournament as a squad (4 players together)
+router.post('/:id/join-squad', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { squadMembers, paymentData } = req.body; // squadMembers: array of user IDs
+
+    // Validate squad size
+    if (!squadMembers || squadMembers.length !== 4) {
+      return res.status(400).json({
+        success: false,
+        error: 'Squad must have exactly 4 members'
+      });
+    }
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Check if tournament is open for registration
+    if (tournament.status !== 'upcoming') {
+      return res.status(400).json({
+        success: false,
+        error: 'Tournament registration is closed'
+      });
+    }
+
+    // Check if tournament has enough slots for the squad
+    if (tournament.currentParticipants + 4 > tournament.maxParticipants) {
+      return res.status(400).json({
+        success: false,
+        error: 'Not enough slots available for the squad'
+      });
+    }
+
+    // Check if any squad member already joined
+    const alreadyJoined = squadMembers.some(memberId => 
+      tournament.participants.some(p => p.user.toString() === memberId)
+    );
+
+    if (alreadyJoined) {
+      return res.status(400).json({
+        success: false,
+        error: 'One or more squad members have already joined this tournament'
+      });
+    }
+
+    // Validate all squad members exist
+    const users = await User.find({ _id: { $in: squadMembers } });
+    if (users.length !== 4) {
+      return res.status(400).json({
+        success: false,
+        error: 'One or more squad members not found'
+      });
+    }
+
+    // Generate consecutive slot numbers for the squad
+    const startingSlot = tournament.currentParticipants + 1;
+    const squadSlots = [startingSlot, startingSlot + 1, startingSlot + 2, startingSlot + 3];
+
+    // Add all squad members as participants
+    squadMembers.forEach((memberId, index) => {
+      tournament.participants.push({
+        user: memberId,
+        joinedAt: new Date(),
+        slotNumber: squadSlots[index],
+        status: paymentData ? 'confirmed' : 'waiting', // Auto-confirm if payment provided
+        squadId: `squad_${Date.now()}`, // Unique squad identifier
+        paymentData: paymentData || null
+      });
+    });
+
+    // Update participant count
+    tournament.currentParticipants += 4;
+
+    // Save tournament
+    await tournament.save();
+
+    // Emit Socket.IO event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('squadJoined', {
+        tournamentId: id,
+        squadMembers,
+        squadSlots,
+        participantCount: tournament.currentParticipants
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Squad successfully joined tournament',
+      data: { 
+        tournamentId: id,
+        squadSlots,
+        participantCount: tournament.currentParticipants,
+        squadMembers: users.map(u => ({
+          id: u._id,
+          username: u.username,
+          gameProfile: u.gameProfile
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error joining tournament as squad:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to join tournament as squad'
+    });
+  }
+});
+
+// Update tournament status (Admin only)
+router.patch('/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['draft', 'upcoming', 'live', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+      });
+    }
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    tournament.status = status;
+    await tournament.save();
+
+    res.json({
+      success: true,
+      message: `Tournament status updated to ${status}`,
+      data: tournament
+    });
+  } catch (error) {
+    console.error('Error updating tournament status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update tournament status'
+    });
+  }
+});
+
+// Release room credentials (Admin only)
+router.post('/:id/release-credentials', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Generate new room credentials
+    const roomCredentials = {
+      roomId: `ROOM${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      password: `PASS${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      releasedAt: new Date()
+    };
+
+    tournament.roomDetails = roomCredentials;
+    await tournament.save();
+
+    res.json({
+      success: true,
+      message: 'Room credentials released successfully',
+      data: {
+        tournamentId: id,
+        roomCredentials: roomCredentials
+      }
+    });
+  } catch (error) {
+    console.error('Error releasing room credentials:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to release room credentials'
+    });
+  }
+});
+
 module.exports = router;

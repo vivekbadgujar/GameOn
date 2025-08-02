@@ -8,6 +8,34 @@ const router = express.Router();
 const { Notification, UserNotification } = require('../models/Notification');
 const { authenticateToken } = require('../middleware/auth');
 
+// Get notifications (public endpoint for basic notifications)
+router.get('/', async (req, res) => {
+  try {
+    // Return basic system notifications or empty array for unauthenticated users
+    const notifications = await Notification.find({
+      type: 'system_announcement',
+      status: 'sent',
+      targetAudience: 'all_users'
+    })
+    .select('title message type priority createdAt')
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+    res.json({
+      success: true,
+      data: notifications,
+      unreadCount: 0 // For unauthenticated users
+    });
+  } catch (error) {
+    console.error('Error fetching public notifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch notifications',
+      error: error.message
+    });
+  }
+});
+
 // Get user notifications
 router.get('/user/notifications', authenticateToken, async (req, res) => {
   try {

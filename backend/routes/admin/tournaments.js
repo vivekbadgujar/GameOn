@@ -1332,4 +1332,140 @@ router.post('/:id/video',
   }
 );
 
+// Release room credentials
+router.post('/:id/release-credentials',
+  requirePermission('tournaments_manage'),
+  auditLog('release_room_credentials'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      // Generate new room credentials
+      const roomCredentials = {
+        roomId: `ROOM${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        password: `PASS${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        releasedAt: new Date(),
+        releasedBy: req.admin._id
+      };
+
+      tournament.roomDetails = roomCredentials;
+      await tournament.save();
+
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        console.log('Emitting room credentials released event for tournament:', tournamentId);
+        // Emit to tournament participants
+        io.emit('roomCredentialsReleased', {
+          type: 'roomCredentialsReleased',
+          tournamentId: tournamentId,
+          roomCredentials: {
+            roomId: roomCredentials.roomId,
+            password: roomCredentials.password,
+            releasedAt: roomCredentials.releasedAt
+          }
+        });
+        // Emit to admin clients
+        io.emit('adminUpdate', {
+          type: 'roomCredentialsReleased',
+          data: tournament
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Room credentials released successfully',
+        data: {
+          tournamentId: tournamentId,
+          roomCredentials: roomCredentials
+        }
+      });
+    } catch (error) {
+      console.error('Error releasing room credentials:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to release room credentials',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Update tournament status
+router.patch('/:id/status', 
+  requirePermission('tournaments_manage'),
+  auditLog('update_tournament_status'),
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+      const tournamentId = req.params.id;
+
+      // Validate status
+      const validStatuses = ['upcoming', 'live', 'completed', 'cancelled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid tournament status'
+        });
+      }
+
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      // Update status
+      tournament.status = status;
+      
+      // Set completion date if marking as completed
+      if (status === 'completed') {
+        tournament.endDate = new Date();
+      }
+
+      await tournament.save();
+
+      // Emit Socket.IO events for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('tournamentStatusUpdated', {
+          tournamentId,
+          status,
+          tournament
+        });
+        
+        // Emit to admin clients
+        io.emit('adminUpdate', {
+          type: 'tournamentStatusUpdated',
+          data: { tournamentId, status, tournament }
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Tournament ${status === 'completed' ? 'completed' : 'status updated'} successfully`,
+        data: tournament
+      });
+
+    } catch (error) {
+      console.error('Error updating tournament status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update tournament status',
+        error: error.message
+      });
+    }
+  }
+);
+
 module.exports = router;

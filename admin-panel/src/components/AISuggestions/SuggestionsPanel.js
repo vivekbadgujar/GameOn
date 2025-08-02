@@ -35,6 +35,7 @@ import {
   Lightbulb,
 } from '@mui/icons-material';
 import { aiReportsAPI } from '../../services/api';
+import { getSafeButtonColor, getSafeChipColor } from '../../utils/themeUtils';
 
 const SuggestionsPanel = () => {
   const queryClient = useQueryClient();
@@ -72,7 +73,7 @@ const SuggestionsPanel = () => {
       case 'high': return 'error';
       case 'medium': return 'warning';
       case 'low': return 'info';
-      default: return 'default';
+      default: return 'primary';
     }
   };
 
@@ -280,7 +281,7 @@ const SuggestionsPanel = () => {
                             </Typography>
                             <Chip
                               label={suggestion.priority}
-                              color={getPriorityColor(suggestion.priority)}
+                              color={getSafeChipColor(getPriorityColor(suggestion.priority))}
                               size="small"
                               sx={{ textTransform: 'capitalize' }}
                             />
@@ -313,7 +314,7 @@ const SuggestionsPanel = () => {
                                   key={action.id}
                                   size="small"
                                   variant={action.type === 'auto' ? 'contained' : 'outlined'}
-                                  color={action.type === 'auto' ? 'primary' : 'inherit'}
+                                  color={getSafeButtonColor(action.type === 'auto' ? 'primary' : 'inherit')}
                                   onClick={() => handleApplySuggestion(suggestion.id, action.id)}
                                   disabled={suggestion.applied || applySuggestionMutation.isPending}
                                 >
@@ -368,7 +369,7 @@ const SuggestionsPanel = () => {
                     />
                     <Chip
                       label={selectedSuggestion.priority}
-                      color={getPriorityColor(selectedSuggestion.priority)}
+                      color={getSafeChipColor(getPriorityColor(selectedSuggestion.priority))}
                       sx={{ textTransform: 'capitalize' }}
                     />
                     <Chip
@@ -399,7 +400,7 @@ const SuggestionsPanel = () => {
                       <Button
                         key={action.id}
                         variant={action.type === 'auto' ? 'contained' : 'outlined'}
-                        color={action.type === 'auto' ? 'primary' : 'default'}
+                        color={getSafeButtonColor(action.type === 'auto' ? 'primary' : 'inherit')}
                         onClick={() => handleApplySuggestion(selectedSuggestion.id, action.id)}
                         disabled={selectedSuggestion.applied || applySuggestionMutation.isPending}
                         sx={{ justifyContent: 'flex-start' }}

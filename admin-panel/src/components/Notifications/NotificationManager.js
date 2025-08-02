@@ -202,11 +202,12 @@ const NotificationManager = () => {
     
     const submitData = {
       ...formData,
-      createdBy: admin._id,
+      // Don't send createdBy - backend will set it from req.admin._id
       scheduledAt: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null,
       expiresAt: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null
     };
     
+    console.log('Submitting notification data:', submitData);
     createMutation.mutate(submitData);
   };
 
