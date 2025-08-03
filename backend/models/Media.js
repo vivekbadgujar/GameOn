@@ -1,6 +1,25 @@
+/**
+ * Media Model Schema for GameOn Platform
+ * Handles media files (images, videos, documents) uploaded by admins
+ */
+
 const mongoose = require('mongoose');
 
 const MediaSchema = new mongoose.Schema({
+  // Basic Information
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 200
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 1000
+  },
+  
+  // File Information
   filename: {
     type: String,
     required: true,
@@ -10,9 +29,8 @@ const MediaSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  type: {
+  mimeType: {
     type: String,
-    enum: ['image', 'video', 'document', 'audio'],
     required: true
   },
   size: {
@@ -23,77 +41,196 @@ const MediaSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  
+  // Media Type
+  type: {
+    type: String,
+    enum: ['poster', 'banner', 'logo', 'document', 'video', 'image', 'other'],
+    default: 'image'
+  },
+  
+  // Metadata
   tags: [{
     type: String,
     trim: true
   }],
-  description: {
-    type: String,
-    maxlength: 500
+  
+  // Visibility
+  isVisible: {
+    type: Boolean,
+    default: true
   },
-  category: {
-    type: String,
-    enum: ['tournament', 'promotional', 'branding', 'documentation', 'other'],
-    default: 'other'
+  isPublic: {
+    type: Boolean,
+    default: true
   },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'archived'],
-    default: 'active'
-  },
+  
+  // Upload Information
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
     required: true
   },
-  metadata: {
-    width: Number,
-    height: Number,
-    duration: Number, // for videos
-    format: String,
-    mimeType: String
+  
+  // Usage Tracking
+  downloadCount: {
+    type: Number,
+    default: 0
   },
-  usage: {
-    usedInTournaments: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Tournament'
-    }],
-    usedInNotifications: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Notification'
-    }],
-    downloadCount: {
-      type: Number,
-      default: 0
-    }
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+  
+  // Associated Content
+  tournament: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tournament'
+  },
+  
+  // File Properties (for images/videos)
+  dimensions: {
+    width: Number,
+    height: Number
+  },
+  duration: Number, // for videos in seconds
+  
+  // SEO
+  altText: {
+    type: String,
+    trim: true
+  },
+  
+  // Status
+  status: {
+    type: String,
+    enum: ['active', 'archived', 'deleted'],
+    default: 'active'
   }
 }, {
   timestamps: true,
-  indexes: [
-    { type: 1, status: 1 },
-    { category: 1, status: 1 },
-    { uploadedBy: 1, createdAt: -1 },
-    { tags: 1 },
-    { 'usage.usedInTournaments': 1 }
-  ]
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Virtual for formatted file size
-MediaSchema.virtual('formattedSize').get(function() {
+// Indexes
+MediaSchema.index({ type: 1, isVisible: 1 });
+MediaSchema.index({ uploadedBy: 1 });
+MediaSchema.index({ createdAt: -1 });
+MediaSchema.index({ tags: 1 });
+MediaSchema.index({ tournament: 1 });
+
+// Virtual for file size in human readable format
+MediaSchema.virtual('sizeFormatted').get(function() {
   const bytes = this.size;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   if (bytes === 0) return '0 Bytes';
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 });
 
-// Virtual for formatted upload date
-MediaSchema.virtual('formattedUploadDate').get(function() {
-  return this.createdAt ? this.createdAt.toLocaleDateString() : '';
+// Virtual for full URL
+MediaSchema.virtual('fullUrl').get(function() {
+  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  return `${baseUrl}${this.url}`;
 });
 
-// Ensure virtuals are included in JSON output
-MediaSchema.set('toJSON', { virtuals: true });
-MediaSchema.set('toObject', { virtuals: true });
+// Virtual for thumbnail URL (for images)
+MediaSchema.virtual('thumbnailUrl').get(function() {
+  if (this.type === 'image' || this.mimeType.startsWith('image/')) {
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    return `${baseUrl}/uploads/thumbnails/${this.filename}`;
+  }
+  return null;
+});
 
-module.exports = mongoose.model('Media', MediaSchema); 
+// Instance methods
+MediaSchema.methods.incrementDownload = function() {
+  this.downloadCount += 1;
+  return this.save();
+};
+
+MediaSchema.methods.incrementView = function() {
+  this.viewCount += 1;
+  return this.save();
+};
+
+MediaSchema.methods.archive = function() {
+  this.status = 'archived';
+  this.isVisible = false;
+  return this.save();
+};
+
+MediaSchema.methods.restore = function() {
+  this.status = 'active';
+  this.isVisible = true;
+  return this.save();
+};
+
+// Static methods
+MediaSchema.statics.getByType = function(type, isVisible = true) {
+  return this.find({ 
+    type, 
+    isVisible, 
+    status: 'active' 
+  }).sort({ createdAt: -1 });
+};
+
+MediaSchema.statics.getPublicMedia = function(type = null, limit = 50) {
+  const filter = { 
+    isPublic: true, 
+    isVisible: true, 
+    status: 'active' 
+  };
+  
+  if (type) filter.type = type;
+  
+  return this.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .select('-uploadedBy')
+    .lean();
+};
+
+MediaSchema.statics.getMediaStats = function() {
+  return this.aggregate([
+    {
+      $match: { status: 'active' }
+    },
+    {
+      $group: {
+        _id: '$type',
+        count: { $sum: 1 },
+        totalSize: { $sum: '$size' },
+        totalDownloads: { $sum: '$downloadCount' },
+        totalViews: { $sum: '$viewCount' }
+      }
+    },
+    {
+      $sort: { count: -1 }
+    }
+  ]);
+};
+
+// Pre-save middleware
+MediaSchema.pre('save', function(next) {
+  // Auto-generate alt text if not provided
+  if (!this.altText && this.type === 'image') {
+    this.altText = this.title || this.originalName;
+  }
+  
+  next();
+});
+
+// Pre-remove middleware
+MediaSchema.pre('remove', function(next) {
+  // Mark as deleted instead of actually removing
+  this.status = 'deleted';
+  this.isVisible = false;
+  next();
+});
+
+module.exports = mongoose.model('Media', MediaSchema);

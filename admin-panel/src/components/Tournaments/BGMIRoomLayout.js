@@ -63,7 +63,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import io from 'socket.io-client';
+import { useSocket } from '../../contexts/SocketContext';
 
 dayjs.extend(relativeTime);
 
@@ -71,6 +71,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { showSuccess, showError } = useNotification();
+  const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
   // State management
@@ -107,51 +108,54 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
     refetchInterval: 5000
   });
 
-  // Socket.IO connection for live sync
+  // Live sync with custom events from SocketContext
   useEffect(() => {
-    const socket = io('http://localhost:5000');
+    const handleTournamentUpdate = (event) => {
+      const data = event.detail;
+      if (data.tournamentId === tournament?.data?._id) {
+        onRefresh?.();
+      }
+    };
 
-    // Listen for real-time updates
-    socket.on('slotsSwapped', (data) => {
+    const handleParticipantUpdate = (event) => {
+      const data = event.detail;
+      if (data.tournamentId === tournament?.data?._id) {
+        onRefresh?.();
+      }
+    };
+
+    const handleSlotsUpdate = (event) => {
+      const data = event.detail;
       if (data.tournamentId === tournament?.data?._id) {
         onRefresh?.();
         setRecentlyUpdated(new Set([data.sourceSlot, data.destSlot]));
         setTimeout(() => setRecentlyUpdated(new Set()), 3000);
       }
-    });
+    };
 
-    socket.on('participantConfirmed', (data) => {
+    const handleSquadUpdate = (event) => {
+      const data = event.detail;
       if (data.tournamentId === tournament?.data?._id) {
         onRefresh?.();
-        showSuccess('Player confirmed by another admin');
       }
-    });
+    };
 
-    socket.on('participantsBulkConfirmed', (data) => {
-      if (data.tournamentId === tournament?.data?._id) {
-        onRefresh?.();
-        showSuccess(`${data.confirmedCount} players confirmed by another admin`);
-      }
-    });
-
-    socket.on('participantKicked', (data) => {
-      if (data.tournamentId === tournament?.data?._id) {
-        onRefresh?.();
-        showSuccess('Player kicked by another admin');
-      }
-    });
-
-    socket.on('tournamentStatusUpdated', (data) => {
-      if (data.tournamentId === tournament?.data?._id) {
-        onRefresh?.();
-        showSuccess(`Tournament status updated to ${data.status}`);
-      }
-    });
+    // Add event listeners
+    window.addEventListener('tournamentUpdated', handleTournamentUpdate);
+    window.addEventListener('participantUpdated', handleParticipantUpdate);
+    window.addEventListener('participantsUpdated', handleParticipantUpdate);
+    window.addEventListener('slotsUpdated', handleSlotsUpdate);
+    window.addEventListener('squadUpdated', handleSquadUpdate);
 
     return () => {
-      socket.disconnect();
+      // Cleanup event listeners
+      window.removeEventListener('tournamentUpdated', handleTournamentUpdate);
+      window.removeEventListener('participantUpdated', handleParticipantUpdate);
+      window.removeEventListener('participantsUpdated', handleParticipantUpdate);
+      window.removeEventListener('slotsUpdated', handleSlotsUpdate);
+      window.removeEventListener('squadUpdated', handleSquadUpdate);
     };
-  }, [tournament?.data?._id, onRefresh, showSuccess]);
+  }, [tournament?.data?._id, onRefresh]);
 
   // Auto-refresh every 10 seconds (reduced frequency due to socket updates)
   useEffect(() => {
@@ -748,6 +752,19 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
               Squad Creation Mode: Select 4 players to create a squad
             </Typography>
           )}
+          <Box display="flex" alignItems="center" gap={1} sx={{ mt: 0.5 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: isConnected ? 'success.main' : 'error.main'
+              }}
+            />
+            <Typography variant="caption" color={isConnected ? 'success.main' : 'error.main'}>
+              {isConnected ? 'Live Sync Active' : 'Live Sync Disconnected'}
+            </Typography>
+          </Box>
         </Box>
 
         <Box display="flex" gap={1} flexWrap="wrap">

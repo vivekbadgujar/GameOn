@@ -397,6 +397,178 @@ router.post('/:id/join-squad', authenticateToken, async (req, res) => {
   }
 });
 
+// Get tournament participants (for waiting room)
+router.get('/:id/participants', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const tournament = await Tournament.findById(id)
+      .populate('participants.user', 'username email gameProfile')
+      .lean();
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Filter out kicked participants for public view
+    const activeParticipants = tournament.participants.filter(p => p.status !== 'kicked');
+
+    res.json({
+      success: true,
+      data: {
+        participants: activeParticipants,
+        totalSlots: tournament.maxParticipants,
+        availableSlots: tournament.maxParticipants - activeParticipants.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching tournament participants:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch participants'
+    });
+  }
+});
+
+// Swap player slot (for waiting room drag & drop)
+router.post('/:id/swap-slot', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sourceSlot, destSlot } = req.body;
+    const userId = req.user._id;
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Check if slots are locked
+    const now = new Date();
+    const startTime = new Date(tournament.startDate);
+    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
+
+    if (now >= lockTime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Slots are locked! No more position changes allowed.'
+      });
+    }
+
+    // Find user's current participant record
+    const userParticipant = tournament.participants.find(p => 
+      p.user.toString() === userId.toString() && p.slotNumber === sourceSlot
+    );
+
+    if (!userParticipant) {
+      return res.status(400).json({
+        success: false,
+        error: 'You can only move your own slot position'
+      });
+    }
+
+    // Check if destination slot is occupied
+    const destParticipant = tournament.participants.find(p => p.slotNumber === destSlot);
+
+    if (destParticipant) {
+      // Swap positions
+      destParticipant.slotNumber = sourceSlot;
+      userParticipant.slotNumber = destSlot;
+    } else {
+      // Move to empty slot
+      userParticipant.slotNumber = destSlot;
+    }
+
+    await tournament.save();
+
+    // Emit Socket.IO event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('slotsSwapped', {
+        tournamentId: id,
+        sourceSlot,
+        destSlot,
+        userId
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Slot position updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error swapping slots:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to swap slots'
+    });
+  }
+});
+
+// Leave tournament
+router.post('/:id/leave', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    // Find and remove participant
+    const participantIndex = tournament.participants.findIndex(p => 
+      p.user.toString() === userId.toString()
+    );
+
+    if (participantIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        error: 'You are not registered for this tournament'
+      });
+    }
+
+    const participant = tournament.participants[participantIndex];
+    tournament.participants.splice(participantIndex, 1);
+    tournament.currentParticipants = Math.max(0, tournament.currentParticipants - 1);
+
+    await tournament.save();
+
+    // Emit Socket.IO event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('participantLeft', {
+        tournamentId: id,
+        userId,
+        username: req.user.username,
+        slotNumber: participant.slotNumber
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Successfully left the tournament'
+    });
+
+  } catch (error) {
+    console.error('Error leaving tournament:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to leave tournament'
+    });
+  }
+});
+
 // Update tournament status (Admin only)
 router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {

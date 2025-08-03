@@ -26,13 +26,14 @@ router.get('/', requirePermission('users_manage'), async (req, res) => {
     if (req.query.search) {
       const searchRegex = new RegExp(req.query.search, 'i');
       filter.$or = [
-        { name: searchRegex },
+        { username: searchRegex },
         { email: searchRegex },
-        { gameID: searchRegex }
+        { 'gameProfile.bgmiName': searchRegex },
+        { 'gameProfile.bgmiId': searchRegex }
       ];
     }
     
-    if (req.query.status) {
+    if (req.query.status && req.query.status !== 'all') {
       filter.status = req.query.status;
     }
     
@@ -46,10 +47,45 @@ router.get('/', requirePermission('users_manage'), async (req, res) => {
     // Get total count for pagination
     const total = await User.countDocuments(filter);
     
+    // Calculate statistics
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ status: 'active' });
+    const bannedUsers = await User.countDocuments({ status: 'banned' });
+    const newThisMonth = await User.countDocuments({
+      createdAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) }
+    });
+    
+    // Add tournament count for each user
+    const usersWithStats = await Promise.all(
+      users.map(async (user) => {
+        const tournamentCount = await Tournament.countDocuments({
+          'participants.user': user._id
+        });
+        
+        return {
+          ...user.toObject(),
+          stats: {
+            totalTournaments: tournamentCount
+          }
+        };
+      })
+    );
+    
     res.json({
       success: true,
       data: {
-        users,
+        users: usersWithStats,
+        total,
+        stats: {
+          totalUsers,
+          activeUsers,
+          bannedUsers,
+          newThisMonth,
+          userGrowth: 0, // Could calculate from historical data
+          activeGrowth: 0,
+          newUserGrowth: 0,
+          bannedGrowth: 0
+        },
         pagination: {
           total,
           page,

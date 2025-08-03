@@ -463,10 +463,42 @@ router.delete('/:id',
       }
       
       // Check if tournament can be deleted
-      if (tournament.currentParticipants > 0) {
+      if (tournament.status === 'live') {
         return res.status(400).json({
           success: false,
-          message: 'Cannot delete tournament with participants. Cancel it instead.'
+          message: 'Cannot delete a live tournament. Please complete or cancel it first.'
+        });
+      }
+
+      // For completed tournaments, allow deletion with all data
+      if (tournament.status === 'completed') {
+        // Delete related transactions
+        await Transaction.deleteMany({ tournamentId: tournamentId });
+        
+        // Delete the tournament with all participant data
+        await Tournament.findByIdAndDelete(tournamentId);
+        
+        // Emit Socket.IO event for completed tournament deletion
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('tournamentDeleted', {
+            tournamentId,
+            type: 'completed_deletion',
+            message: 'Completed tournament permanently deleted'
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: 'Tournament and all associated data deleted permanently'
+        });
+      }
+
+      // For other statuses, check participant count
+      if (tournament.currentParticipants > 0 && tournament.status !== 'cancelled') {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete tournament with participants. Complete or cancel it first.'
         });
       }
       
@@ -526,8 +558,13 @@ router.post('/:id/set-room',
         });
       }
       
-      // Update room details
-      tournament.roomDetails = { roomId, password };
+      // Update room details with release timing
+      tournament.roomDetails = { 
+        roomId, 
+        password,
+        releasedAt: new Date(),
+        autoReleaseTime: new Date(new Date(tournament.startDate).getTime() - 30 * 60 * 1000) // 30 minutes before start
+      };
       
       // If tournament is upcoming and has participants, set it to live
       if (tournament.status === 'upcoming' && tournament.currentParticipants > 0) {
@@ -535,6 +572,16 @@ router.post('/:id/set-room',
       }
       
       await tournament.save();
+
+      // Emit Socket.IO event for room credentials release
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('roomCredentialsReleased', {
+          tournamentId,
+          roomCredentials: tournament.roomDetails,
+          message: 'Room credentials are now available!'
+        });
+      }
       
       res.json({
         success: true,

@@ -17,7 +17,7 @@ router.post('/login', async (req, res) => {
     // Check if user exists in database first
     let user = await User.findOne({ email });
     
-    if (user && user.password === password) {
+    if (user && await user.comparePassword(password)) {
       // User exists and password matches
     } else if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
       // Fallback to hardcoded admin credentials
@@ -67,6 +67,9 @@ router.post('/login', async (req, res) => {
           email: user.email,
           phone: user.phone,
           avatar: user.avatar,
+          gameProfile: user.gameProfile,
+          wallet: user.wallet,
+          stats: user.stats,
           createdAt: user.createdAt
         },
         token
@@ -92,12 +95,27 @@ router.post('/login', async (req, res) => {
 // Simple email/password registration for testing
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, agreeToTerms } = req.body;
+    const { username, email, password, gameProfile, agreeToTerms } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Username, email, and password are required'
+      });
+    }
+
+    if (!gameProfile || !gameProfile.bgmiName || !gameProfile.bgmiId) {
+      return res.status(400).json({
+        success: false,
+        message: 'BGMI In-Game Name and Player ID are required'
+      });
+    }
+
+    // Validate BGMI Player ID format
+    if (!/^\d{9,10}$/.test(gameProfile.bgmiId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'BGMI Player ID must be 9-10 digits'
       });
     }
 
@@ -109,12 +127,33 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ 
+      $or: [
+        { email },
+        { username },
+        { 'gameProfile.bgmiId': gameProfile.bgmiId }
+      ]
+    });
+    
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
+      if (existingUser.email === email) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      if (existingUser.username === username) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      }
+      if (existingUser.gameProfile.bgmiId === gameProfile.bgmiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'BGMI Player ID is already registered'
+        });
+      }
     }
 
     // Create new user
@@ -126,8 +165,8 @@ router.post('/register', async (req, res) => {
       phone: '9' + Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random valid Indian phone
       isVerified: true,
       gameProfile: {
-        bgmiId: 'USER' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-        bgmiName: username
+        bgmiId: gameProfile.bgmiId,
+        bgmiName: gameProfile.bgmiName
       }
     });
 
@@ -154,6 +193,9 @@ router.post('/register', async (req, res) => {
         email: user.email,
         phone: user.phone,
         avatar: user.avatar,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats,
         createdAt: user.createdAt
       },
       token

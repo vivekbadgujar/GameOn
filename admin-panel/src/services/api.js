@@ -100,6 +100,8 @@ export const userAPI = {
   update: (id, data) => api.put(`/admin/users/${id}`, data),
   ban: (id, reason) => api.post(`/admin/users/${id}/ban`, { reason }),
   unban: (id) => api.post(`/admin/users/${id}/unban`),
+  disqualify: (userId, tournamentId, reason) => 
+    api.post(`/admin/users/${userId}/disqualify/${tournamentId}`, { reason }),
   getReports: (params = {}) => api.get('/admin/users/reports', { params }),
   handleReport: (reportId, action) => api.post(`/admin/users/reports/${reportId}/handle`, action),
 };
@@ -126,13 +128,6 @@ export const analyticsAPI = {
   getParticipationStats: (params = {}) => api.get('/admin/analytics/participation', { params }),
 };
 
-// Broadcast APIs
-export const broadcastAPI = {
-  sendMessage: (data) => api.post('/admin/broadcast/send', data),
-  getHistory: (params = {}) => api.get('/admin/broadcast/history', { params }),
-  scheduleMessage: (data) => api.post('/admin/broadcast/schedule', data),
-};
-
 // Payout APIs
 export const payoutAPI = {
   getAll: (params = {}) => api.get('/admin/payouts', { params }),
@@ -146,17 +141,24 @@ export const payoutAPI = {
 
 // Media APIs
 export const mediaAPI = {
-  upload: (file, type) => {
+  getAll: (params = {}) => api.get('/admin/media', { params }),
+  getById: (id) => api.get(`/admin/media/${id}`),
+  upload: (file, metadata = {}) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', type);
+    Object.keys(metadata).forEach(key => {
+      formData.append(key, metadata[key]);
+    });
+    
     return api.post('/admin/media/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
   },
-  getAll: (params = {}) => api.get('/admin/media', { params }),
-  delete: (id) => api.delete(`/admin/media/${id}`),
   update: (id, data) => api.put(`/admin/media/${id}`, data),
+  delete: (id) => api.delete(`/admin/media/${id}`),
+  toggleVisibility: (id, isVisible) => api.patch(`/admin/media/${id}/visibility`, { isVisible }),
 };
 
 // Tournament Video APIs
@@ -224,6 +226,33 @@ export const tournamentVideoAPI = {
   delete: (id) => api.delete(`/admin/tournament-videos/${id}`),
   toggleVisibility: (id, isVisible) => api.patch(`/admin/tournament-videos/${id}/visibility`, { isVisible }),
   getVisible: (params = {}) => api.get('/admin/tournament-videos/visible', { params }),
+};
+
+// Broadcast APIs
+export const broadcastAPI = {
+  getHistory: (params = {}) => api.get('/admin/broadcast/history', { params }),
+  sendMessage: (data) => {
+    console.log('API: Sending broadcast with data:', data);
+    return api.post('/admin/broadcast/send', {
+      title: data.title,
+      message: data.content,
+      type: data.type === 'announcement' ? 'general_update' : data.type,
+      priority: data.priority,
+      targetAudience: data.targetAudience === 'all' ? 'all_users' : data.targetAudience
+    });
+  },
+  scheduleMessage: (data) => {
+    console.log('API: Scheduling broadcast with data:', data);
+    return api.post('/admin/broadcast/schedule', {
+      title: data.title,
+      message: data.content,
+      type: data.type === 'announcement' ? 'general_update' : data.type,
+      priority: data.priority,
+      targetAudience: data.targetAudience === 'all' ? 'all_users' : data.targetAudience,
+      scheduledAt: data.scheduledFor
+    });
+  },
+  cancelScheduled: (id) => api.delete(`/admin/broadcast/${id}`),
 };
 
 // Notifications APIs

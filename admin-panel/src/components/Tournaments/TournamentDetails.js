@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -17,7 +17,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Container,
+  CircularProgress
 } from '@mui/material';
 import {
   ArrowBack,
@@ -41,9 +43,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { tournamentAPI } from '../../services/api';
 import dayjs from 'dayjs';
 import TournamentParticipants from './TournamentParticipants';
 import BGMIRoomLayout from './BGMIRoomLayout';
+import ModernParticipationTable from './ModernParticipationTable';
+import RoomCredentialsManager from './RoomCredentialsManager';
 
 const TournamentDetails = () => {
   const { id: tournamentId } = useParams();
@@ -53,33 +58,47 @@ const TournamentDetails = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState(false);
+
+  // Check if this is a valid tournament ID (not 'create' or other route)
+  const isValidTournamentId = tournamentId && tournamentId !== 'create' && tournamentId.length === 24;
+
+  // Redirect if trying to access create page
+  useEffect(() => {
+    if (tournamentId === 'create') {
+      navigate('/tournaments/create');
+      return;
+    }
+  }, [tournamentId, navigate]);
 
   // Fetch tournament details
   const { data: tournament, isLoading, error } = useQuery({
     queryKey: ['tournament-details', tournamentId],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch tournament details');
-      return response.json();
-    }
+      try {
+        const response = await tournamentAPI.getById(tournamentId);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching tournament:', error);
+        throw new Error('Failed to fetch tournament details');
+      }
+    },
+    enabled: isValidTournamentId // Only run query if we have a valid tournament ID
   });
 
   // Fetch participant stats
   const { data: participantStats } = useQuery({
     queryKey: ['tournament-participant-stats', tournamentId],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/participants/stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-      if (!response.ok) throw new Error('Failed to fetch participant stats');
-      return response.json();
+      try {
+        const response = await tournamentAPI.getParticipants(tournamentId);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching participant stats:', error);
+        throw new Error('Failed to fetch participant stats');
+      }
     },
+    enabled: isValidTournamentId, // Only run query if we have a valid tournament ID
     refetchInterval: 10000 // Refresh every 10 seconds
   });
 
@@ -87,28 +106,79 @@ const TournamentDetails = () => {
     setActiveTab(newValue);
   };
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
+  // Show error state for invalid tournament ID
+  if (!isValidTournamentId) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error">
+          Invalid tournament ID. Please check the URL and try again.
+        </Alert>
+        <Box mt={2}>
+          <Button variant="contained" onClick={() => navigate('/tournaments')}>
+            Back to Tournaments
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Show error state for API errors
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error">
+          {error.message || 'Failed to load tournament details'}
+        </Alert>
+        <Box mt={2}>
+          <Button variant="contained" onClick={() => navigate('/tournaments')}>
+            Back to Tournaments
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Show loading state if tournament data is not yet available
+  if (!tournament) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
   // Handle tournament status update
   const handleStatusUpdate = async () => {
     try {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (!response.ok) throw new Error('Failed to update tournament status');
-
+      await tournamentAPI.updateStatus(tournamentId, newStatus);
       showSuccess(`Tournament ${newStatus === 'completed' ? 'completed' : 'activated'} successfully`);
       setStatusDialog(false);
-      
       // Refetch tournament data
       window.location.reload();
-
     } catch (error) {
       showError(error.message || 'Failed to update tournament status');
+    }
+  };
+
+  // Handle tournament deletion
+  const handleDeleteTournament = async () => {
+    try {
+      await tournamentAPI.delete(tournamentId);
+      showSuccess('Tournament deleted successfully');
+      setDeleteDialog(false);
+      navigate('/tournaments');
+
+    } catch (error) {
+      showError(error.message || 'Failed to delete tournament');
     }
   };
 
@@ -180,17 +250,27 @@ const TournamentDetails = () => {
         )}
         
         {tournamentData?.status === 'completed' && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<PlayArrow />}
-            onClick={() => {
-              setNewStatus('upcoming');
-              setStatusDialog(true);
-            }}
-          >
-            Reactivate Tournament
-          </Button>
+          <>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrow />}
+              onClick={() => {
+                setNewStatus('upcoming');
+                setStatusDialog(true);
+              }}
+            >
+              Reactivate Tournament
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<Delete />}
+              onClick={() => setDeleteDialog(true)}
+            >
+              Delete Tournament
+            </Button>
+          </>
         )}
 
         <Button
@@ -365,7 +445,7 @@ const TournamentDetails = () => {
               iconPosition="start"
             />
             <Tab 
-              label="Settings" 
+              label="Room Setup" 
               icon={<Settings />} 
               iconPosition="start"
             />
@@ -385,7 +465,7 @@ const TournamentDetails = () => {
           )}
 
           {activeTab === 1 && (
-            <TournamentParticipants 
+            <ModernParticipationTable 
               tournamentId={tournamentId}
             />
           )}
@@ -403,12 +483,13 @@ const TournamentDetails = () => {
           
           {activeTab === 3 && (
             <Box p={3}>
-              <Typography variant="h6" gutterBottom>
-                Tournament Settings
-              </Typography>
-              <Alert severity="info">
-                Tournament settings and configuration options.
-              </Alert>
+              <RoomCredentialsManager 
+                tournament={tournamentData}
+                onUpdate={() => {
+                  // Refetch tournament data
+                  window.location.reload();
+                }}
+              />
             </Box>
           )}
         </Box>
@@ -435,6 +516,39 @@ const TournamentDetails = () => {
             variant="contained"
           >
             {newStatus === 'completed' ? 'Complete Tournament' : 'Reactivate Tournament'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Tournament Dialog */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+        <DialogTitle color="error.main">
+          Delete Tournament
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to permanently delete this tournament? 
+            This action cannot be undone and will remove all participant data, 
+            payment records, and tournament history.
+          </Typography>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <strong>Warning:</strong> This will permanently delete:
+            <ul>
+              <li>All participant registrations</li>
+              <li>Payment transaction records</li>
+              <li>Tournament results and statistics</li>
+              <li>All associated media and files</li>
+            </ul>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={handleDeleteTournament} 
+            color="error"
+            variant="contained"
+          >
+            Delete Permanently
           </Button>
         </DialogActions>
       </Dialog>

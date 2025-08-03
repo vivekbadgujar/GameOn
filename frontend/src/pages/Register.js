@@ -23,6 +23,8 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    bgmiName: '',
+    bgmiId: '',
     agreeToTerms: false
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -71,6 +73,22 @@ const Register = () => {
       setError('Passwords do not match');
       return false;
     }
+    if (!formData.bgmiName.trim()) {
+      setError('BGMI In-Game Name is required');
+      return false;
+    }
+    if (formData.bgmiName.length < 3) {
+      setError('BGMI In-Game Name must be at least 3 characters');
+      return false;
+    }
+    if (!formData.bgmiId.trim()) {
+      setError('BGMI Player ID is required');
+      return false;
+    }
+    if (!/^\d{9,10}$/.test(formData.bgmiId)) {
+      setError('BGMI Player ID must be 9-10 digits');
+      return false;
+    }
     if (!formData.agreeToTerms) {
       setError('Please agree to GameOn\'s Terms & Conditions, Refund Policy, Privacy Policy, and Fair Play Policy');
       return false;
@@ -95,7 +113,11 @@ const Register = () => {
         body: JSON.stringify({
           username: formData.username,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          gameProfile: {
+            bgmiName: formData.bgmiName,
+            bgmiId: formData.bgmiId
+          }
         }),
       });
 
@@ -334,6 +356,46 @@ const Register = () => {
                         )}
                       </button>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-white font-semibold mb-3">
+                      BGMI In-Game Name (IGN) *
+                    </label>
+                    <div className="relative">
+                      <Gamepad2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input
+                        type="text"
+                        name="bgmiName"
+                        value={formData.bgmiName}
+                        onChange={handleInputChange}
+                        placeholder="Enter your BGMI IGN"
+                        className="input-field pl-12 w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-white font-semibold mb-3">
+                      BGMI Player ID *
+                    </label>
+                    <div className="relative">
+                      <Trophy className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <input
+                        type="text"
+                        name="bgmiId"
+                        value={formData.bgmiId}
+                        onChange={handleInputChange}
+                        placeholder="Enter your BGMI Player ID (9-10 digits)"
+                        className="input-field pl-12 w-full"
+                        pattern="[0-9]{9,10}"
+                        required
+                      />
+                    </div>
+                    <p className="text-white/50 text-xs mt-2">
+                      Your BGMI Player ID can be found in your game profile
+                    </p>
                   </div>
 
                   <div className="flex items-start space-x-3">

@@ -22,6 +22,7 @@ import BroadcastMessage from './components/Broadcast/BroadcastMessage';
 import PrizePayouts from './components/Payouts/PrizePayouts';
 import MediaUpload from './components/Media/MediaUpload';
 import UserReports from './components/Users/UserReports';
+import UserManagement from './components/Users/UserManagement';
 import ScheduleManager from './components/Scheduling/ScheduleManager';
 import SuggestionsPanel from './components/AISuggestions/SuggestionsPanel';
 import SearchFilter from './components/SearchExport/SearchFilter';
@@ -72,6 +73,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournaments/new" element={<TournamentForm />} />
+          <Route path="/tournaments/create" element={<TournamentForm />} />
           <Route path="/tournaments/:id" element={<TournamentDetails />} />
           <Route path="/tournaments/:id/edit" element={<TournamentForm />} />
           <Route path="/tournaments/:id/results" element={<TournamentResults />} />
@@ -82,6 +84,7 @@ function AppRoutes() {
           <Route path="/broadcast" element={<BroadcastMessage />} />
           <Route path="/payouts" element={<PrizePayouts />} />
           <Route path="/media" element={<MediaUpload />} />
+          <Route path="/users" element={<UserManagement />} />
           <Route path="/user-reports" element={<UserReports />} />
           <Route path="/scheduling" element={<ScheduleManager />} />
           <Route path="/ai-suggestions" element={<SuggestionsPanel />} />

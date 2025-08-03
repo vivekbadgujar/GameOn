@@ -4,207 +4,118 @@ import {
   User, 
   Mail, 
   Phone, 
-  Edit3, 
-  Save, 
-  X, 
+  Gamepad2, 
   Trophy, 
-  Target, 
-  TrendingUp,
+  Wallet, 
   Calendar,
-  Award,
+  Edit3,
+  Save,
+  X,
   Star,
-  Crown,
-  Gamepad2,
-  Camera,
-  Shield,
-  Settings
+  Target,
+  Award,
+  TrendingUp
 } from 'lucide-react';
-import { getUserProfile, updateUserProfile, getUserStats } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, updateUser, token } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [userStats, setUserStats] = useState({
-    tournamentsPlayed: 0,
-    tournamentsWon: 0,
-    winRate: 0,
-    totalEarnings: 0,
-    currentRank: 0,
-    bestRank: 0,
-    averagePosition: 0,
-    favoriteGame: profile?.favoriteGame || 'bgmi'
-  });
-
-  const [achievements, setAchievements] = useState([
-    {
-      id: 1,
-      title: 'First Victory',
-      description: 'Won your first tournament',
-      icon: Trophy,
-      color: 'text-yellow-400',
-      bgColor: 'bg-yellow-500/20',
-      earned: true,
-      date: '2024-01-15'
-    },
-    {
-      id: 2,
-      title: 'Winning Streak',
-      description: 'Won 3 tournaments in a row',
-      icon: Crown,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/20',
-      earned: true,
-      date: '2024-01-20'
-    },
-    {
-      id: 3,
-      title: 'Top Player',
-      description: 'Reached top 50 in rankings',
-      icon: Star,
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-500/20',
-      earned: true,
-      date: '2024-01-25'
-    },
-    {
-      id: 4,
-      title: 'Big Winner',
-      description: 'Earn ₹10,000 in a single tournament',
-      icon: Target,
-      color: 'text-green-400',
-      bgColor: 'bg-green-500/20',
-      earned: false,
-      date: null
-    }
-  ]);
-
-  const [activeTab, setActiveTab] = useState('overview');
-  const [editForm, setEditForm] = useState({
+  const [tournaments, setTournaments] = useState([]);
+  const [formData, setFormData] = useState({
     username: '',
     email: '',
-    bio: '',
-    favoriteGame: '',
-    location: ''
+    bgmiName: '',
+    bgmiId: ''
   });
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: User },
-    { id: 'stats', label: 'Statistics', icon: TrendingUp },
-    { id: 'achievements', label: 'Achievements', icon: Award },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
-
-  const games = [
-    { id: 'bgmi', name: 'BGMI', icon: '🔫' },
-    { id: 'valorant', name: 'VALORANT', icon: '⚡' },
-    { id: 'chess', name: 'Chess', icon: '♟️' },
-    { id: 'freefire', name: 'Free Fire', icon: '🔥' },
-    { id: 'codm', name: 'COD Mobile', icon: '💥' }
-  ];
-
   useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const [profileResponse, statsResponse] = await Promise.all([
-        getUserProfile(),
-        getUserStats()
-      ]);
-      
-      const profileData = profileResponse.data || user;
-      const statsData = statsResponse || {};
-      
-      setProfile(profileData);
-      setUserStats({
-        tournamentsPlayed: statsData.tournamentsPlayed || 0,
-        tournamentsWon: statsData.tournamentsWon || 0,
-        winRate: statsData.winRate || 0,
-        totalEarnings: statsData.totalEarnings || 0,
-        currentRank: statsData.currentRank || 0,
-        bestRank: statsData.bestRank || 0,
-        averagePosition: statsData.averagePosition || 0,
-        favoriteGame: profileData.favoriteGame || 'bgmi'
-      });
-      
-      setEditForm({
-        username: profileData.username || '',
-        email: profileData.email || '',
-        bio: profileData.bio || '',
-        favoriteGame: profileData.favoriteGame || '',
-        location: profileData.location || ''
-      });
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      // Use user data from context as fallback
-      setProfile(user);
-      setEditForm({
-        username: user?.username || '',
-        email: user?.email || '',
-        bio: user?.bio || '',
-        favoriteGame: user?.favoriteGame || '',
-        location: user?.location || ''
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditToggle = () => {
-    if (editing) {
-      // Cancel editing - reset form
-      setEditForm({
-        username: profile.username || '',
-        email: profile.email || '',
-        bio: profile.bio || '',
-        favoriteGame: profile.favoriteGame || '',
-        location: profile.location || ''
+    if (user) {
+      setFormData({
+        username: user.username || '',
+        email: user.email || '',
+        bgmiName: user.gameProfile?.bgmiName || '',
+        bgmiId: user.gameProfile?.bgmiId || ''
       });
     }
-    setEditing(!editing);
-  };
+  }, [user]);
+
+  // Fetch user tournaments
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      if (!user || !token) return;
+      
+      try {
+        const response = await fetch('/api/users/tournaments', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setTournaments(data.tournaments || []);
+        }
+      } catch (error) {
+        console.error('Error fetching tournaments:', error);
+      }
+    };
+
+    fetchTournaments();
+  }, [user, token]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setEditForm(prev => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleSaveProfile = async () => {
+  const handleSave = async () => {
+    setLoading(true);
     try {
-      setSaving(true);
-      const response = await updateUserProfile(editForm);
-      const updatedProfile = response.data;
-      setProfile(updatedProfile);
-      updateUser(updatedProfile);
-      setEditing(false);
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          gameProfile: {
+            bgmiName: formData.bgmiName,
+            bgmiId: formData.bgmiId
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        updateUser(data.user);
+        setEditing(false);
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  const getGameIcon = (gameId) => {
-    const game = games.find(g => g.id === gameId);
-    return game?.icon || '🎮';
+  const handleCancel = () => {
+    setFormData({
+      username: user.username || '',
+      email: user.email || '',
+      bgmiName: user.gameProfile?.bgmiName || '',
+      bgmiId: user.gameProfile?.bgmiId || ''
+    });
+    setEditing(false);
   };
 
-  const getGameName = (gameId) => {
-    const game = games.find(g => g.id === gameId);
-    return game?.name || 'Unknown Game';
-  };
-
-  if (loading) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -213,453 +124,262 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen pt-20 pb-8">
-      <div className="container-custom">
-        {/* Profile Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 py-8">
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="glass-card p-8 mb-8 relative overflow-hidden"
+          className="text-center mb-8"
         >
-          {/* Background Pattern */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
-          
-          <div className="relative z-10">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-              <div className="flex items-center space-x-6 mb-6 md:mb-0">
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center">
-                    {profile?.avatar ? (
-                      <img 
-                        src={profile.avatar} 
-                        alt={profile.username}
-                        className="w-full h-full rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <span className="text-white font-bold text-3xl">
-                        {profile?.username?.charAt(0).toUpperCase() || 'U'}
-                      </span>
-                    )}
-                  </div>
-                  <button className="absolute -bottom-2 -right-2 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-300">
-                    <Camera className="w-4 h-4 text-white" />
-                  </button>
-                </div>
+          <h1 className="text-4xl font-bold text-white mb-2">Player Profile</h1>
+          <p className="text-white/60">Manage your gaming profile and statistics</p>
+        </motion.div>
 
-                {/* User Info */}
-                <div>
-                  <h1 className="text-3xl font-bold text-white mb-2">
-                    {profile?.username || 'Unknown User'}
-                  </h1>
-                  <p className="text-white/60 mb-2">
-                    {profile?.email || 'No email provided'}
-                  </p>
-                  <div className="flex items-center space-x-4 text-sm text-white/60">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>Joined {new Date(profile?.createdAt || Date.now()).toLocaleDateString()}</span>
-                    </div>
-                    {profile?.location && (
-                      <div className="flex items-center space-x-1">
-                        <span>📍</span>
-                        <span>{profile.location}</span>
-                      </div>
-                    )}
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Profile Card */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="lg:col-span-1"
+          >
+            <div className="glass-card p-6">
+              <div className="text-center mb-6">
+                <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-12 h-12 text-white" />
                 </div>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  {user.gameProfile?.bgmiName || user.username}
+                </h2>
+                <p className="text-white/60">
+                  Level {user.stats?.level || 1} • {user.stats?.xpPoints || 0} XP
+                </p>
               </div>
 
-              {/* Edit Button */}
-              <div className="flex space-x-3">
-                {editing ? (
-                  <>
+              {/* Quick Stats */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    <span className="text-white">Tournaments</span>
+                  </div>
+                  <span className="text-white font-semibold">
+                    {user.stats?.totalTournaments || 0}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Award className="w-5 h-5 text-green-400" />
+                    <span className="text-white">Wins</span>
+                  </div>
+                  <span className="text-white font-semibold">
+                    {user.stats?.tournamentsWon || 0}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Wallet className="w-5 h-5 text-blue-400" />
+                    <span className="text-white">Wallet</span>
+                  </div>
+                  <span className="text-white font-semibold">
+                    ₹{user.wallet?.balance || 0}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                    <span className="text-white">Win Rate</span>
+                  </div>
+                  <span className="text-white font-semibold">
+                    {user.stats?.winRate?.toFixed(1) || 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Profile Details */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="lg:col-span-2"
+          >
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Profile Information</h3>
+                {!editing ? (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-300"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    <span>Edit</span>
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
                     <button
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                      className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleSave}
+                      disabled={loading}
+                      className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-300 disabled:opacity-50"
                     >
-                      {saving ? (
-                        <LoadingSpinner size="sm" color="white" />
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          <span>Save</span>
-                        </>
-                      )}
+                      <Save className="w-4 h-4" />
+                      <span>Save</span>
                     </button>
                     <button
-                      onClick={handleEditToggle}
-                      className="btn-ghost flex items-center space-x-2"
+                      onClick={handleCancel}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors duration-300"
                     >
                       <X className="w-4 h-4" />
                       <span>Cancel</span>
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={handleEditToggle}
-                    className="btn-secondary flex items-center space-x-2"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    <span>Edit Profile</span>
-                  </button>
+                  </div>
                 )}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      disabled={!editing}
+                      className="input-field pl-10 w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      disabled={!editing}
+                      className="input-field pl-10 w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Phone
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      value={user.phone || 'Not provided'}
+                      disabled
+                      className="input-field pl-10 w-full opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Member Since
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      value={new Date(user.createdAt).toLocaleDateString()}
+                      disabled
+                      className="input-field pl-10 w-full opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {/* BGMI Information */}
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    BGMI In-Game Name
+                  </label>
+                  <div className="relative">
+                    <Gamepad2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      name="bgmiName"
+                      value={formData.bgmiName}
+                      onChange={handleInputChange}
+                      disabled={!editing}
+                      className="input-field pl-10 w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    BGMI Player ID
+                  </label>
+                  <div className="relative">
+                    <Trophy className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      name="bgmiId"
+                      value={formData.bgmiId}
+                      onChange={handleInputChange}
+                      disabled={!editing}
+                      className="input-field pl-10 w-full"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Bio */}
-            <div className="mb-6">
-              {editing ? (
-                <textarea
-                  name="bio"
-                  value={editForm.bio}
-                  onChange={handleInputChange}
-                  placeholder="Tell us about yourself..."
-                  rows="3"
-                  className="input-field w-full resize-none"
-                />
+            {/* Tournament History */}
+            <div className="glass-card p-6 mt-6">
+              <h3 className="text-xl font-bold text-white mb-6">Tournament History</h3>
+              
+              {tournaments.length > 0 ? (
+                <div className="space-y-4">
+                  {tournaments.map((tournament, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                      <div>
+                        <h4 className="text-white font-semibold">{tournament.title}</h4>
+                        <p className="text-white/60 text-sm">
+                          {new Date(tournament.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          tournament.status === 'won' 
+                            ? 'bg-green-500/20 text-green-400'
+                            : tournament.status === 'completed'
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {tournament.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <p className="text-white/80 leading-relaxed">
-                  {profile?.bio || 'No bio available. Click edit to add one!'}
-                </p>
+                <div className="text-center py-8">
+                  <Trophy className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/60">No tournaments participated yet</p>
+                  <p className="text-white/40 text-sm">Join your first tournament to see history here</p>
+                </div>
               )}
             </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {userStats.tournamentsPlayed}
-                </div>
-                <div className="text-white/60 text-sm">Tournaments</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">
-                  {userStats.tournamentsWon}
-                </div>
-                <div className="text-white/60 text-sm">Wins</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">
-                  {userStats.winRate}%
-                </div>
-                <div className="text-white/60 text-sm">Win Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-400">
-                  #{userStats.currentRank}
-                </div>
-                <div className="text-white/60 text-sm">Rank</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mb-8"
-        >
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                    activeTab === tab.id
-                      ? 'bg-blue-500 text-white shadow-lg'
-                      : 'glass-card text-white/70 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Tab Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Personal Information */}
-              <div className="glass-card p-6">
-                <h3 className="text-xl font-bold text-white mb-6">Personal Information</h3>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Username</label>
-                    {editing ? (
-                      <input
-                        type="text"
-                        name="username"
-                        value={editForm.username}
-                        onChange={handleInputChange}
-                        className="input-field w-full"
-                      />
-                    ) : (
-                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-xl">
-                        <User className="w-5 h-5 text-blue-400" />
-                        <span className="text-white">{profile?.username || 'Not set'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Email</label>
-                    {editing ? (
-                      <input
-                        type="email"
-                        name="email"
-                        value={editForm.email}
-                        onChange={handleInputChange}
-                        className="input-field w-full"
-                      />
-                    ) : (
-                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-xl">
-                        <Mail className="w-5 h-5 text-green-400" />
-                        <span className="text-white">{profile?.email || 'Not set'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Phone</label>
-                    <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-xl">
-                      <Phone className="w-5 h-5 text-purple-400" />
-                      <span className="text-white">{profile?.phone || 'Not set'}</span>
-                      <div className="ml-auto">
-                        <Shield className="w-4 h-4 text-green-400" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Location</label>
-                    {editing ? (
-                      <input
-                        type="text"
-                        name="location"
-                        value={editForm.location}
-                        onChange={handleInputChange}
-                        placeholder="Your city, country"
-                        className="input-field w-full"
-                      />
-                    ) : (
-                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-xl">
-                        <span className="text-lg">📍</span>
-                        <span className="text-white">{profile?.location || 'Not set'}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Gaming Preferences */}
-              <div className="glass-card p-6">
-                <h3 className="text-xl font-bold text-white mb-6">Gaming Preferences</h3>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Favorite Game</label>
-                    {editing ? (
-                      <select
-                        name="favoriteGame"
-                        value={editForm.favoriteGame}
-                        onChange={handleInputChange}
-                        className="input-field w-full"
-                      >
-                        <option value="">Select a game</option>
-                        {games.map((game) => (
-                          <option key={game.id} value={game.id}>
-                            {game.name}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-xl">
-                        <span className="text-2xl">{getGameIcon(profile?.favoriteGame)}</span>
-                        <span className="text-white">
-                          {profile?.favoriteGame ? getGameName(profile.favoriteGame) : 'Not set'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-white font-semibold mb-3">Gaming Stats</label>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                        <span className="text-white/80">Total Earnings</span>
-                        <span className="text-green-400 font-bold">
-                          ₹{userStats.totalEarnings.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                        <span className="text-white/80">Best Rank</span>
-                        <span className="text-yellow-400 font-bold">#{userStats.bestRank}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                        <span className="text-white/80">Average Position</span>
-                        <span className="text-blue-400 font-bold">{userStats.averagePosition}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'stats' && (
-            <div className="glass-card p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Detailed Statistics</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    {userStats.tournamentsWon}
-                  </div>
-                  <div className="text-white/60">Tournaments Won</div>
-                </div>
-
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <Gamepad2 className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    {userStats.tournamentsPlayed}
-                  </div>
-                  <div className="text-white/60">Tournaments Played</div>
-                </div>
-
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <TrendingUp className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    {userStats.winRate}%
-                  </div>
-                  <div className="text-white/60">Win Rate</div>
-                </div>
-
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <Target className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    ₹{userStats.totalEarnings.toLocaleString()}
-                  </div>
-                  <div className="text-white/60">Total Earnings</div>
-                </div>
-
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <Star className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    #{userStats.currentRank}
-                  </div>
-                  <div className="text-white/60">Current Rank</div>
-                </div>
-
-                <div className="text-center p-6 bg-white/5 rounded-xl">
-                  <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-                  <div className="text-3xl font-bold text-white mb-2">
-                    #{userStats.bestRank}
-                  </div>
-                  <div className="text-white/60">Best Rank</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'achievements' && (
-            <div className="glass-card p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Achievements</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {achievements.map((achievement) => {
-                  const Icon = achievement.icon;
-                  return (
-                    <div
-                      key={achievement.id}
-                      className={`p-6 rounded-xl border transition-all duration-300 ${
-                        achievement.earned
-                          ? 'bg-white/5 border-white/20'
-                          : 'bg-white/5 border-white/10 opacity-50'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-4">
-                        <div className={`w-12 h-12 ${achievement.bgColor} rounded-xl flex items-center justify-center`}>
-                          <Icon className={`w-6 h-6 ${achievement.color}`} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-lg font-bold text-white mb-2">
-                            {achievement.title}
-                          </h4>
-                          <p className="text-white/60 text-sm mb-3">
-                            {achievement.description}
-                          </p>
-                          {achievement.earned ? (
-                            <div className="text-green-400 text-xs font-semibold">
-                              Earned on {new Date(achievement.date).toLocaleDateString()}
-                            </div>
-                          ) : (
-                            <div className="text-white/40 text-xs">
-                              Not earned yet
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="glass-card p-6">
-              <h3 className="text-xl font-bold text-white mb-6">Account Settings</h3>
-              
-              <div className="space-y-6">
-                <div className="p-4 bg-white/5 rounded-xl">
-                  <h4 className="text-lg font-semibold text-white mb-2">Privacy Settings</h4>
-                  <p className="text-white/60 text-sm mb-4">
-                    Control who can see your profile and gaming statistics
-                  </p>
-                  <button className="btn-secondary">
-                    Manage Privacy
-                  </button>
-                </div>
-
-                <div className="p-4 bg-white/5 rounded-xl">
-                  <h4 className="text-lg font-semibold text-white mb-2">Notification Preferences</h4>
-                  <p className="text-white/60 text-sm mb-4">
-                    Choose what notifications you want to receive
-                  </p>
-                  <button className="btn-secondary">
-                    Manage Notifications
-                  </button>
-                </div>
-
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                  <h4 className="text-lg font-semibold text-red-400 mb-2">Danger Zone</h4>
-                  <p className="text-white/60 text-sm mb-4">
-                    Permanently delete your account and all associated data
-                  </p>
-                  <button className="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors duration-300">
-                    Delete Account
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

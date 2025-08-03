@@ -63,12 +63,14 @@ const Wallet = () => {
   ];
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
+      // Set balance from user context first
+      setBalance(user.wallet?.balance || 0);
       fetchWalletData();
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   const fetchWalletData = async () => {
     try {

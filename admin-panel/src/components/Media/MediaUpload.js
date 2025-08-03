@@ -85,7 +85,12 @@ const MediaUpload = () => {
 
   // Upload media mutation
   const uploadMutation = useMutation({
-    mutationFn: (data) => mediaAPI.upload(data.file, data.type),
+    mutationFn: (data) => mediaAPI.upload(data.file, {
+      title: data.title,
+      description: data.description,
+      type: data.type,
+      tags: data.tags
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries(['media-files']);
       setUploadDialog(false);
@@ -147,13 +152,10 @@ const MediaUpload = () => {
     if (uploadingFile && uploadData.title) {
       uploadMutation.mutate({
         file: uploadingFile,
+        title: uploadData.title,
+        description: uploadData.description,
         type: uploadData.type,
-        metadata: {
-          title: uploadData.title,
-          description: uploadData.description,
-          tournament: uploadData.tournament,
-          tags: uploadData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-        }
+        tags: uploadData.tags
       });
     }
   };

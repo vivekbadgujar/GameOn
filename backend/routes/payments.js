@@ -242,6 +242,267 @@ router.post('/verify',
   }
 );
 
+// Create tournament payment order
+router.post('/create-tournament-order',
+  paymentLimiter,
+  authenticateToken,
+  [
+    body('tournamentId').notEmpty().withMessage('Tournament ID is required'),
+    body('joinType').isIn(['solo', 'squad']).withMessage('Invalid join type'),
+    body('squadMembers').optional().isArray({ min: 4, max: 4 }).withMessage('Squad must have exactly 4 members')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { tournamentId, joinType, squadMembers } = req.body;
+      const userId = req.user.id;
+
+      // Fetch tournament details
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      // Check if tournament is open for registration
+      if (tournament.status !== 'upcoming') {
+        return res.status(400).json({
+          success: false,
+          message: 'Tournament registration is closed'
+        });
+      }
+
+      // Check if user already joined
+      const alreadyJoined = tournament.participants.some(p => 
+        p.user.toString() === userId
+      );
+
+      if (alreadyJoined) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already joined this tournament'
+        });
+      }
+
+      // Calculate amount and check availability
+      const requiredSlots = joinType === 'squad' ? 4 : 1;
+      const availableSlots = tournament.maxParticipants - tournament.currentParticipants;
+      
+      if (availableSlots < requiredSlots) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough slots available. Required: ${requiredSlots}, Available: ${availableSlots}`
+        });
+      }
+
+      const amount = tournament.entryFee * requiredSlots;
+
+      // Create Razorpay order
+      const order = await razorpay.orders.create({
+        amount: amount * 100, // Convert to paise
+        currency: 'INR',
+        receipt: `tournament_${tournamentId}_${userId}_${Date.now()}`,
+        notes: {
+          tournamentId,
+          userId,
+          joinType,
+          squadMembers: joinType === 'squad' ? JSON.stringify(squadMembers) : undefined
+        }
+      });
+
+      // Create transaction record
+      const transaction = new Transaction({
+        user: userId,
+        amount: amount,
+        type: 'tournament_entry',
+        status: 'pending',
+        description: `Tournament entry: ${tournament.title}`,
+        razorpayOrderId: order.id,
+        tournamentId: tournamentId,
+        metadata: {
+          joinType,
+          squadMembers: joinType === 'squad' ? squadMembers : undefined
+        }
+      });
+
+      await transaction.save();
+
+      res.json({
+        success: true,
+        message: 'Tournament payment order created successfully',
+        data: {
+          orderId: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          receipt: order.receipt
+        }
+      });
+
+    } catch (error) {
+      console.error('Create tournament order error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create tournament payment order'
+      });
+    }
+  }
+);
+
+// Verify tournament payment
+router.post('/verify-tournament',
+  authenticateToken,
+  [
+    body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
+    body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
+    body('razorpay_signature').notEmpty().withMessage('Signature is required'),
+    body('tournamentId').notEmpty().withMessage('Tournament ID is required'),
+    body('joinType').isIn(['solo', 'squad']).withMessage('Invalid join type'),
+    body('gameProfile').isObject().withMessage('Game profile is required')
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { 
+        razorpay_order_id, 
+        razorpay_payment_id, 
+        razorpay_signature,
+        tournamentId,
+        joinType,
+        squadMembers,
+        gameProfile
+      } = req.body;
+      const userId = req.user.id;
+
+      // Verify signature
+      const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+      const signature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(text)
+        .digest('hex');
+
+      if (signature !== razorpay_signature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature'
+        });
+      }
+
+      // Find and update transaction
+      const transaction = await Transaction.findOne({
+        razorpayOrderId: razorpay_order_id,
+        user: userId,
+        status: 'pending'
+      });
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: 'Transaction not found'
+        });
+      }
+
+      // Update transaction status
+      transaction.status = 'completed';
+      transaction.razorpayPaymentId = razorpay_payment_id;
+      transaction.completedAt = new Date();
+      await transaction.save();
+
+      // Update user's game profile
+      const user = await User.findById(userId);
+      if (gameProfile.bgmiName) user.gameProfile.bgmiName = gameProfile.bgmiName;
+      if (gameProfile.bgmiId) user.gameProfile.bgmiId = gameProfile.bgmiId;
+      await user.save();
+
+      // Add participant(s) to tournament
+      const tournament = await Tournament.findById(tournamentId);
+      
+      if (joinType === 'squad') {
+        // Add all squad members
+        const startingSlot = tournament.currentParticipants + 1;
+        const squadId = `squad_${Date.now()}`;
+        
+        for (let i = 0; i < squadMembers.length; i++) {
+          const memberUser = await User.findOne({ username: squadMembers[i] });
+          if (memberUser) {
+            tournament.participants.push({
+              user: memberUser._id,
+              joinedAt: new Date(),
+              slotNumber: startingSlot + i,
+              status: 'confirmed',
+              squadId: squadId,
+              paymentConfirmedAt: new Date()
+            });
+          }
+        }
+        tournament.currentParticipants += squadMembers.length;
+      } else {
+        // Add solo participant
+        const slotNumber = tournament.currentParticipants + 1;
+        tournament.participants.push({
+          user: userId,
+          joinedAt: new Date(),
+          slotNumber: slotNumber,
+          status: 'confirmed',
+          paymentConfirmedAt: new Date()
+        });
+        tournament.currentParticipants += 1;
+      }
+
+      await tournament.save();
+
+      // Emit Socket.IO event
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('participantJoined', {
+          tournamentId,
+          userId,
+          username: user.username,
+          joinType,
+          squadMembers: joinType === 'squad' ? squadMembers : undefined
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Tournament payment verified and participant added successfully',
+        data: {
+          transactionId: transaction._id,
+          paymentId: razorpay_payment_id,
+          slotNumber: joinType === 'squad' 
+            ? `${tournament.currentParticipants - squadMembers.length + 1}-${tournament.currentParticipants}`
+            : tournament.currentParticipants,
+          status: 'confirmed'
+        }
+      });
+
+    } catch (error) {
+      console.error('Tournament payment verification error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to verify tournament payment'
+      });
+    }
+  }
+);
+
 // Get payment status
 router.get('/status/:orderId',
   authenticateToken,

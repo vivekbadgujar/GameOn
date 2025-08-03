@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Button,
-  TextField,
-  InputAdornment,
+  Grid,
   Chip,
   IconButton,
   Menu,
@@ -16,392 +15,243 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  LinearProgress,
+  Tabs,
+  Tab,
+  Badge,
   Tooltip,
+  CircularProgress,
+  TextField,
+  InputAdornment,
   FormControl,
   InputLabel,
-  Select,
-  Grid
+  Select
 } from '@mui/material';
 import {
-  DataGrid,
-  GridToolbar,
-  GridActionsCellItem,
-  GridRowModes
-} from '@mui/x-data-grid';
-import {
-  Search,
   Add,
+  MoreVert,
   Edit,
   Delete,
   Visibility,
-  MoreVert,
-  FilterList,
-  Refresh,
-  EmojiEvents,
+  PlayArrow,
+  Stop,
+  CheckCircle,
   Schedule,
-  People,
-  Payment,
-  VpnKey,
-  VideoLibrary
+  EmojiEvents,
+  Cancel,
+  Search,
+  FilterList,
+  Refresh
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { tournamentAPI } from '../../services/api';
-import { useSocket } from '../../contexts/SocketContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import AddVideoDialog from './AddVideoDialog';
+import { useSocket } from '../../contexts/SocketContext';
+import dayjs from 'dayjs';
 
 const TournamentList = () => {
+  const navigate = useNavigate();
+  const { admin } = useAuth();
+  const { showSuccess, showError } = useNotification();
+  const { socket, isConnected } = useSocket();
+  const queryClient = useQueryClient();
+
+  // State management
+  const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [gameFilter, setGameFilter] = useState('all');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedTournament, setSelectedTournament] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [addVideoDialogOpen, setAddVideoDialogOpen] = useState(false);
-  const [videoTournament, setVideoTournament] = useState(null);
+  const [selectedTournament, setSelectedTournament] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [statusDialog, setStatusDialog] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
 
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { lastMessage } = useSocket();
-  const { showTournamentSuccess, showTournamentError } = useNotification();
+  // Fetch tournaments
+  const { data: tournamentsData, isLoading, refetch } = useQuery({
+    queryKey: ['admin-tournaments', activeTab, searchTerm, statusFilter, gameFilter],
+    queryFn: async () => {
+      const token = localStorage.getItem('adminToken');
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 50,
+        status: getStatusForTab(activeTab),
+        search: searchTerm,
+        game: gameFilter
+      });
 
-  // Fetch tournaments - MUST be defined before using refetch in useEffect
-  const { data: tournaments, isLoading, error, refetch } = useQuery({
-    queryKey: ['tournaments', searchTerm, statusFilter, gameFilter],
-    queryFn: () => tournamentAPI.getAll({ search: searchTerm, status: statusFilter, game: gameFilter }),
-    onSuccess: (data) => {
-      console.log('Admin Panel - Query success:', data);
-      console.log('Admin Panel - Tournaments data:', data?.data?.tournaments);
-      console.log('Admin Panel - Tournaments count:', data?.data?.tournaments?.length || 0);
+      const response = await fetch(`/api/admin/tournaments?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch tournaments');
+      return response.json();
     },
-    onError: (error) => {
-      console.error('Admin Panel - Query error:', error);
-    }
+    refetchInterval: 30000 // Refresh every 30 seconds
   });
 
-  // Real-time socket updates
-  React.useEffect(() => {
-    if (!lastMessage) return;
-    
-    console.log('Admin Panel - Received socket message:', lastMessage);
-    
-    // Handle both old and new message formats
-    const messageType = lastMessage.type || lastMessage;
-    
-    if (
-      messageType === 'tournamentAdded' ||
-      messageType === 'tournamentUpdated' ||
-      messageType === 'tournamentDeleted' ||
-      messageType === 'adminUpdate'
-    ) {
-      console.log('Admin Panel - Refreshing tournament list due to socket event:', messageType);
-      queryClient.invalidateQueries(['tournaments']);
-      // Force immediate refetch
-      setTimeout(() => {
-        refetch();
-      }, 100);
-    }
-  }, [lastMessage, queryClient, refetch]);
-
-  // Auto-refresh tournaments every 30 seconds
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('Admin Panel - Auto-refreshing tournaments...');
+  // Live sync with socket events
+  useEffect(() => {
+    const handleTournamentUpdate = () => {
       refetch();
-    }, 30000);
+    };
 
-    return () => clearInterval(interval);
+    window.addEventListener('tournamentUpdated', handleTournamentUpdate);
+    window.addEventListener('tournamentDeleted', handleTournamentUpdate);
+
+    return () => {
+      window.removeEventListener('tournamentUpdated', handleTournamentUpdate);
+      window.removeEventListener('tournamentDeleted', handleTournamentUpdate);
+    };
   }, [refetch]);
 
-  // Delete tournament mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id) => tournamentAPI.delete(id),
-    onSuccess: () => {
-      const tournamentName = selectedTournament?.title || 'Tournament';
-      showTournamentSuccess('delete', tournamentName);
-      
-      queryClient.invalidateQueries(['tournaments']);
-      setDeleteDialogOpen(false);
-      setSelectedTournament(null);
-    },
-    onError: (error) => {
-      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
-      showTournamentError('delete', errorMessage);
-    }
-  });
-
-  // Update tournament status mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => tournamentAPI.updateStatus(id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tournaments']);
-    },
-  });
-
-  // Release room credentials mutation
-  const releaseCredentialsMutation = useMutation({
-    mutationFn: (id) => tournamentAPI.releaseCredentials(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['tournaments']);
-    },
-  });
-
-  const handleDelete = (tournament) => {
-    setSelectedTournament(tournament);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (selectedTournament) {
-      deleteMutation.mutate(selectedTournament._id);
+  // Get status for current tab
+  const getStatusForTab = (tabIndex) => {
+    switch (tabIndex) {
+      case 0: return 'upcoming'; // Active
+      case 1: return 'live';     // Live
+      case 2: return 'completed'; // Completed
+      case 3: return 'cancelled'; // Cancelled
+      default: return 'all';
     }
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    updateStatusMutation.mutate({ id, status: newStatus });
+  // Get tab counts
+  const getTabCounts = () => {
+    const tournaments = tournamentsData?.data?.tournaments || [];
+    return {
+      upcoming: tournaments.filter(t => t.status === 'upcoming').length,
+      live: tournaments.filter(t => t.status === 'live').length,
+      completed: tournaments.filter(t => t.status === 'completed').length,
+      cancelled: tournaments.filter(t => t.status === 'cancelled').length
+    };
   };
 
-  const handleMenuOpen = (event, row) => {
+  // Handle menu actions
+  const handleMenuOpen = (event, tournament) => {
     setAnchorEl(event.currentTarget);
-    setSelectedRow(row);
+    setSelectedTournament(tournament);
   };
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedRow(null);
+    setSelectedTournament(null);
   };
 
-  const handleReleaseCredentials = (tournamentId) => {
-    releaseCredentialsMutation.mutate(tournamentId);
-    handleMenuClose();
-  };
+  // Handle tournament status change
+  const handleStatusChange = async (tournament, status) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/tournaments/${tournament._id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
 
-  const handleAddVideo = (tournament) => {
-    setVideoTournament(tournament);
-    setAddVideoDialogOpen(true);
-    handleMenuClose();
-  };
+      if (!response.ok) throw new Error('Failed to update tournament status');
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'upcoming': return 'info';
-      case 'completed': return 'default';
-      case 'cancelled': return 'error';
-      case 'draft': return 'warning';
-      default: return 'default';
+      showSuccess(`Tournament ${status === 'completed' ? 'completed' : 'updated'} successfully`);
+      refetch();
+      handleMenuClose();
+
+    } catch (error) {
+      showError(error.message || 'Failed to update tournament status');
     }
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Active';
-      case 'upcoming': return 'Upcoming';
-      case 'completed': return 'Completed';
-      case 'cancelled': return 'Cancelled';
-      case 'draft': return 'Draft';
-      default: return status;
+  // Handle tournament deletion
+  const handleDeleteTournament = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/tournaments/${selectedTournament._id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to delete tournament');
+
+      showSuccess('Tournament deleted successfully');
+      setDeleteDialog(false);
+      refetch();
+      handleMenuClose();
+
+    } catch (error) {
+      showError(error.message || 'Failed to delete tournament');
     }
   };
 
-  const getGameIcon = (game) => {
-    switch (game.toLowerCase()) {
-      case 'pubg':
-      case 'bgmi':
-        return '🎮';
-      case 'free fire':
-        return '🔥';
-      case 'cod':
-        return '⚔️';
+  // Get status color and icon
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case 'upcoming':
+        return { color: 'success', icon: <Schedule />, label: 'Active' };
+      case 'live':
+        return { color: 'warning', icon: <PlayArrow />, label: 'Live' };
+      case 'completed':
+        return { color: 'info', icon: <EmojiEvents />, label: 'Completed' };
+      case 'cancelled':
+        return { color: 'error', icon: <Cancel />, label: 'Cancelled' };
       default:
-        return '🎯';
+        return { color: 'default', icon: <Schedule />, label: 'Unknown' };
     }
   };
 
-  const columns = [
-    {
-      field: 'title',
-      headerName: 'Tournament',
-      flex: 1,
-      minWidth: 200,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="body2" fontWeight={600}>
-            {params.row.title}
-          </Typography>
-          <Chip
-            label={params.row.game}
-            size="small"
-            sx={{ fontSize: '0.7rem' }}
-          />
-        </Box>
-      ),
-    },
-    {
-      field: 'game',
-      headerName: 'Game',
-      width: 120,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <span>{getGameIcon(params.value)}</span>
-          <Typography variant="body2">{params.value}</Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 130,
-      renderCell: (params) => (
-        <Chip
-          label={getStatusLabel(params.value)}
-          color={getStatusColor(params.value)}
-          size="small"
-          variant="outlined"
-        />
-      ),
-    },
-    {
-      field: 'startDate',
-      headerName: 'Start Date',
-      width: 150,
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {new Date(params.value).toLocaleDateString()}
-        </Typography>
-      ),
-    },
-    {
-      field: 'participants',
-      headerName: 'Participants',
-      width: 120,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <People sx={{ fontSize: 16 }} />
-          <Typography variant="body2">
-            {params.row.currentParticipants || 0}/{params.row.maxParticipants}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
-      field: 'prizePool',
-      headerName: 'Prize Pool',
-      width: 120,
-      renderCell: (params) => (
-        <Typography variant="body2" fontWeight={600}>
-          ₹{params.value?.toLocaleString() || 0}
-        </Typography>
-      ),
-    },
-    {
-      field: 'createdBy',
-      headerName: 'Created By',
-      width: 150,
-      renderCell: (params) => (
-        <Typography variant="body2">
-          {params.row.createdBy?.username || 'Admin'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      type: 'actions',
-      width: 100,
-      getActions: (params) => [
-        <GridActionsCellItem
-          icon={<Visibility />}
-          label="View"
-          onClick={() => navigate(`/tournaments/${params.row._id}`)}
-          color="primary"
-        />,
-        <GridActionsCellItem
-          icon={<Edit />}
-          label="Edit"
-          onClick={() => navigate(`/tournaments/${params.row._id}/edit`)}
-          color="primary"
-        />,
-        <GridActionsCellItem
-          icon={<MoreVert />}
-          label="More"
-          onClick={(event) => handleMenuOpen(event, params.row)}
-          color="primary"
-        />,
-      ],
-    },
-  ];
+  // Filter tournaments
+  const filteredTournaments = (tournamentsData?.data?.tournaments || [])
+    .filter(tournament => {
+      const matchesSearch = 
+        tournament.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tournament.game?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = getStatusForTab(activeTab) === 'all' || 
+        tournament.status === getStatusForTab(activeTab);
+      
+      const matchesGame = gameFilter === 'all' || tournament.game === gameFilter;
+      
+      return matchesSearch && matchesStatus && matchesGame;
+    });
 
-  // Handle different response structures and ensure all tournaments are visible
-  const filteredData = (() => {
-    console.log('Admin Panel - Raw tournament response:', tournaments);
-    
-    let tournamentList = [];
-    
-    // Extract tournaments from various possible response structures
-    if (Array.isArray(tournaments?.data?.tournaments)) {
-      tournamentList = tournaments.data.tournaments;
-    } else if (Array.isArray(tournaments?.data?.data)) {
-      tournamentList = tournaments.data.data;
-    } else if (Array.isArray(tournaments?.data)) {
-      tournamentList = tournaments.data;
-    } else if (Array.isArray(tournaments)) {
-      tournamentList = tournaments;
-    }
-    
-    console.log('Admin Panel - Extracted tournament list:', tournamentList);
-    console.log('Admin Panel - Tournament count:', tournamentList.length);
-    
-    // Apply filters if any
-    let filtered = tournamentList;
-    
-    if (searchTerm) {
-      filtered = filtered.filter(t => 
-        t.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.game?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (statusFilter && statusFilter !== 'all') {
-      filtered = filtered.filter(t => t.status === statusFilter);
-    }
-    
-    if (gameFilter && gameFilter !== 'all') {
-      filtered = filtered.filter(t => t.game === gameFilter);
-    }
-    
-    console.log('Admin Panel - Filtered tournament count:', filtered.length);
-    return filtered;
-  })();
+  const tabCounts = getTabCounts();
 
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-            Tournaments
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage all tournaments and their settings
-          </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          Tournament Management
+        </Typography>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: isConnected ? 'success.main' : 'error.main'
+              }}
+            />
+            <Typography variant="caption">
+              {isConnected ? 'Live Sync' : 'Disconnected'}
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => refetch()}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => navigate('/tournaments/create')}
+          >
+            Create Tournament
+          </Button>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate('/tournaments/new')}
-          sx={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
-            },
-          }}
-        >
-          Create Tournament
-        </Button>
       </Box>
 
       {/* Filters */}
@@ -419,188 +269,250 @@ const TournamentList = () => {
                     <InputAdornment position="start">
                       <Search />
                     </InputAdornment>
-                  ),
+                  )
                 }}
               />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={statusFilter}
-                  label="Status"
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="live">Live</MenuItem>
-                  <MenuItem value="upcoming">Upcoming</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
-                  <MenuItem value="cancelled">Cancelled</MenuItem>
-                </Select>
-              </FormControl>
             </Grid>
             <Grid item xs={12} md={3}>
               <FormControl fullWidth>
                 <InputLabel>Game</InputLabel>
                 <Select
                   value={gameFilter}
-                  label="Game"
                   onChange={(e) => setGameFilter(e.target.value)}
+                  label="Game"
                 >
                   <MenuItem value="all">All Games</MenuItem>
-                  <MenuItem value="PUBG">PUBG</MenuItem>
                   <MenuItem value="BGMI">BGMI</MenuItem>
                   <MenuItem value="Free Fire">Free Fire</MenuItem>
-                  <MenuItem value="COD">COD</MenuItem>
-                  <MenuItem value="Others">Others</MenuItem>
+                  <MenuItem value="COD Mobile">COD Mobile</MenuItem>
+                  <MenuItem value="Valorant">Valorant</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={() => refetch()}
-                disabled={isLoading}
-              >
-                Refresh
-              </Button>
             </Grid>
           </Grid>
         </CardContent>
       </Card>
 
-      {/* Data Grid */}
-      <Card>
-        <CardContent sx={{ p: 0 }}>
-          <Box sx={{ height: 600, width: '100%' }}>
-            <DataGrid
-              rows={filteredData}
-              columns={columns}
-              getRowId={(row) => row._id}
-              loading={isLoading}
-              pageSizeOptions={[10, 25, 50]}
-              initialState={{
-                pagination: {
-                  paginationModel: { page: 0, pageSize: 25 },
-                },
-              }}
-              slots={{
-                toolbar: GridToolbar,
-              }}
-              slotProps={{
-                toolbar: {
-                  showQuickFilter: true,
-                  quickFilterProps: { debounceMs: 500 },
-                },
-              }}
-              sx={{
-                border: 'none',
-                '& .MuiDataGrid-cell': {
-                  borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-                },
-                '& .MuiDataGrid-columnHeaders': {
-                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                  borderBottom: '2px solid rgba(148, 163, 184, 0.1)',
-                },
-              }}
-            />
-          </Box>
-        </CardContent>
+      {/* Status Tabs */}
+      <Card sx={{ mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="fullWidth"
+        >
+          <Tab
+            label={
+              <Badge badgeContent={tabCounts.upcoming} color="success">
+                Active
+              </Badge>
+            }
+            icon={<Schedule />}
+          />
+          <Tab
+            label={
+              <Badge badgeContent={tabCounts.live} color="warning">
+                Live
+              </Badge>
+            }
+            icon={<PlayArrow />}
+          />
+          <Tab
+            label={
+              <Badge badgeContent={tabCounts.completed} color="info">
+                Completed
+              </Badge>
+            }
+            icon={<EmojiEvents />}
+          />
+          <Tab
+            label={
+              <Badge badgeContent={tabCounts.cancelled} color="error">
+                Cancelled
+              </Badge>
+            }
+            icon={<Cancel />}
+          />
+        </Tabs>
       </Card>
+
+      {/* Tournament Grid */}
+      {isLoading ? (
+        <Box display="flex" justifyContent="center" py={4}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredTournaments.map((tournament) => {
+            const statusDisplay = getStatusDisplay(tournament.status);
+            
+            return (
+              <Grid item xs={12} sm={6} md={4} key={tournament._id}>
+                <Card 
+                  sx={{ 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative'
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    {/* Tournament Header */}
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                      <Typography variant="h6" component="h2" noWrap>
+                        {tournament.title}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMenuOpen(e, tournament)}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                    </Box>
+
+                    {/* Status and Game */}
+                    <Box display="flex" gap={1} mb={2}>
+                      <Chip
+                        icon={statusDisplay.icon}
+                        label={statusDisplay.label}
+                        color={statusDisplay.color}
+                        size="small"
+                      />
+                      <Chip
+                        label={tournament.game}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Box>
+
+                    {/* Tournament Info */}
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {dayjs(tournament.startDate).format('MMM DD, YYYY HH:mm')}
+                    </Typography>
+                    
+                    <Typography variant="body2" gutterBottom>
+                      Entry Fee: ₹{tournament.entryFee}
+                    </Typography>
+                    
+                    <Typography variant="body2" gutterBottom>
+                      Participants: {tournament.currentParticipants}/{tournament.maxParticipants}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      Prize Pool: ₹{tournament.prizePool}
+                    </Typography>
+                  </CardContent>
+
+                  {/* Action Buttons */}
+                  <Box p={2} pt={0}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<Visibility />}
+                      onClick={() => navigate(`/tournaments/${tournament._id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </Box>
+                </Card>
+              </Grid>
+            );
+          })}
+
+          {filteredTournaments.length === 0 && (
+            <Grid item xs={12}>
+              <Box textAlign="center" py={4}>
+                <Typography variant="h6" color="text.secondary">
+                  No tournaments found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {searchTerm || gameFilter !== 'all' 
+                    ? 'Try adjusting your filters' 
+                    : 'Create your first tournament to get started'
+                  }
+                </Typography>
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+      )}
 
       {/* Action Menu */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            mt: 1,
-            minWidth: 200,
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          },
-        }}
       >
-        <MenuItem onClick={() => {
-          navigate(`/tournaments/${selectedRow?._id}/results`);
-          handleMenuClose();
-        }}>
-          <EmojiEvents sx={{ mr: 1 }} />
-          Post Results
+        <MenuItem onClick={() => navigate(`/tournaments/${selectedTournament?._id}`)}>
+          <Visibility sx={{ mr: 1 }} />
+          View Details
         </MenuItem>
-        <MenuItem onClick={() => {
-          handleStatusChange(selectedRow?._id, 'live');
-          handleMenuClose();
-        }}>
-          <Schedule sx={{ mr: 1 }} />
-          Activate
+        
+        <MenuItem onClick={() => navigate(`/tournaments/${selectedTournament?._id}/edit`)}>
+          <Edit sx={{ mr: 1 }} />
+          Edit Tournament
         </MenuItem>
-        <MenuItem onClick={() => {
-          handleStatusChange(selectedRow?._id, 'completed');
-          handleMenuClose();
-        }}>
-          <Payment sx={{ mr: 1 }} />
-          Mark Complete
-        </MenuItem>
-        <MenuItem onClick={() => handleAddVideo(selectedRow)}>
-          <VideoLibrary sx={{ mr: 1 }} />
-          Add Video
-        </MenuItem>
-        <MenuItem onClick={() => handleReleaseCredentials(selectedRow?._id)}>
-          <VpnKey sx={{ mr: 1 }} />
-          Release Room Credentials
-        </MenuItem>
-        <MenuItem onClick={() => {
-          handleDelete(selectedRow);
-          handleMenuClose();
-        }} sx={{ color: 'error.main' }}>
-          <Delete sx={{ mr: 1 }} />
-          Delete
-        </MenuItem>
+
+        {selectedTournament?.status === 'upcoming' && (
+          <MenuItem onClick={() => handleStatusChange(selectedTournament, 'completed')}>
+            <CheckCircle sx={{ mr: 1 }} color="success" />
+            Mark Complete
+          </MenuItem>
+        )}
+
+        {selectedTournament?.status === 'completed' && (
+          <MenuItem onClick={() => handleStatusChange(selectedTournament, 'upcoming')}>
+            <PlayArrow sx={{ mr: 1 }} color="primary" />
+            Reactivate
+          </MenuItem>
+        )}
+
+        {selectedTournament?.status === 'completed' && (
+          <MenuItem 
+            onClick={() => setDeleteDialog(true)}
+            sx={{ color: 'error.main' }}
+          >
+            <Delete sx={{ mr: 1 }} />
+            Delete Permanently
+          </MenuItem>
+        )}
       </Menu>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Tournament</DialogTitle>
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+        <DialogTitle color="error.main">
+          Delete Tournament Permanently
+        </DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete "{selectedTournament?.title}"? This action cannot be undone.
+          <Typography gutterBottom>
+            Are you sure you want to permanently delete "{selectedTournament?.title}"?
           </Typography>
+          <Alert severity="error" sx={{ mt: 2 }}>
+            <strong>This action cannot be undone!</strong>
+            <br />
+            This will permanently delete:
+            <ul>
+              <li>All participant registrations</li>
+              <li>Payment transaction records</li>
+              <li>Tournament results and statistics</li>
+              <li>All associated media and files</li>
+            </ul>
+          </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            onClick={confirmDelete}
+          <Button onClick={() => setDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteTournament}
             color="error"
             variant="contained"
-            disabled={deleteMutation.isLoading}
           >
-            {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
+            Delete Permanently
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Failed to load tournaments. Please try again.
-        </Alert>
-      )}
-
-      {/* Add Video Dialog */}
-      <AddVideoDialog
-        open={addVideoDialogOpen}
-        onClose={() => {
-          setAddVideoDialogOpen(false);
-          setVideoTournament(null);
-        }}
-        tournament={videoTournament}
-      />
     </Box>
   );
 };
 
-export default TournamentList; 
+export default TournamentList;

@@ -28,6 +28,7 @@ import { useAuthModal } from '../../hooks/useAuthModal';
 const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -90,7 +91,8 @@ const Header = () => {
   // Fetch initial data
   useEffect(() => {
     if (user) {
-      fetchWalletBalance();
+      // Set wallet balance from user context
+      setWalletBalance(user.wallet?.balance || 0);
       fetchNotifications();
     }
   }, [user]);
@@ -200,7 +202,10 @@ const Header = () => {
                 {/* Notifications */}
                 <div className="relative">
                   <button
-                    onClick={markNotificationsAsRead}
+                    onClick={() => {
+                      setIsNotificationOpen(!isNotificationOpen);
+                      if (!isNotificationOpen) markNotificationsAsRead();
+                    }}
                     className="relative p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
                   >
                     <Bell className="w-5 h-5 text-white/70" />
@@ -210,6 +215,46 @@ const Header = () => {
                       </span>
                     )}
                   </button>
+
+                  <AnimatePresence>
+                    {isNotificationOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-80 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                      >
+                        <div className="p-4 border-b border-white/10">
+                          <h3 className="text-white font-semibold">Notifications</h3>
+                        </div>
+                        
+                        <div className="max-h-96 overflow-y-auto">
+                          {notifications.length > 0 ? (
+                            notifications.map((notification, index) => (
+                              <div key={index} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <div className="flex items-start space-x-3">
+                                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0" />
+                                  <div className="flex-1">
+                                    <h4 className="text-white font-medium text-sm">{notification.title}</h4>
+                                    <p className="text-white/60 text-xs mt-1">{notification.message}</p>
+                                    <p className="text-white/40 text-xs mt-2">
+                                      {new Date(notification.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-8 text-center">
+                              <Bell className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                              <p className="text-white/60">No notifications yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Profile Dropdown */}
