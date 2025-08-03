@@ -58,10 +58,40 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../services/api';
 import dayjs from 'dayjs';
 
+// Helper functions for BGMI ID validation status
+const getBgmiIdStatus = (bgmiId) => {
+  if (!bgmiId) return 'Not Set';
+  
+  // Basic format validation
+  if (!/^\d{10,12}$/.test(bgmiId)) return 'Invalid Format';
+  
+  // Simulate validation status (in real implementation, check against database or API)
+  // For demo: IDs starting with 5 or 1 are considered valid
+  if (bgmiId.startsWith('5') || bgmiId.startsWith('1')) {
+    return 'Verified';
+  } else if (bgmiId.startsWith('9')) {
+    return 'Suspicious';
+  } else {
+    return 'Unverified';
+  }
+};
+
+const getBgmiIdStatusColor = (bgmiId) => {
+  const status = getBgmiIdStatus(bgmiId);
+  switch (status) {
+    case 'Verified': return 'success';
+    case 'Unverified': return 'warning';
+    case 'Suspicious': return 'error';
+    case 'Invalid Format': return 'error';
+    default: return 'default';
+  }
+};
+
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [bgmiFilter, setBgmiFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [rowsPerPage] = useState(10);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -165,11 +195,15 @@ const UserManagement = () => {
     const matchesSearch = !searchQuery || 
       user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.gameProfile?.bgmiName?.toLowerCase().includes(searchQuery.toLowerCase());
+      user.gameProfile?.bgmiName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.gameProfile?.bgmiId?.includes(searchQuery);
     
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
     
-    return matchesSearch && matchesStatus;
+    const matchesBgmiFilter = bgmiFilter === 'all' || 
+      getBgmiIdStatus(user.gameProfile?.bgmiId) === bgmiFilter;
+    
+    return matchesSearch && matchesStatus && matchesBgmiFilter;
   });
 
   const statsCards = [
@@ -290,10 +324,10 @@ const UserManagement = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                placeholder="Search users by username, email, or BGMI name..."
+                placeholder="Search by username, email, BGMI name, or Player ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 InputProps={{
@@ -321,6 +355,23 @@ const UserManagement = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>BGMI Status</InputLabel>
+                <Select
+                  value={bgmiFilter}
+                  label="BGMI Status"
+                  onChange={(e) => setBgmiFilter(e.target.value)}
+                >
+                  <MenuItem value="all">All BGMI Status</MenuItem>
+                  <MenuItem value="Verified">Verified</MenuItem>
+                  <MenuItem value="Unverified">Unverified</MenuItem>
+                  <MenuItem value="Suspicious">Suspicious</MenuItem>
+                  <MenuItem value="Invalid Format">Invalid Format</MenuItem>
+                  <MenuItem value="Not Set">Not Set</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
               <Typography variant="body2" color="text.secondary">
                 Showing {filteredUsers.length} of {totalUsers} users
               </Typography>
@@ -372,9 +423,19 @@ const UserManagement = () => {
                             <Typography variant="body2" fontWeight="medium">
                               {user.gameProfile?.bgmiName || 'Not set'}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              ID: {user.gameProfile?.bgmiId || 'Not set'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                ID: {user.gameProfile?.bgmiId || 'Not set'}
+                              </Typography>
+                              {user.gameProfile?.bgmiId && (
+                                <Chip
+                                  size="small"
+                                  label={getBgmiIdStatus(user.gameProfile.bgmiId)}
+                                  color={getBgmiIdStatusColor(user.gameProfile.bgmiId)}
+                                  sx={{ fontSize: '0.7rem', height: '20px' }}
+                                />
+                              )}
+                            </Box>
                           </Box>
                         </TableCell>
                         <TableCell>
@@ -499,7 +560,16 @@ const UserManagement = () => {
                 </Box>
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary">BGMI Player ID</Typography>
-                  <Typography variant="body1">{selectedUser.gameProfile?.bgmiId || 'Not set'}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body1">{selectedUser.gameProfile?.bgmiId || 'Not set'}</Typography>
+                    {selectedUser.gameProfile?.bgmiId && (
+                      <Chip
+                        size="small"
+                        label={getBgmiIdStatus(selectedUser.gameProfile.bgmiId)}
+                        color={getBgmiIdStatusColor(selectedUser.gameProfile.bgmiId)}
+                      />
+                    )}
+                  </Box>
                 </Box>
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary">Wallet Balance</Typography>

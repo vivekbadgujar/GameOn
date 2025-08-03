@@ -95,6 +95,7 @@ router.post('/login', async (req, res) => {
 // Simple email/password registration for testing
 router.post('/register', async (req, res) => {
   try {
+    console.log('Registration request body:', req.body);
     const { username, email, password, gameProfile, agreeToTerms } = req.body;
 
     if (!username || !email || !password) {
@@ -112,10 +113,10 @@ router.post('/register', async (req, res) => {
     }
 
     // Validate BGMI Player ID format
-    if (!/^\d{9,10}$/.test(gameProfile.bgmiId)) {
+    if (!/^\d{10,12}$/.test(gameProfile.bgmiId)) {
       return res.status(400).json({
         success: false,
-        message: 'BGMI Player ID must be 9-10 digits'
+        message: 'BGMI Player ID must be 10-12 digits'
       });
     }
 
@@ -172,10 +173,47 @@ router.post('/register', async (req, res) => {
 
     // Accept all policies if user agreed to terms
     if (agreeToTerms) {
-      await user.acceptPolicies('1.0');
+      const now = new Date();
+      user.policyAcceptance = {
+        termsAndConditions: {
+          accepted: true,
+          acceptedAt: now,
+          version: '1.0'
+        },
+        privacyPolicy: {
+          accepted: true,
+          acceptedAt: now,
+          version: '1.0'
+        },
+        refundPolicy: {
+          accepted: true,
+          acceptedAt: now,
+          version: '1.0'
+        },
+        fairPlayPolicy: {
+          accepted: true,
+          acceptedAt: now,
+          version: '1.0'
+        },
+        lastUpdated: now
+      };
     }
     
-    await user.save();
+    console.log('About to save user with data:', {
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      gameProfile: user.gameProfile
+    });
+    
+    try {
+      await user.save();
+      console.log('User saved successfully:', user._id);
+    } catch (saveError) {
+      console.error('User save error:', saveError);
+      console.error('Validation errors:', saveError.errors);
+      throw saveError;
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -340,6 +378,86 @@ router.post('/accept-policies', async (req, res) => {
     });
   }
 });
+
+// Validate BGMI Player ID
+router.post('/validate-bgmi-id', async (req, res) => {
+  try {
+    const { bgmiId } = req.body;
+
+    if (!bgmiId) {
+      return res.status(400).json({
+        success: false,
+        message: 'BGMI Player ID is required'
+      });
+    }
+
+    // Basic format validation
+    if (!/^\d{10,12}$/.test(bgmiId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'BGMI Player ID must be 10-12 digits',
+        valid: false
+      });
+    }
+
+    // Check if BGMI ID already exists in database
+    const existingUser = await User.findOne({ 'gameProfile.bgmiId': bgmiId });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'This BGMI Player ID is already registered',
+        valid: false
+      });
+    }
+
+    // Simulate BGMI API validation
+    // In real implementation, call actual BGMI verification API
+    const isValidBgmiId = await validateBgmiIdWithAPI(bgmiId);
+
+    if (!isValidBgmiId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid BGMI Player ID. Please enter a valid Player ID.',
+        valid: false
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'BGMI Player ID is valid',
+      valid: true
+    });
+  } catch (error) {
+    console.error('BGMI ID validation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to validate BGMI Player ID',
+      valid: false
+    });
+  }
+});
+
+// Simulate BGMI API validation function
+async function validateBgmiIdWithAPI(bgmiId) {
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // For demo purposes:
+    // - IDs starting with '5' or '1' are considered valid
+    // - IDs starting with '9' are considered suspicious/invalid
+    // - Other IDs are considered unverified but acceptable
+    
+    if (bgmiId.startsWith('9')) {
+      return false; // Invalid/suspicious
+    }
+    
+    return true; // Valid or unverified but acceptable
+  } catch (error) {
+    console.error('BGMI API validation error:', error);
+    return false;
+  }
+}
 
 module.exports = router;
 

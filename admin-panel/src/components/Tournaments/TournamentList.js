@@ -47,6 +47,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { tournamentAPI } from '../../services/api';
 import dayjs from 'dayjs';
 
 const TournamentList = () => {
@@ -71,21 +72,16 @@ const TournamentList = () => {
   const { data: tournamentsData, isLoading, refetch } = useQuery({
     queryKey: ['admin-tournaments', activeTab, searchTerm, statusFilter, gameFilter],
     queryFn: async () => {
-      const token = localStorage.getItem('adminToken');
-      const params = new URLSearchParams({
+      const params = {
         page: 1,
         limit: 50,
         status: getStatusForTab(activeTab),
         search: searchTerm,
         game: gameFilter
-      });
+      };
 
-      const response = await fetch(`/api/admin/tournaments?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch tournaments');
-      return response.json();
+      const response = await tournamentAPI.getAll(params);
+      return response.data;
     },
     refetchInterval: 30000 // Refresh every 30 seconds
   });

@@ -40,6 +40,15 @@ export const sendOTP = (phone) => api.post('/auth/send-otp', { phone });
 export const verifyOTP = (phone, otp) => api.post('/auth/verify-otp', { phone, otp });
 export const logout = () => api.post('/auth/logout');
 export const acceptPolicies = (userId, version = '1.0') => api.post('/auth/accept-policies', { userId, version });
+export const validateBgmiId = async (bgmiId) => {
+  try {
+    const response = await api.post('/auth/validate-bgmi-id', { bgmiId });
+    return response.data;
+  } catch (error) {
+    console.error('BGMI ID validation error:', error);
+    throw error;
+  }
+};
 
 // User endpoints
 export const getUserProfile = async () => {
