@@ -18,8 +18,18 @@ import { getTournaments } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
 import { useSocket } from '../contexts/SocketContext';
+import { useAuth } from '../contexts/AuthContext';
+import AuthModal from '../components/Auth/AuthModal';
+import { useAuthModal } from '../hooks/useAuthModal';
 
 const Tournaments = () => {
+  const { isAuthenticated } = useAuth();
+  const { 
+    isAuthModalOpen, 
+    authModalTab, 
+    openAuthModal, 
+    closeAuthModal 
+  } = useAuthModal();
   const [tournaments, setTournaments] = useState([]);
   const [filteredTournaments, setFilteredTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -384,7 +394,11 @@ const Tournaments = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 * index }}
                 >
-                  <TournamentCard tournament={tournament} />
+                  <TournamentCard 
+                    tournament={tournament} 
+                    isAuthenticated={isAuthenticated}
+                    onRequireAuth={openAuthModal}
+                  />
                 </motion.div>
               ))}
             </div>
@@ -447,6 +461,13 @@ const Tournaments = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        initialTab={authModalTab}
+      />
     </div>
   );
 };

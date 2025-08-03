@@ -182,6 +182,8 @@ app.get('/', (req, res) => {
   });
 });
 
+
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tournaments', require('./routes/tournaments'));
@@ -253,8 +255,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Make Socket.IO available to routes
-app.set('io', io);
+
 
 // Socket.IO Configuration for Real-time Features
 io.on('connection', (socket) => {
@@ -452,6 +453,9 @@ io.on('connection', (socket) => {
   });
 });
 
+// Make socket.io instance available to routes
+app.set('io', io);
+
 // Global Socket.IO event emitters for admin actions
 const emitToAll = (event, data) => {
   io.emit(event, data);
@@ -469,12 +473,7 @@ const emitToAdmins = (event, data) => {
   io.emit(event, data); // All admins will receive this
 };
 
-// Make io and emitters available globally
-app.set('io', io);
-app.set('emitToAll', emitToAll);
-app.set('emitToTournament', emitToTournament);
-app.set('emitToUser', emitToUser);
-app.set('emitToAdmins', emitToAdmins);
+
 
 // Start server
 server.listen(PORT, () => {

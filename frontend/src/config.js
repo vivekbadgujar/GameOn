@@ -33,6 +33,8 @@ const config = {
     AUTH: {
       SEND_OTP: '/auth/send-otp',
       VERIFY_OTP: '/auth/verify-otp',
+      LOGIN: '/auth/login',
+      SIGNUP: '/auth/signup',
       ADMIN_LOGIN: '/admin/auth/login',
     },
     // User

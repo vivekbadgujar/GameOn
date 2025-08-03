@@ -100,8 +100,32 @@ const UserManagement = () => {
   const [banReason, setBanReason] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuUserId, setMenuUserId] = useState(null);
-
   const queryClient = useQueryClient();
+
+  // Listen for real-time user updates
+  useEffect(() => {
+    const handleUserRegistered = (event) => {
+      console.log('UserManagement: New user registered:', event.detail);
+      // Invalidate and refetch users query to show new user
+      queryClient.invalidateQueries(['users']);
+    };
+
+    const handleUserUpdated = (event) => {
+      console.log('UserManagement: User updated:', event.detail);
+      // Invalidate and refetch users query to show updated user
+      queryClient.invalidateQueries(['users']);
+    };
+
+    // Add event listeners
+    window.addEventListener('userRegistered', handleUserRegistered);
+    window.addEventListener('userUpdated', handleUserUpdated);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('userRegistered', handleUserRegistered);
+      window.removeEventListener('userUpdated', handleUserUpdated);
+    };
+  }, [queryClient]);
 
   // Fetch users
   const { data: usersData, isLoading, error, refetch } = useQuery({
@@ -145,6 +169,10 @@ const UserManagement = () => {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setMenuUserId(null);
+  };
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   const handleViewUser = (user) => {
@@ -623,6 +651,8 @@ const UserManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+
     </Box>
   );
 };

@@ -89,6 +89,18 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('adminUpdate', { detail: data }));
     });
 
+    // User-related events
+    newSocket.on('userRegistered', (data) => {
+      console.log('👤 New user registered:', data);
+      showSuccess(`New user registered: ${data.username}`);
+      window.dispatchEvent(new CustomEvent('userRegistered', { detail: data }));
+    });
+
+    newSocket.on('userUpdated', (data) => {
+      console.log('👤 User updated:', data);
+      window.dispatchEvent(new CustomEvent('userUpdated', { detail: data }));
+    });
+
     setSocket(newSocket);
 
     // Cleanup on unmount

@@ -4,6 +4,7 @@ import config from '../config';
 const api = axios.create({
   baseURL: config.API_BASE_URL,
   withCredentials: true,
+  timeout: 30000, // 30 second timeout
 });
 
 // Add token to requests if available
@@ -18,11 +19,67 @@ api.interceptors.request.use((config) => {
 // Auth endpoints
 export const login = async (email, password) => {
   try {
-    const response = await api.post('/auth/login', { email, password });
-    return response.data;
+    console.log('API: Attempting login for:', email);
+    
+    // Validate input
+    if (!email || !password) {
+      throw new Error('Email and password are required');
+    }
+
+    // Make the request
+    const response = await api.post(config.ENDPOINTS.AUTH.LOGIN, { 
+      email: email.trim(),
+      password: password
+    });
+
+    // Validate response
+    const data = response.data;
+    if (!data) {
+      throw new Error('Invalid response from server');
+    }
+
+    if (!data.success) {
+      throw new Error(data.message || 'Login failed');
+    }
+
+    if (!data.token || !data.user) {
+      throw new Error('Invalid response format');
+    }
+
+    console.log('API: Login successful');
+    return {
+      success: true,
+      user: data.user,
+      token: data.token,
+      message: data.message || 'Login successful'
+    };
+
   } catch (error) {
     console.error('Login API Error:', error);
-    throw error;
+    
+    // Handle different types of errors
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout. Please check your connection and try again.');
+    } else if (error.response) {
+      // Server responded with error status
+      if (error.response.status === 401) {
+        throw new Error('Invalid email or password');
+      } else if (error.response.status === 404) {
+        throw new Error('User does not exist');
+      } else if (error.response.status === 429) {
+        throw new Error('Too many login attempts. Please try again later.');
+      } else if (error.response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      } else {
+        throw new Error(error.response.data?.message || 'Login failed. Please try again.');
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      throw new Error('No response from server. Please check your connection.');
+    } else {
+      // Something else happened
+      throw new Error(error.message || 'An unexpected error occurred. Please try again.');
+    }
   }
 };
 

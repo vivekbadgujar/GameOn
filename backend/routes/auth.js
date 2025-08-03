@@ -9,17 +9,189 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendOTP, verifyOTP } = require('../utils/otpService');
 
+// User signup route
+router.post('/signup', async (req, res) => {
+  try {
+    console.log('[Auth] Signup attempt:', { email: req.body.email });
+    
+    const { email, password, username, phone, bgmiId, bgmiName } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !username || !phone || !bgmiId || !bgmiName) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ 
+      $or: [
+        { email },
+        { phone },
+        { username },
+        { 'gameProfile.bgmiId': bgmiId }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email, phone, username or BGMI ID'
+      });
+    }
+
+    // Create new user
+    const user = new User({
+      email,
+      password, // Will be hashed by pre-save middleware
+      username,
+      displayName: username,
+      phone,
+      gameProfile: {
+        bgmiId,
+        bgmiName
+      },
+      isVerified: true, // For now, auto-verify users
+      wallet: {
+        balance: 0,
+        transactions: []
+      },
+      stats: {
+        totalTournaments: 0,
+        tournamentsWon: 0,
+        totalEarnings: 0,
+        xpPoints: 0
+      }
+    });
+
+    await user.save();
+    console.log('[Auth] User created successfully:', { userId: user._id });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats
+      },
+      token
+    });
+
+  } catch (error) {
+    console.error('[Auth] Signup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating user',
+      error: error.message
+    });
+  }
+});
+
 // Simple email/password login for testing
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
     // Check if user exists in database first
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email }).select('+password');
     
-    if (user && await user.comparePassword(password)) {
-      // User exists and password matches
-    } else if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User does not exist'
+      });
+    }
+
+    // Check if account is locked
+    if (user.isLocked) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is temporarily locked. Please try again later.'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await user.comparePassword(password);
+    
+    if (!isValidPassword) {
+      // Increment login attempts
+      await user.incrementLoginAttempts();
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Reset login attempts on successful login
+    await user.resetLoginAttempts();
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    // Update last login time
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { 'security.lastLogin': new Date() } }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats,
+        createdAt: user.createdAt
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Admin login route
+router.post('/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (email === 'gamonoffice04@gmail.com' && password === 'gamon@321') {
+      console.log('Admin login attempt');
       // Fallback to hardcoded admin credentials
       // Create or find user
       let user = await User.findOne({ email });
@@ -58,6 +230,7 @@ router.post('/login', async (req, res) => {
         { expiresIn: '7d' }
       );
 
+      console.log('Sending successful admin login response');
       res.json({
         success: true,
         message: 'Login successful',
@@ -75,6 +248,7 @@ router.post('/login', async (req, res) => {
         token
       });
     } else {
+      console.log('Login failed - invalid credentials');
       res.status(401).json({
         success: false,
         message: 'Invalid email or password'
@@ -163,7 +337,7 @@ router.post('/register', async (req, res) => {
       displayName: username,
       email,
       password,
-      phone: '9' + Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random valid Indian phone
+      phone: '9' + Math.floor(Math.random() * 900000000 + 100000000).toString(), // Random valid Indian phone starting with 9
       isVerified: true,
       gameProfile: {
         bgmiId: gameProfile.bgmiId,
@@ -215,12 +389,16 @@ router.post('/register', async (req, res) => {
       throw saveError;
     }
 
+
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
+
+
 
     res.json({
       success: true,
@@ -242,6 +420,30 @@ router.post('/register', async (req, res) => {
     console.error('Registration Error:', error);
     console.error('Error details:', error.message);
     console.error('Error stack:', error.stack);
+    
+    // Check for specific validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      }));
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+    
+    // Check for duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field} already exists`
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Registration failed',
@@ -436,6 +638,8 @@ router.post('/validate-bgmi-id', async (req, res) => {
     });
   }
 });
+
+
 
 // Simulate BGMI API validation function
 async function validateBgmiIdWithAPI(bgmiId) {

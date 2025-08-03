@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -13,6 +13,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { login as apiLogin } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const Login = () => {
@@ -23,7 +24,14 @@ const Login = () => {
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -43,22 +51,15 @@ const Login = () => {
 
     try {
       // Try to login with the backend API
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await apiLogin(email, password);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         // Login the user
-        login(data.user, data.token);
-        navigate('/dashboard');
+        login(response.user, response.token);
+        // Navigate to dashboard after successful login
+        navigate('/dashboard', { replace: true });
       } else {
-        setError(data.message || 'Invalid email or password');
+        setError(response.message || 'Invalid email or password');
       }
     } catch (error) {
       console.error('Login error:', error);

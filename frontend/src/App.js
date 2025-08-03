@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 
 // Context Providers
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 
 // Device detection
@@ -69,7 +69,11 @@ const PageLoader = () => (
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('token');
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <PageLoader />;
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -80,7 +84,11 @@ const ProtectedRoute = ({ children }) => {
 
 // Public Route wrapper (redirect if authenticated)
 const PublicRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('token');
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <PageLoader />;
+  }
   
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -91,10 +99,13 @@ const PublicRoute = ({ children }) => {
 
 // Mobile App Route wrapper (shows login first for mobile apps)
 const MobileAppRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem('token');
+  const { isAuthenticated, loading } = useAuth();
   const deviceType = getDeviceType();
   
-  // For mobile apps, redirect to login if not authenticated
+  if (loading) {
+    return <PageLoader />;
+  }
+  
   if (deviceType === 'mobile-app' && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -102,23 +113,21 @@ const MobileAppRoute = ({ children }) => {
   return children;
 };
 
-function App() {
+// Main App Routes Component (needs to be inside AuthProvider)
+const AppRoutes = () => {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Router>
-          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-            {/* Global Components */}
-            <Header />
-            <NotificationSystem />
-            <NotificationToast />
-            <SupportChat />
-            
-            {/* Main Content */}
-            <main className="relative">
-              <AnimatePresence mode="wait">
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      {/* Global Components */}
+      <Header />
+      <NotificationSystem />
+      <NotificationToast />
+      <SupportChat />
+      
+      {/* Main Content */}
+      <main className="relative">
+        <AnimatePresence mode="wait">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
                     {/* Public Routes */}
                     <Route 
                       path="/login" 
@@ -331,41 +340,50 @@ function App() {
                     {/* Redirects */}
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </Suspense>
-              </AnimatePresence>
-            </main>
-            
-            {/* Footer */}
-            <Footer />
-            
-            {/* Toast Notifications */}
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(12px)',
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '12px',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#32ff7e',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ff4757',
-                    secondary: '#fff',
-                  },
-                },
-              }}
-            />
-          </div>
+            </Routes>
+          </Suspense>
+        </AnimatePresence>
+      </main>
+      
+      {/* Footer */}
+      <Footer />
+      
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(12px)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '12px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#32ff7e',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ff4757',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <SocketProvider>
+        <Router>
+          <AppRoutes />
         </Router>
       </SocketProvider>
     </AuthProvider>

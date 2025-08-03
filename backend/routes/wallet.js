@@ -1,17 +1,12 @@
-/**
- * Wallet Routes for GameOn Platform
- * Handles user wallet operations
- */
-
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+// const User = require('../models/User');
+
 const router = express.Router();
 
 // Get wallet balance
 router.get('/balance', authenticateToken, async (req, res) => {
   try {
-    // For now, return a mock balance
-    // In a real implementation, this would fetch from a Wallet model or payment service
     const balance = 1000; // Mock balance
     
     res.json({

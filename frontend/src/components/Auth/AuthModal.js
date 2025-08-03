@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Gamepad2, HelpCircle, Image } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { login as apiLogin, register as apiRegister, validateBgmiId as apiValidateBgmiId } from '../../services/api';
@@ -7,6 +8,7 @@ import LoadingSpinner from '../UI/LoadingSpinner';
 
 const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,11 +34,16 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const [showBgmiHelp, setShowBgmiHelp] = useState(false);
   const [bgmiIdValidating, setBgmiIdValidating] = useState(false);
   const [bgmiIdValid, setBgmiIdValid] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [autoLogin, setAutoLogin] = useState(true);
 
   // Update activeTab when defaultTab changes
   useEffect(() => {
     if (isOpen) {
       setActiveTab(defaultTab);
+      // Reset loading state when modal opens
+      setLoading(false);
+      setError('');
     }
   }, [defaultTab, isOpen]);
 
@@ -55,6 +62,17 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
     setError('');
+
+    // Validate username format when it changes
+    if (name === 'username') {
+      if (value && (value.length < 3 || value.length > 20)) {
+        setError('Username must be between 3 and 20 characters');
+      } else if (value && !/^[a-zA-Z0-9_]+$/.test(value)) {
+        setError('Username can only contain letters, numbers, and underscores');
+      } else if (value) {
+        setError(''); // Clear error if username is valid
+      }
+    }
 
     // Validate BGMI ID format when it changes
     if (name === 'bgmiId') {
@@ -94,72 +112,172 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Validate input
+    if (!loginData.email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    if (!loginData.password) {
+      setError('Password is required');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    try {
-      const data = await apiLogin(loginData.email, loginData.password);
+    // Set a minimum loading time for better UX
+    const startTime = Date.now();
+    const minLoadingTime = 1000; // 1 second
 
-      if (data.success) {
-        login(data.user, data.token);
-        setSuccess(true);
-        setTimeout(() => {
-          onClose();
-          setSuccess(false);
-        }, 1500);
+    try {
+      console.log('AuthModal: Starting login process');
+      const response = await apiLogin(loginData.email.trim(), loginData.password);
+      console.log('AuthModal: Login response received');
+
+      if (response.success && response.user && response.token) {
+        // Login successful
+        const loginSuccess = login(response.user, response.token);
+        
+        if (loginSuccess) {
+          setSuccess(true);
+          console.log('AuthModal: Login successful, redirecting...');
+          
+          // Ensure minimum loading time
+          const elapsedTime = Date.now() - startTime;
+          if (elapsedTime < minLoadingTime) {
+            await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsedTime));
+          }
+
+          // Close modal and redirect
+          setTimeout(() => {
+            onClose();
+            setSuccess(false);
+            navigate('/dashboard');
+          }, 500);
+        } else {
+          throw new Error('Failed to initialize login state');
+        }
       } else {
-        setError(data.message || 'Invalid email or password');
+        throw new Error(response.message || 'Invalid response from server');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      if (error.response?.status === 401) {
+      console.error('AuthModal: Login error:', error);
+      
+      // Handle different types of errors
+      if (error.response?.status === 404) {
+        setError('User does not exist');
+      } else if (error.response?.status === 401) {
         setError('Invalid email or password');
+      } else if (error.response?.status === 429) {
+        setError('Too many login attempts. Please try again later.');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else if (error.message.includes('timeout')) {
+        setError('Request timeout. Please try again.');
+      } else if (error.message.includes('Network Error')) {
+        setError('Cannot connect to server. Please check your internet connection.');
       } else {
-        setError('Login failed. Please try again.');
+        setError(error.message || 'Login failed. Please try again.');
       }
     } finally {
+      // Ensure minimum loading time
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime < minLoadingTime) {
+        await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsedTime));
+      }
       setLoading(false);
     }
+  };
+
+  const validateField = (name, value) => {
+    const errors = {};
+    
+    switch (name) {
+      case 'username':
+        if (!value.trim()) {
+          errors.username = 'Username is required';
+        } else if (value.length < 3 || value.length > 20) {
+          errors.username = 'Username must be between 3 and 20 characters';
+        } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+          errors.username = 'Username can only contain letters, numbers, and underscores';
+        }
+        break;
+        
+      case 'email':
+        if (!value.trim()) {
+          errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errors.email = 'Please enter a valid email address';
+        }
+        break;
+        
+      case 'bgmiName':
+        if (!value.trim()) {
+          errors.bgmiName = 'BGMI In-Game Name is required';
+        } else if (value.length < 3 || value.length > 20) {
+          errors.bgmiName = 'BGMI Name must be between 3 and 20 characters';
+        }
+        break;
+        
+      case 'bgmiId':
+        if (!value.trim()) {
+          errors.bgmiId = 'BGMI Player ID is required';
+        } else if (!/^\d{8,12}$/.test(value)) {
+          errors.bgmiId = 'BGMI Player ID must be 8-12 digits';
+        }
+        break;
+        
+      case 'password':
+        if (!value) {
+          errors.password = 'Password is required';
+        } else if (value.length < 6) {
+          errors.password = 'Password must be at least 6 characters';
+        }
+        break;
+        
+      case 'confirmPassword':
+        if (!value) {
+          errors.confirmPassword = 'Please confirm your password';
+        } else if (value !== registerData.password) {
+          errors.confirmPassword = 'Passwords do not match';
+        }
+        break;
+    }
+    
+    return errors;
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setFieldErrors({});
 
-    // Validation
-    if (!registerData.bgmiName.trim()) {
-      setError('BGMI In-Game Name is required');
-      setLoading(false);
-      return;
-    }
+    // Set a minimum loading time for better UX
+    const startTime = Date.now();
+    const minLoadingTime = 1000; // 1 second
 
-    if (!registerData.bgmiId.trim()) {
-      setError('BGMI Player ID is required');
-      setLoading(false);
-      return;
-    }
+    // Validate all fields
+    let errors = {};
+    Object.keys(registerData).forEach(field => {
+      const fieldErrors = validateField(field, registerData[field]);
+      errors = { ...errors, ...fieldErrors };
+    });
 
-    if (!/^\d{10,12}$/.test(registerData.bgmiId)) {
-      setError('BGMI Player ID must be 10-12 digits');
-      setLoading(false);
-      return;
-    }
-
-    if (bgmiIdValid === false) {
-      setError('Please enter a valid BGMI Player ID');
-      setLoading(false);
-      return;
-    }
-
-    if (registerData.password !== registerData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
+    // Check terms agreement
     if (!registerData.agreeToTerms) {
-      setError('Please agree to the terms and conditions');
+      errors.terms = 'Please agree to the terms and conditions';
+    }
+
+    // Check BGMI ID validation
+    if (bgmiIdValid === false) {
+      errors.bgmiId = 'Please enter a valid BGMI Player ID';
+    }
+
+    // If there are any errors, show them and stop
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       setLoading(false);
       return;
     }
@@ -177,12 +295,32 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       });
 
       if (data.success) {
-        login(data.user, data.token);
         setSuccess(true);
-        setTimeout(() => {
-          onClose();
-          setSuccess(false);
-        }, 1500);
+
+        // If auto-login is enabled, log in the user
+        if (autoLogin) {
+          login(data.user, data.token);
+          
+          // Ensure minimum loading time for better UX
+          const elapsedTime = Date.now() - startTime;
+          if (elapsedTime < minLoadingTime) {
+            await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsedTime));
+          }
+
+          // Close modal and redirect
+          setTimeout(() => {
+            onClose();
+            setSuccess(false);
+            navigate('/dashboard');
+          }, 500);
+        } else {
+          // Just close modal and switch to login tab
+          setTimeout(() => {
+            setSuccess(false);
+            setActiveTab('login');
+            resetForm();
+          }, 1500);
+        }
       } else {
         setError(data.message || 'Registration failed. Please try again.');
       }
@@ -211,6 +349,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
     });
     setError('');
     setSuccess(false);
+    setLoading(false); // Always reset loading state
     setShowPassword(false);
     setShowConfirmPassword(false);
     setBgmiIdValid(null);
@@ -555,25 +694,40 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       </div>
                     </div>
 
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        name="agreeToTerms"
-                        checked={registerData.agreeToTerms}
-                        onChange={handleRegisterChange}
-                        className="mt-1 w-4 h-4 text-blue-600 bg-transparent border-2 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                        required
-                      />
-                      <label className="text-gray-300 text-sm">
-                        I agree to the{' '}
-                        <a href="#" className="text-blue-400 hover:text-blue-300">
-                          Terms of Service
-                        </a>
-                        {' '}and{' '}
-                        <a href="#" className="text-blue-400 hover:text-blue-300">
-                          Privacy Policy
-                        </a>
-                      </label>
+                    <div className="space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          name="agreeToTerms"
+                          checked={registerData.agreeToTerms}
+                          onChange={handleRegisterChange}
+                          className="mt-1 w-4 h-4 text-blue-600 bg-transparent border-2 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                          required
+                        />
+                        <label className="text-gray-300 text-sm">
+                          I agree to the{' '}
+                          <a href="#" className="text-blue-400 hover:text-blue-300">
+                            Terms of Service
+                          </a>
+                          {' '}and{' '}
+                          <a href="#" className="text-blue-400 hover:text-blue-300">
+                            Privacy Policy
+                          </a>
+                        </label>
+                      </div>
+
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          name="autoLogin"
+                          checked={autoLogin}
+                          onChange={(e) => setAutoLogin(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-blue-600 bg-transparent border-2 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label className="text-gray-300 text-sm">
+                          Automatically sign in after registration
+                        </label>
+                      </div>
                     </div>
 
                     <button
@@ -624,6 +778,15 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 </div>
                 
                 <div className="space-y-4">
+                  {/* Help Image */}
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800">
+                    <img
+                      src="/images/bgmi-player-id-help.png"
+                      alt="BGMI Player ID Location"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  </div>
+
                   <div className="bg-gray-800/50 rounded-lg p-4">
                     <div className="flex items-center space-x-2 mb-2">
                       <Image className="w-5 h-5 text-blue-400" />
@@ -631,22 +794,22 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     </div>
                     <ol className="text-gray-300 text-sm space-y-2 list-decimal list-inside">
                       <li>Open BGMI (Battlegrounds Mobile India)</li>
-                      <li>Go to your Profile section</li>
-                      <li>Look for your Player ID (usually 10-12 digits)</li>
-                      <li>Copy the numeric ID (not your username)</li>
+                      <li>Tap your profile picture in the top-right corner</li>
+                      <li>Your Player ID is shown below your username</li>
+                      <li>It should be 8-12 digits long</li>
                     </ol>
                   </div>
                   
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                     <p className="text-blue-400 text-sm">
-                      <strong>Note:</strong> Your Player ID is different from your in-game name. 
-                      It's a unique numeric identifier for your BGMI account.
+                      <strong>Important:</strong> Your Player ID is different from your in-game name. 
+                      Make sure to enter the numeric ID, not your username.
                     </p>
                   </div>
                   
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
                     <p className="text-yellow-400 text-sm">
-                      <strong>Example:</strong> If your Player ID is "5123456789", enter exactly that number.
+                      <strong>Example:</strong> If your profile shows "ID: 5123456789", enter only the numbers: 5123456789
                     </p>
                   </div>
                 </div>

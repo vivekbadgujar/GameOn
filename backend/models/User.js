@@ -64,12 +64,21 @@ const UserSchema = new mongoose.Schema({
   gameProfile: {
     bgmiId: {
       type: String,
-      required: true,
-      unique: true
+      required: [true, 'BGMI Player ID is required'],
+      unique: true,
+      validate: {
+        validator: function(v) {
+          return /^\d{8,12}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid BGMI Player ID. Must be 8-12 digits.`
+      }
     },
     bgmiName: {
       type: String,
-      required: true
+      required: [true, 'BGMI In-Game Name is required'],
+      trim: true,
+      minlength: [3, 'BGMI In-Game Name must be at least 3 characters'],
+      maxlength: [20, 'BGMI In-Game Name cannot exceed 20 characters']
     },
     tier: {
       type: String,
@@ -79,7 +88,12 @@ const UserSchema = new mongoose.Schema({
     level: {
       type: Number,
       default: 1
-    }
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    lastVerified: Date
   },
 
   // College Information
@@ -232,7 +246,11 @@ const UserSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Only add indexes that aren't already defined in the schema
+// Add indexes for fast lookups
+UserSchema.index({ email: 1 }, { unique: true, sparse: true });
+UserSchema.index({ username: 1 }, { unique: true });
+UserSchema.index({ phone: 1 }, { unique: true });
+UserSchema.index({ 'gameProfile.bgmiId': 1 }, { unique: true });
 UserSchema.index({ 'stats.totalEarnings': -1 });
 UserSchema.index({ 'stats.xpPoints': -1 });
 UserSchema.index({ createdAt: -1 });
@@ -255,25 +273,36 @@ UserSchema.virtual('rank').get(function() {
 
 // Pre-save middleware
 UserSchema.pre('save', async function(next) {
-  // Hash password if it's modified
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 12);
+  try {
+    // Hash password if it's modified
+    if (this.isModified('password')) {
+      this.password = await bcrypt.hash(this.password, 12);
+    }
+
+    // Generate referral code if not exists
+    if (this.isNew && !this.referral.code) {
+      try {
+        this.referral.code = this.username.toUpperCase() + Math.random().toString(36).substr(2, 4).toUpperCase();
+      } catch (error) {
+        console.error('Error generating referral code:', error);
+        // Fallback referral code
+        this.referral.code = 'REF' + Math.random().toString(36).substr(2, 6).toUpperCase();
+      }
+    }
+
+    // Update win rate
+    if (this.stats.totalTournaments > 0) {
+      this.stats.winRate = (this.stats.tournamentsWon / this.stats.totalTournaments) * 100;
+    }
+
+    // Update level based on XP
+    this.stats.level = Math.floor(this.stats.xpPoints / 100) + 1;
+
+    next();
+  } catch (error) {
+    console.error('Pre-save middleware error:', error);
+    next(error);
   }
-
-  // Generate referral code if not exists
-  if (this.isNew && !this.referral.code) {
-    this.referral.code = this.username.toUpperCase() + Math.random().toString(36).substr(2, 4).toUpperCase();
-  }
-
-  // Update win rate
-  if (this.stats.totalTournaments > 0) {
-    this.stats.winRate = (this.stats.tournamentsWon / this.stats.totalTournaments) * 100;
-  }
-
-  // Update level based on XP
-  this.stats.level = Math.floor(this.stats.xpPoints / 100) + 1;
-
-  next();
 });
 
 // Instance methods

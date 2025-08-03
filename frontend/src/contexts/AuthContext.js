@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -12,40 +13,75 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth data on app load
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    
-    if (storedUser && storedToken) {
+    const initializeAuth = async () => {
       try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
+        const storedUser = localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token');
+        
+        if (storedUser && storedToken) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            setToken(storedToken);
+            
+            // Set API headers
+            api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          } catch (error) {
+            console.error('Error parsing stored user data:', error);
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+          }
+        }
       } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = (userData, authToken) => {
-    setUser(userData);
-    setToken(authToken);
-    
-    // Store in localStorage for persistence
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', authToken);
+    try {
+      // Validate input
+      if (!userData || !authToken) {
+        throw new Error('Invalid login data');
+      }
+
+      // Store auth data
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', authToken);
+
+      // Update state
+      setUser(userData);
+      setToken(authToken);
+
+      // Update axios headers
+      api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+
+      console.log('AuthContext: Login successful');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Login error:', error);
+      logout();
+      return false;
+    }
   };
 
   const logout = () => {
+    // Clear state
     setUser(null);
     setToken(null);
     
-    // Clear localStorage
+    // Clear local storage
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    
+    // Clear API headers
+    delete api.defaults.headers.common['Authorization'];
+    // Use React Router navigation instead of hard reload
+    // The component using this should handle navigation
   };
 
   const updateUser = (userData) => {
@@ -65,7 +101,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

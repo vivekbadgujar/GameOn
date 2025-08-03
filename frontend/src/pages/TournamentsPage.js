@@ -108,52 +108,35 @@ export default function TournamentsPage() {
           {filtered.length === 0 ? (
             <div className="col-span-full text-center text-secondary">No tournaments found.</div>
           ) : filtered.map(t => (
-            <div key={t._id} className="bg-card-bg rounded-card shadow-glass overflow-hidden hover:scale-105 transition-transform">
-              {/* Tournament Poster */}
-              <div className="h-48 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 flex items-center justify-center relative">
-                {(t.poster || t.posterUrl) ? (
-                  <img 
-                    src={t.poster || t.posterUrl} 
-                    alt={t.title || 'Tournament'} 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.log('Image failed to load:', t.poster || t.posterUrl);
-                      e.target.style.display = 'none';
-                      e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
-                    }}
-                    onLoad={(e) => {
-                      console.log('Image loaded successfully:', t.poster || t.posterUrl);
-                    }}
-                  />
-                ) : null}
-                <div className="fallback-icon flex items-center justify-center text-4xl font-bold text-accent-blue/50 absolute inset-0" style={{display: (t.poster || t.posterUrl) ? 'none' : 'flex'}}>
-                  🏆 {t.game || 'TOURNAMENT'}
+            <div key={t._id} className="bg-glass rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-primary mb-2">{t.title}</h3>
+                  <p className="text-secondary text-sm">{t.description}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-accent-blue">₹{t.prizePool}</div>
+                  <div className="text-xs text-secondary">Prize Pool</div>
                 </div>
               </div>
               
-              <div className="p-6 flex flex-col gap-2">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-xl">{t.title || t.name || 'Tournament'}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  t.status === 'live' || t.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                  t.status === 'upcoming' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {t.status?.toUpperCase()}
-                </span>
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-4 text-sm text-secondary">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    {t.participants?.length || 0} Players
+                  </div>
+                  <div>{t.gameType}</div>
+                  <div>{t.status}</div>
+                </div>
+                <div className="text-xs text-secondary">
+                  {new Date(t.startDate).toLocaleDateString()}
+                </div>
               </div>
-              <span className="text-secondary">Game: <span className="text-accent-blue font-semibold">{t.game}</span></span>
-              <span className="text-secondary">Prize: <span className="text-accent-green font-bold">₹{t.prizePool?.toLocaleString()}</span></span>
-              <span className="text-secondary">Players: {t.currentParticipants || t.participants?.length || 0}/{t.maxParticipants}</span>
-              {t.startDate && (
-                <span className="text-secondary text-sm">
-                  Start: {new Date(t.startDate).toLocaleDateString()} {new Date(t.startDate).toLocaleTimeString()}
-                </span>
-              )}
-                <button className="mt-2 px-4 py-2 rounded-lg bg-accent-blue text-primary font-semibold hover:bg-accent-purple transition">
-                  View Details
-                </button>
-              </div>
+              
+              <button className="w-full bg-accent-blue text-primary font-semibold py-3 rounded-lg hover:bg-accent-blue/80 transition-all">
+                Login to Join
+              </button>
             </div>
           ))}
         </div>
