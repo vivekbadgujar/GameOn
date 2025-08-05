@@ -14,11 +14,13 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSocket } from '../../contexts/SocketContext';
 import { getTournaments } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const TournamentSlots = () => {
   const { user } = useAuth();
+  const { lastMessage } = useSocket();
   const [joinedTournaments, setJoinedTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedCredentials, setCopiedCredentials] = useState({});
@@ -27,26 +29,106 @@ const TournamentSlots = () => {
     fetchJoinedTournaments();
   }, [user]);
 
+  // Real-time updates via socket
+  useEffect(() => {
+    if (!lastMessage) return;
+    
+    console.log('TournamentSlots: Received socket message:', lastMessage);
+    
+    // Handle both old and new message formats
+    const messageType = lastMessage.type || lastMessage;
+    const messageData = lastMessage.data || lastMessage;
+    
+    if (messageType === 'tournamentJoined') {
+      console.log('TournamentSlots: Processing tournamentJoined event');
+      // Refetch tournaments to show the newly joined tournament
+      fetchJoinedTournaments();
+    } else if (messageType === 'tournamentUpdated') {
+      console.log('TournamentSlots: Processing tournamentUpdated event');
+      // Update existing tournament data
+      setJoinedTournaments(prev => 
+        prev.map(t => 
+          t._id === messageData._id ? { ...t, ...messageData } : t
+        )
+      );
+    }
+  }, [lastMessage]);
+
   const fetchJoinedTournaments = async () => {
     try {
       setLoading(true);
-      const tournaments = await getTournaments();
+      const response = await getTournaments();
       
-      // Filter tournaments where user is a participant
-      const userTournaments = tournaments.filter(tournament => 
-        tournament.participants?.some(p => p._id === user?._id || p.userId === user?._id)
-      );
+      // Handle API response structure
+      const tournaments = response?.tournaments || [];
       
-      // Add mock slot numbers and credentials for demo
-      const tournamentsWithSlots = userTournaments.map((tournament, index) => ({
-        ...tournament,
-        userSlot: Math.floor(Math.random() * 100) + 1,
-        roomCredentials: {
-          roomId: `ROOM${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-          password: `PASS${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+      console.log('TournamentSlots: API response:', response);
+      console.log('TournamentSlots: Tournaments array:', tournaments);
+      console.log('TournamentSlots: Current user ID:', user?._id);
+      console.log('TournamentSlots: Is tournaments array?', Array.isArray(tournaments));
+      
+      // Ensure tournaments is an array before filtering
+      if (!Array.isArray(tournaments)) {
+        console.error('TournamentSlots: tournaments is not an array:', tournaments);
+        setJoinedTournaments([]);
+        return;
+      }
+      
+      // Filter tournaments where user is a participant with comprehensive matching
+      const userTournaments = tournaments.filter(tournament => {
+        if (!tournament.participants || !Array.isArray(tournament.participants)) {
+          return false;
         }
-      }));
+        
+        const isParticipant = tournament.participants.some(p => {
+          // Log participant structure for debugging
+          console.log('TournamentSlots: Checking participant:', p);
+          
+          // Multiple ways to match user ID based on different possible structures
+          const participantUserId = p.user?._id || p.user || p.userId || p._id;
+          const currentUserId = user?._id;
+          
+          // Convert to strings for comparison to handle ObjectId vs string
+          const participantIdStr = participantUserId?.toString();
+          const currentUserIdStr = currentUserId?.toString();
+          
+          const isMatch = participantIdStr === currentUserIdStr;
+          
+          if (isMatch) {
+            console.log('TournamentSlots: Found match!', {
+              participantUserId: participantIdStr,
+              currentUserId: currentUserIdStr,
+              tournament: tournament.title
+            });
+          }
+          
+          return isMatch;
+        });
+        
+        return isParticipant;
+      });
       
+      console.log('TournamentSlots: Filtered user tournaments:', userTournaments.length);
+      
+      // Add real slot numbers and credentials from tournament data
+      const tournamentsWithSlots = userTournaments.map((tournament) => {
+        // Find user's participant data to get real slot number
+        const userParticipant = tournament.participants.find(p => {
+          const participantUserId = p.user?._id || p.user || p.userId || p._id;
+          return participantUserId?.toString() === user?._id?.toString();
+        });
+        
+        return {
+          ...tournament,
+          userSlot: userParticipant?.slotNumber || Math.floor(Math.random() * 100) + 1,
+          roomCredentials: tournament.roomDetails || {
+            roomId: `ROOM${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            password: `PASS${Math.random().toString(36).substr(2, 6).toUpperCase()}`
+          }
+        };
+      });
+      
+      console.log('TournamentSlots: Final tournaments with slots:', tournamentsWithSlots);
       setJoinedTournaments(tournamentsWithSlots);
     } catch (error) {
       console.error('Error fetching joined tournaments:', error);

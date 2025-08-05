@@ -21,19 +21,12 @@ const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
       ? ['https://gameon-platform.vercel.app']
-      : function(origin, callback) {
-          // Allow requests with no origin
-          if (!origin) return callback(null, true);
-          
-          // Allow any localhost origin during development
-          if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-            return callback(null, true);
-          }
-          
-          return callback(new Error('Not allowed by CORS'));
-        },
-    credentials: true
-  }
+      : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 // Force port 5000 for consistency
@@ -137,13 +130,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rate limiting - prevent abuse
+// Rate limiting - prevent abuse (disabled for development)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // increased limit for development
   message: 'Too many requests from this IP, please try again later.'
 });
-app.use('/api/', limiter);
+// app.use('/api/', limiter); // Temporarily disabled for development
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' })); // For screenshot uploads
@@ -182,7 +175,8 @@ app.get('/', (req, res) => {
   });
 });
 
-
+// Make Socket.IO available to routes
+app.set('io', io);
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -198,6 +192,7 @@ app.use('/api/youtube', require('./routes/youtube'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/room-slots', require('./routes/roomSlots'));
 
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));
@@ -219,6 +214,7 @@ app.use('/api/admin/ai', require('./routes/admin/ai'));
 app.use('/api/admin/search', require('./routes/admin/search'));
 app.use('/api/admin/export', require('./routes/admin/export'));
 app.use('/api/admin/user-monitoring', require('./routes/admin/user-monitoring'));
+app.use('/api/admin/room-slots', require('./routes/admin/roomSlots'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

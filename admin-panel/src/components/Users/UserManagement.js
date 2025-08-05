@@ -56,6 +56,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../services/api';
+import { useSocket } from '../../contexts/SocketContext';
 import dayjs from 'dayjs';
 
 // Helper functions for BGMI ID validation status
@@ -101,31 +102,93 @@ const UserManagement = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuUserId, setMenuUserId] = useState(null);
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
-  // Listen for real-time user updates
+  // Listen for real-time user updates with Socket.IO and polling fallback
   useEffect(() => {
+    let pollingInterval;
+
+    // Socket.IO real-time updates
+    const setupSocketListeners = () => {
+      if (socket) {
+        console.log('UserManagement: Setting up Socket.IO listeners');
+        
+        const handleUserRegistered = (userData) => {
+          console.log('UserManagement: New user registered via Socket.IO:', userData);
+          queryClient.invalidateQueries(['users']);
+        };
+
+        const handleUserUpdated = (userData) => {
+          console.log('UserManagement: User updated via Socket.IO:', userData);
+          queryClient.invalidateQueries(['users']);
+        };
+
+        socket.on('userRegistered', handleUserRegistered);
+        socket.on('userUpdated', handleUserUpdated);
+
+        return () => {
+          socket.off('userRegistered', handleUserRegistered);
+          socket.off('userUpdated', handleUserUpdated);
+        };
+      }
+    };
+
+    // Polling fallback mechanism
+    const startPolling = () => {
+      if (pollingInterval) return; // Prevent multiple intervals
+      
+      console.log('UserManagement: Starting polling fallback (30s interval)');
+      pollingInterval = setInterval(() => {
+        if (!isConnected) {
+          console.log('UserManagement: Polling for user updates...');
+          queryClient.invalidateQueries(['users']);
+        }
+      }, 30000); // Poll every 30 seconds
+    };
+
+    // Legacy event listeners for backward compatibility
     const handleUserRegistered = (event) => {
-      console.log('UserManagement: New user registered:', event.detail);
-      // Invalidate and refetch users query to show new user
+      console.log('UserManagement: New user registered (legacy event):', event.detail);
       queryClient.invalidateQueries(['users']);
     };
 
     const handleUserUpdated = (event) => {
-      console.log('UserManagement: User updated:', event.detail);
-      // Invalidate and refetch users query to show updated user
+      console.log('UserManagement: User updated (legacy event):', event.detail);
       queryClient.invalidateQueries(['users']);
     };
 
-    // Add event listeners
+    // Setup Socket.IO listeners
+    const cleanupSocket = setupSocketListeners();
+
+    // Start polling if socket is not connected
+    if (!isConnected) {
+      startPolling();
+    } else {
+      // Clear polling when socket connects
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    }
+
+    // Add legacy event listeners
     window.addEventListener('userRegistered', handleUserRegistered);
     window.addEventListener('userUpdated', handleUserUpdated);
 
     // Cleanup
     return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
+      if (cleanupSocket) {
+        cleanupSocket();
+      }
+      
       window.removeEventListener('userRegistered', handleUserRegistered);
       window.removeEventListener('userUpdated', handleUserUpdated);
     };
-  }, [queryClient]);
+  }, [socket, isConnected, queryClient]);
 
   // Fetch users
   const { data: usersData, isLoading, error, refetch } = useQuery({

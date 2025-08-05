@@ -174,17 +174,28 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
     console.log('Tournament join request:', {
       tournamentId: id,
       userId: req.user._id,
+      userIdString: req.user._id.toString(),
       paymentData: paymentData ? 'provided' : 'none'
     });
     
     // Find the tournament
     const tournament = await Tournament.findById(id);
     if (!tournament) {
+      console.log('Tournament not found with ID:', id);
       return res.status(404).json({
         success: false,
         error: 'Tournament not found'
       });
     }
+
+    console.log('Tournament found:', {
+      id: tournament._id,
+      title: tournament.title,
+      status: tournament.status,
+      currentParticipants: tournament.currentParticipants,
+      maxParticipants: tournament.maxParticipants,
+      participantsCount: tournament.participants?.length || 0
+    });
 
     // Check if tournament is still accepting participants
     if (tournament.status === 'completed' || tournament.status === 'cancelled') {
@@ -207,7 +218,7 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
 
     // Check if user already joined
     const alreadyJoined = tournament.participants.some(p => 
-      p.user.toString() === userId
+      p.user.toString() === userId.toString()
     );
 
     if (alreadyJoined) {
@@ -244,6 +255,24 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
     if (!tournament.roomDetails || !tournament.roomDetails.roomId) {
       tournament.roomDetails = roomCredentials;
       await tournament.save();
+    }
+
+    // Emit real-time update for tournament join
+    const io = req.app.get('io');
+    if (io) {
+      // Notify all users about tournament update
+      io.emit('tournamentUpdated', {
+        _id: tournament._id,
+        currentParticipants: tournament.currentParticipants,
+        participants: tournament.participants
+      });
+      
+      // Notify the specific user about successful join
+      io.to(`user_${userId}`).emit('tournamentJoined', {
+        tournamentId: id,
+        slotNumber: slotNumber,
+        tournament: tournament
+      });
     }
 
     res.json({

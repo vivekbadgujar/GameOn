@@ -189,6 +189,13 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
             setPaymentData(verifyData.data);
             setActiveStep(activeStep + 1);
             showSuccess('Payment successful! You have been added to the tournament.');
+            
+            // Check if backend provided redirect URL for room lobby
+            if (verifyData.data.redirectTo) {
+              setTimeout(() => {
+                window.location.href = verifyData.data.redirectTo;
+              }, 2000);
+            }
 
           } catch (error) {
             showError(error.message || 'Payment verification failed');
@@ -223,7 +230,12 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
   const handleJoinTournament = () => {
     onSuccess?.(paymentData);
     onClose();
-    showSuccess('Successfully joined tournament! Redirecting to waiting room...');
+    showSuccess('Successfully joined tournament! Redirecting to room lobby...');
+    
+    // Redirect to room lobby
+    setTimeout(() => {
+      window.location.href = `/tournament/${tournament._id}/room-lobby`;
+    }, 1500);
   };
 
   // Calculate total entry fee

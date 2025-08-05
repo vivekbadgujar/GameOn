@@ -1,4 +1,5 @@
 {
     "roo-cline.preventCompletionWithOpenTodos": true,
-    "CodeGPT.apiKey": "CodeGPT Plus Beta"
+    "CodeGPT.apiKey": "CodeGPT Plus Beta",
+    "git.ignoreLimitWarning": true
 }

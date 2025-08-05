@@ -99,30 +99,53 @@ const Header = () => {
 
   const fetchWalletBalance = async () => {
     try {
-      const response = await fetch('/api/wallet/balance', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/wallet/balance`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       setWalletBalance(data.balance || 0);
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
+      setWalletBalance(0);
     }
   };
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch('/api/notifications', {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        // If no token, just set empty notifications
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/user/notifications`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setNotifications(data.notifications || []);
+      setNotifications(data.data || data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Set empty state on error to prevent crashes
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
@@ -135,11 +158,14 @@ const Header = () => {
   const markNotificationsAsRead = () => {
     setUnreadCount(0);
     // API call to mark as read
-    fetch('/api/notifications/mark-read', {
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/notifications/mark-read`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
       }
+    }).catch(error => {
+      console.error('Error marking notifications as read:', error);
     });
   };
 

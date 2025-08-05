@@ -10,6 +10,47 @@ const Tournament = require('../../models/Tournament');
 const { authenticateAdmin, requirePermission } = require('../../middleware/adminAuth');
 const router = express.Router();
 
+// Debug route - no authentication required (must be before middleware)
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('Debug route - No auth required');
+    
+    const users = await User.find({})
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('Debug route - Found users:', users.length);
+    
+    // Get recent users (last 24 hours)
+    const recentUsers = await User.find({
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('Debug route - Recent users (24h):', recentUsers.length);
+    
+    res.json({
+      success: true,
+      message: 'Debug users data',
+      count: users.length,
+      recentCount: recentUsers.length,
+      users: users.slice(0, 5), // Return first 5 users
+      recentUsers: recentUsers.slice(0, 3), // Return first 3 recent users
+      sampleUser: users[0] || null
+    });
+  } catch (error) {
+    console.error('Debug route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug route failed',
+      error: error.message
+    });
+  }
+});
+
 // Middleware to protect all admin user routes
 router.use(authenticateAdmin);
 

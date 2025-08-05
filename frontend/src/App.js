@@ -22,6 +22,7 @@ import NotificationToast from './components/UI/NotificationToast';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Tournaments = lazy(() => import('./pages/Tournaments'));
 const TournamentDetails = lazy(() => import('./pages/TournamentDetailsRedesigned'));
+const RoomLobby = lazy(() => import('./pages/RoomLobby'));
 const MediaGallery = lazy(() => import('./pages/MediaGallery'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Support = lazy(() => import('./pages/Support'));
@@ -209,6 +210,22 @@ const AppRoutes = () => {
                             transition={pageTransition}
                           >
                             <TournamentDetails />
+                          </motion.div>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/tournament/:tournamentId/room-lobby" 
+                      element={
+                        <ProtectedRoute>
+                          <motion.div
+                            initial="initial"
+                            animate="in"
+                            exit="out"
+                            variants={pageVariants}
+                            transition={pageTransition}
+                          >
+                            <RoomLobby />
                           </motion.div>
                         </ProtectedRoute>
                       } 

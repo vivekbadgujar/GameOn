@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Tournament = require('../models/Tournament');
+const RoomSlot = require('../models/RoomSlot');
 const { authenticateToken } = require('../middleware/auth');
 const { processReferralBonus } = require('../utils/razorpayUtils');
 
@@ -468,15 +469,78 @@ router.post('/verify-tournament',
 
       await tournament.save();
 
-      // Emit Socket.IO event
+      // Auto-assign to room slots after successful payment
+      let roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+      if (!roomSlot) {
+        // Create room slot layout if it doesn't exist
+        roomSlot = await RoomSlot.createForTournament(
+          tournamentId,
+          tournament.tournamentType,
+          tournament.maxParticipants
+        );
+      }
+
+      let assignedSlots = [];
+      
+      if (joinType === 'squad') {
+        // Auto-assign all squad members to consecutive slots in the same team
+        for (let i = 0; i < squadMembers.length; i++) {
+          const memberUser = await User.findOne({ username: squadMembers[i] });
+          if (memberUser) {
+            try {
+              roomSlot.autoAssignPlayer(memberUser._id);
+              const playerSlot = roomSlot.getPlayerSlot(memberUser._id);
+              assignedSlots.push({
+                userId: memberUser._id,
+                username: memberUser.username,
+                teamNumber: playerSlot.teamNumber,
+                slotNumber: playerSlot.slotNumber
+              });
+            } catch (error) {
+              console.log(`Could not auto-assign squad member ${memberUser.username}:`, error.message);
+            }
+          }
+        }
+      } else {
+        // Auto-assign solo player
+        try {
+          roomSlot.autoAssignPlayer(userId);
+          const playerSlot = roomSlot.getPlayerSlot(userId);
+          assignedSlots.push({
+            userId: userId,
+            username: user.username,
+            teamNumber: playerSlot.teamNumber,
+            slotNumber: playerSlot.slotNumber
+          });
+        } catch (error) {
+          console.log(`Could not auto-assign player ${user.username}:`, error.message);
+        }
+      }
+
+      await roomSlot.save();
+
+      // Emit Socket.IO events
       const io = req.app.get('io');
       if (io) {
+        // Emit participant joined event
         io.emit('participantJoined', {
           tournamentId,
           userId,
           username: user.username,
           joinType,
           squadMembers: joinType === 'squad' ? squadMembers : undefined
+        });
+
+        // Emit room slot assignment events
+        assignedSlots.forEach(slot => {
+          io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
+            tournamentId,
+            playerId: slot.userId,
+            username: slot.username,
+            teamNumber: slot.teamNumber,
+            slotNumber: slot.slotNumber,
+            roomSlot: roomSlot
+          });
         });
       }
 
@@ -489,7 +553,9 @@ router.post('/verify-tournament',
           slotNumber: joinType === 'squad' 
             ? `${tournament.currentParticipants - squadMembers.length + 1}-${tournament.currentParticipants}`
             : tournament.currentParticipants,
-          status: 'confirmed'
+          status: 'confirmed',
+          roomSlots: assignedSlots,
+          redirectTo: `/tournament/${tournamentId}/room-lobby`
         }
       });
 

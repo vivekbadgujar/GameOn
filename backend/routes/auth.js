@@ -68,6 +68,32 @@ router.post('/signup', async (req, res) => {
     await user.save();
     console.log('[Auth] User created successfully:', { userId: user._id });
 
+    // Emit real-time update for new user registration
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Emitting userRegistered event for:', user.username);
+      
+      const userData = {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        gameProfile: user.gameProfile,
+        status: user.status,
+        createdAt: user.createdAt
+      };
+      
+      // Emit to all connected clients
+      io.emit('userRegistered', userData);
+      
+      // Also emit to admin rooms specifically
+      io.to('admin_room').emit('userRegistered', userData);
+      
+      console.log('userRegistered event emitted successfully');
+    } else {
+      console.log('Socket.IO not available for userRegistered event');
+    }
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
@@ -269,7 +295,6 @@ router.post('/admin/login', async (req, res) => {
 // Simple email/password registration for testing
 router.post('/register', async (req, res) => {
   try {
-    console.log('Registration request body:', req.body);
     const { username, email, password, gameProfile, agreeToTerms } = req.body;
 
     if (!username || !email || !password) {

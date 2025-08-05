@@ -107,8 +107,8 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Always fetch tournaments
-      const tournamentsRes = await getTournaments({ limit: 6, status: 'upcoming' });
+      // Always fetch tournaments - get all statuses for better visibility
+      const tournamentsRes = await getTournaments({ limit: 6 });
       
       // Only fetch wallet and stats if user is authenticated
       let walletRes = { balance: 0 };

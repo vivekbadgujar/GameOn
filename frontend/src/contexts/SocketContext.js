@@ -57,6 +57,11 @@ export const SocketProvider = ({ children }) => {
       setLastMessage({ type: 'tournamentStatusUpdated', data: statusUpdate });
     });
 
+    newSocket.on('tournamentJoined', (joinData) => {
+      console.log('Tournament joined:', joinData);
+      setLastMessage({ type: 'tournamentJoined', data: joinData });
+    });
+
     newSocket.on('tournament_message', (message) => {
       console.log('Tournament message:', message);
       setLastMessage({ type: 'tournament_message', data: message });

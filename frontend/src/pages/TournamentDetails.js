@@ -20,12 +20,14 @@ import {
 } from 'lucide-react';
 import { getTournamentById, joinTournament } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const TournamentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { lastMessage } = useSocket();
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -34,6 +36,27 @@ const TournamentDetails = () => {
   useEffect(() => {
     fetchTournamentDetails();
   }, [id]);
+
+  // Real-time updates via socket
+  useEffect(() => {
+    if (!lastMessage) return;
+    
+    console.log('TournamentDetails: Received socket message:', lastMessage);
+    
+    // Handle both old and new message formats
+    const messageType = lastMessage.type || lastMessage;
+    const messageData = lastMessage.data || lastMessage;
+    
+    if (messageType === 'tournamentUpdated' && messageData._id === id) {
+      console.log('TournamentDetails: Processing tournamentUpdated event for current tournament');
+      // Update tournament data with new information
+      setTournament(prev => prev ? { ...prev, ...messageData } : messageData);
+    } else if (messageType === 'tournamentJoined' && messageData.tournamentId === id) {
+      console.log('TournamentDetails: Processing tournamentJoined event for current tournament');
+      // Refresh tournament data to show updated participant count
+      fetchTournamentDetails();
+    }
+  }, [lastMessage, id]);
 
   const fetchTournamentDetails = async () => {
     try {
@@ -124,7 +147,19 @@ const TournamentDetails = () => {
   };
 
   const isUserJoined = () => {
-    return tournament?.participants?.some(p => p._id === user?._id || p.userId === user?._id);
+    if (!tournament?.participants || !user?._id) return false;
+    
+    return tournament.participants.some(p => {
+      // Handle different participant data structures
+      const participantUserId = p.user?._id || p.user || p.userId || p._id;
+      const currentUserId = user._id;
+      
+      // Convert to strings for comparison to handle ObjectId vs string
+      const participantIdStr = participantUserId?.toString();
+      const currentUserIdStr = currentUserId?.toString();
+      
+      return participantIdStr === currentUserIdStr;
+    });
   };
 
   const canJoinTournament = () => {

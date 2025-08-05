@@ -33,21 +33,25 @@ async function debugAuth() {
 
     // Test 2: Create a test user for debugging
     console.log('🧪 Test 2: Creating test user...');
-    const testEmail = 'test@example.com';
+    const testEmail = 'debugtest@example.com';
     const testPassword = 'test123';
+    const testPhone = '9999999999';
+    const testBgmiId = '9999999999';
     
     // Remove existing test user if exists
     await User.deleteOne({ email: testEmail });
+    await User.deleteOne({ phone: testPhone });
+    await User.deleteOne({ 'gameProfile.bgmiId': testBgmiId });
     
     const testUser = new User({
       email: testEmail,
       password: testPassword,
-      username: 'testuser',
-      displayName: 'Test User',
-      phone: '9876543210',
+      username: 'debugtestuser',
+      displayName: 'Debug Test User',
+      phone: testPhone,
       gameProfile: {
-        bgmiId: '1234567890',
-        bgmiName: 'TestPlayer'
+        bgmiId: testBgmiId,
+        bgmiName: 'DebugTestPlayer'
       },
       isVerified: true
     });
@@ -77,6 +81,10 @@ async function debugAuth() {
     const loginUser = await User.findOne({ email: testEmail }).select('+password');
     if (loginUser) {
       console.log('✅ User found in database');
+      console.log(`User ID: ${loginUser._id}`);
+      console.log(`User email: ${loginUser.email}`);
+      console.log(`User password hash: ${loginUser.password}`);
+      
       const passwordMatch = await loginUser.comparePassword(testPassword);
       console.log(`Password match: ${passwordMatch}`);
       
@@ -84,6 +92,11 @@ async function debugAuth() {
         console.log('✅ Login simulation successful');
       } else {
         console.log('❌ Login simulation failed - password mismatch');
+        
+        // Test manual bcrypt comparison
+        const bcrypt = require('bcryptjs');
+        const manualMatch = await bcrypt.compare(testPassword, loginUser.password);
+        console.log(`Manual bcrypt comparison: ${manualMatch}`);
       }
     } else {
       console.log('❌ User not found in database');
