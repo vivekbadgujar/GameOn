@@ -8,10 +8,23 @@ const { body, validationResult } = require('express-validator');
 const RoomSlot = require('../models/RoomSlot');
 const Tournament = require('../models/Tournament');
 const { authenticateToken } = require('../middleware/auth');
+const { 
+  requireTournamentParticipation, 
+  validateSlotEditPermissions 
+} = require('../middleware/tournamentParticipationValidation');
 const router = express.Router();
 
+// Test endpoint to verify API is working
+router.get('/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Room slots API is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Get room layout for a tournament
-router.get('/tournament/:tournamentId', authenticateToken, async (req, res) => {
+router.get('/tournament/:tournamentId', authenticateToken, requireTournamentParticipation, async (req, res) => {
   try {
     const { tournamentId } = req.params;
     
@@ -95,6 +108,7 @@ router.get('/tournament/:tournamentId', authenticateToken, async (req, res) => {
 // Move player to a different slot
 router.post('/tournament/:tournamentId/move', [
   authenticateToken,
+  validateSlotEditPermissions,
   body('toTeam').isInt({ min: 1 }).withMessage('Valid team number required'),
   body('toSlot').isInt({ min: 1, max: 4 }).withMessage('Valid slot number required')
 ], async (req, res) => {
@@ -136,8 +150,37 @@ router.post('/tournament/:tournamentId/move', [
       });
     }
     
-    // Check if deadline has passed
-    if (roomSlot.settings.slotChangeDeadline && new Date() > roomSlot.settings.slotChangeDeadline) {
+    // Check if deadline has passed or slots are locked due to tournament timing
+    const tournament = await Tournament.findById(tournamentId);
+    const now = new Date();
+    const startTime = new Date(tournament.startDate);
+    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
+
+    if (now >= lockTime) {
+      // Auto-lock the room slot if not already locked
+      if (!roomSlot.isLocked) {
+        roomSlot.isLocked = true;
+        roomSlot.lockedAt = now;
+        await roomSlot.save();
+
+        // Emit lock event
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`tournament_${tournamentId}`).emit('slotsLocked', {
+            tournamentId,
+            lockedAt: now,
+            reason: 'Tournament starts in 10 minutes'
+          });
+        }
+      }
+
+      return res.status(403).json({
+        success: false,
+        error: 'Slots are locked! Tournament starts soon.'
+      });
+    }
+
+    if (roomSlot.settings.slotChangeDeadline && now > roomSlot.settings.slotChangeDeadline) {
       return res.status(403).json({
         success: false,
         error: 'Slot change deadline has passed'
@@ -161,9 +204,47 @@ router.post('/tournament/:tournamentId/move', [
       });
     }
     
-    // Perform the move
-    roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
-    await roomSlot.save();
+    // Check if destination slot is temporarily locked (to prevent simultaneous moves)
+    const destTeam = roomSlot.teams.find(t => t.teamNumber === toTeam);
+    const destSlot = destTeam?.slots.find(s => s.slotNumber === toSlot);
+    
+    if (destSlot?.isLocked && destSlot.lockedAt && 
+        (now - destSlot.lockedAt) < 5000) { // 5 second temporary lock
+      return res.status(409).json({
+        success: false,
+        error: 'Slot is temporarily locked. Please try again.',
+        code: 'SLOT_TEMPORARILY_LOCKED'
+      });
+    }
+
+    // Temporarily lock the destination slot
+    if (destSlot) {
+      destSlot.isLocked = true;
+      destSlot.lockedAt = now;
+      destSlot.lockedBy = playerId;
+    }
+
+    try {
+      // Perform the move
+      roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+      
+      // Unlock the slot after successful move
+      if (destSlot) {
+        destSlot.isLocked = false;
+        destSlot.lockedAt = null;
+        destSlot.lockedBy = null;
+      }
+      
+      await roomSlot.save();
+    } catch (moveError) {
+      // Unlock the slot if move failed
+      if (destSlot) {
+        destSlot.isLocked = false;
+        destSlot.lockedAt = null;
+        destSlot.lockedBy = null;
+      }
+      throw moveError;
+    }
     
     // Populate updated data
     const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)
@@ -173,6 +254,7 @@ router.post('/tournament/:tournamentId/move', [
     // Emit real-time update
     const io = req.app.get('io');
     if (io) {
+      // Emit to tournament room for players
       io.to(`tournament_${tournamentId}`).emit('slotChanged', {
         tournamentId,
         playerId: playerId.toString(),
@@ -181,6 +263,18 @@ router.post('/tournament/:tournamentId/move', [
         toTeam,
         toSlot,
         roomSlot: updatedRoomSlot
+      });
+
+      // Emit to admin panel for live updates
+      io.emit('roomSlotUpdated', {
+        tournamentId,
+        playerId: playerId.toString(),
+        fromTeam: currentSlot.teamNumber,
+        fromSlot: currentSlot.slotNumber,
+        toTeam,
+        toSlot,
+        roomSlot: updatedRoomSlot,
+        timestamp: new Date()
       });
     }
     
@@ -274,12 +368,24 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
     // Emit real-time update
     const io = req.app.get('io');
     if (io) {
+      // Emit to tournament room for players
       io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
         tournamentId,
         playerId: playerId.toString(),
         teamNumber: playerSlot.teamNumber,
         slotNumber: playerSlot.slotNumber,
         roomSlot: updatedRoomSlot
+      });
+
+      // Emit to admin panel for live updates
+      io.emit('roomSlotUpdated', {
+        tournamentId,
+        playerId: playerId.toString(),
+        action: 'assigned',
+        teamNumber: playerSlot.teamNumber,
+        slotNumber: playerSlot.slotNumber,
+        roomSlot: updatedRoomSlot,
+        timestamp: new Date()
       });
     }
     

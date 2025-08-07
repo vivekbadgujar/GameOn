@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
+import { useWallet } from '../../contexts/WalletContext';
 import AuthModal from '../Auth/AuthModal';
 import { useAuthModal } from '../../hooks/useAuthModal';
 
@@ -31,12 +32,11 @@ const Header = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [walletBalance, setWalletBalance] = useState(0);
-  
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const { socket } = useSocket();
+  const { balance, formatBalance } = useWallet();
   const profileRef = useRef(null);
   
   const { 
@@ -77,9 +77,7 @@ const Header = () => {
         setUnreadCount(prev => prev + 1);
       });
 
-      socket.on('walletUpdate', (balance) => {
-        setWalletBalance(balance);
-      });
+      // Wallet updates are now handled by AuthContext
 
       return () => {
         socket.off('notification');
@@ -91,31 +89,11 @@ const Header = () => {
   // Fetch initial data
   useEffect(() => {
     if (user) {
-      // Set wallet balance from user context
-      setWalletBalance(user.wallet?.balance || 0);
       fetchNotifications();
     }
   }, [user]);
 
-  const fetchWalletBalance = async () => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/wallet/balance`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setWalletBalance(data.balance || 0);
-    } catch (error) {
-      console.error('Error fetching wallet balance:', error);
-      setWalletBalance(0);
-    }
-  };
+
 
   const fetchNotifications = async () => {
     try {
@@ -221,7 +199,7 @@ const Header = () => {
                 <div className="hidden sm:flex items-center space-x-2 glass-card px-4 py-2">
                   <Wallet className="w-4 h-4 text-green-400" />
                   <span className="font-semibold text-green-400">
-                    ₹{walletBalance.toLocaleString()}
+                    {formatBalance(balance)}
                   </span>
                 </div>
 
@@ -482,7 +460,7 @@ const Header = () => {
                   <span className="font-medium">Wallet Balance</span>
                 </div>
                 <span className="font-bold text-green-400">
-                  ₹{walletBalance.toLocaleString()}
+                  {formatBalance(balance)}
                 </span>
               </div>
             </nav>

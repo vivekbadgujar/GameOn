@@ -70,17 +70,20 @@ const TournamentList = () => {
 
   // Fetch tournaments
   const { data: tournamentsData, isLoading, refetch } = useQuery({
-    queryKey: ['admin-tournaments', activeTab, searchTerm, statusFilter, gameFilter],
+    queryKey: ['admin-tournaments', searchTerm, gameFilter],
     queryFn: async () => {
       const params = {
         page: 1,
-        limit: 50,
-        status: getStatusForTab(activeTab),
+        limit: 100, // Increased limit to get more tournaments
+        status: 'all', // Get all tournaments and filter on frontend
         search: searchTerm,
         game: gameFilter
       };
 
+      console.log('TournamentList: Fetching tournaments with params:', params);
       const response = await tournamentAPI.getAll(params);
+      console.log('TournamentList: API response:', response);
+      console.log('TournamentList: Tournaments data:', response.data);
       return response.data;
     },
     refetchInterval: 30000 // Refresh every 30 seconds
@@ -114,7 +117,12 @@ const TournamentList = () => {
 
   // Get tab counts
   const getTabCounts = () => {
-    const tournaments = tournamentsData?.data?.tournaments || [];
+    // Try multiple possible data structures
+    const tournaments = tournamentsData?.tournaments || 
+                       tournamentsData?.data?.tournaments || 
+                       tournamentsData?.data || 
+                       [];
+    console.log('TournamentList: Getting tab counts for tournaments:', tournaments.length);
     return {
       upcoming: tournaments.filter(t => t.status === 'upcoming').length,
       live: tournaments.filter(t => t.status === 'live').length,
@@ -196,9 +204,17 @@ const TournamentList = () => {
   };
 
   // Filter tournaments
-  const filteredTournaments = (tournamentsData?.data?.tournaments || [])
+  const allTournaments = tournamentsData?.tournaments || 
+                         tournamentsData?.data?.tournaments || 
+                         tournamentsData?.data || 
+                         [];
+  
+  console.log('TournamentList: All tournaments for filtering:', allTournaments.length);
+  console.log('TournamentList: Sample tournament:', allTournaments[0]);
+  
+  const filteredTournaments = allTournaments
     .filter(tournament => {
-      const matchesSearch = 
+      const matchesSearch = !searchTerm || 
         tournament.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tournament.game?.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -209,6 +225,9 @@ const TournamentList = () => {
       
       return matchesSearch && matchesStatus && matchesGame;
     });
+  
+  console.log('TournamentList: Filtered tournaments:', filteredTournaments.length);
+  console.log('TournamentList: Active tab:', activeTab, 'Status filter:', getStatusForTab(activeTab));
 
   const tabCounts = getTabCounts();
 

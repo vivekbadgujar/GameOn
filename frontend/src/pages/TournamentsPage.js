@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { getTournaments } from '../services/api';
 import { useSocket } from '../contexts/SocketContext';
+import { useAuth } from '../contexts/AuthContext';
+import TournamentCard from '../components/UI/TournamentCard';
+import AuthModal from '../components/Auth/AuthModal';
+import { useAuthModal } from '../hooks/useAuthModal';
 
 const tabs = [
   { label: 'Live', value: 'live' },
@@ -9,6 +14,13 @@ const tabs = [
 ];
 
 export default function TournamentsPage() {
+  const { isAuthenticated } = useAuth();
+  const { 
+    isAuthModalOpen, 
+    authModalTab, 
+    openAuthModal, 
+    closeAuthModal 
+  } = useAuthModal();
   const [activeTab, setActiveTab] = useState('live');
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,41 +118,30 @@ export default function TournamentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.length === 0 ? (
-            <div className="col-span-full text-center text-secondary">No tournaments found.</div>
-          ) : filtered.map(t => (
-            <div key={t._id} className="bg-glass rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-primary mb-2">{t.title}</h3>
-                  <p className="text-secondary text-sm">{t.description}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-accent-blue">₹{t.prizePool}</div>
-                  <div className="text-xs text-secondary">Prize Pool</div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-4 text-sm text-secondary">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    {t.participants?.length || 0} Players
-                  </div>
-                  <div>{t.gameType}</div>
-                  <div>{t.status}</div>
-                </div>
-                <div className="text-xs text-secondary">
-                  {new Date(t.startDate).toLocaleDateString()}
-                </div>
-              </div>
-              
-              <button className="w-full bg-accent-blue text-primary font-semibold py-3 rounded-lg hover:bg-accent-blue/80 transition-all">
-                Login to Join
-              </button>
-            </div>
+            <div className="col-span-full text-center text-white/60">No tournaments found.</div>
+          ) : filtered.map((tournament, index) => (
+            <motion.div
+              key={tournament._id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 * index }}
+            >
+              <TournamentCard 
+                tournament={tournament} 
+                isAuthenticated={isAuthenticated}
+                onRequireAuth={openAuthModal}
+              />
+            </motion.div>
           ))}
         </div>
       )}
+      
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        defaultTab={authModalTab}
+      />
     </div>
   );
 } 

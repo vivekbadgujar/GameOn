@@ -187,6 +187,16 @@ export const getTournamentById = async (id) => {
   return response.data?.tournament;
 };
 
+export const getTournamentParticipationStatus = async (id) => {
+  try {
+    const response = await api.get(`/tournaments/${id}/participation-status`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tournament participation status:', error);
+    throw error;
+  }
+};
+
 export const joinTournament = (id, paymentData = null) => api.post(`/tournaments/${id}/join`, { paymentData });
 export const submitResult = (id, data) => api.post(`/tournaments/${id}/submit-result`, data);
 
@@ -393,10 +403,42 @@ export const getPublicMedia = async (params = {}) => {
   }
 };
 
+// Password Reset API functions
+export const forgotPassword = async (email) => {
+  try {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  } catch (error) {
+    console.error('Error sending password reset request:', error);
+    throw error;
+  }
+};
+
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const response = await api.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    throw error;
+  }
+};
+
+export const verifyResetToken = async (token) => {
+  try {
+    const response = await api.post('/auth/verify-reset-token', { token });
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying reset token:', error);
+    throw error;
+  }
+};
+
 // Tournament API object for easier imports
 export const tournamentAPI = {
   getTournaments,
   getTournamentById,
+  getTournamentParticipationStatus,
   joinTournament,
   submitResult
 };

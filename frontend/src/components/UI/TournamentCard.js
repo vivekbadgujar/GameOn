@@ -4,16 +4,24 @@ import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Users, 
-  Calendar, 
   Clock, 
   Target,
   Play,
   CheckCircle,
   AlertCircle,
-  Lock
+  Lock,
+  Edit,
+  Settings
 } from 'lucide-react';
+import { useTournamentParticipation } from '../../hooks/useTournamentParticipation';
 
 const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
+  // Use the participation hook to check if user has joined
+  const {
+    hasJoined,
+    paymentStatus,
+    canJoin
+  } = useTournamentParticipation(tournament?._id);
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'live':
@@ -141,7 +149,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
               <span className="text-white/80 text-sm">Prize Pool</span>
             </div>
             <span className="text-green-400 font-bold">
-              ₹{(tournament.prizePool || 0).toLocaleString()}
+              ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
             </span>
           </div>
 
@@ -161,13 +169,13 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
               <span className="text-white/80 text-sm">Entry Fee</span>
             </div>
             <span className="text-white font-semibold">
-              ₹{(tournament.entryFee || 0).toLocaleString()}
+              ₹{(tournament.entryFee || 0).toLocaleString('en-IN')}
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-cyan-400" />
+              <Clock className="w-4 h-4 text-cyan-400" />
               <span className="text-white/80 text-sm">Start Time</span>
             </div>
             <span className="text-white font-semibold text-sm">
@@ -200,27 +208,58 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
 
         {/* Action Button */}
         {isAuthenticated ? (
-          <Link
-            to={`/tournament/${tournament._id}`}
-            className="w-full btn-primary flex items-center justify-center space-x-2"
-          >
-            {tournament.status === 'live' || tournament.status === 'ongoing' ? (
-              <>
-                <Play className="w-4 h-4" />
-                <span>Join Live</span>
-              </>
-            ) : tournament.status === 'upcoming' || tournament.status === 'registration' ? (
-              <>
-                <Trophy className="w-4 h-4" />
-                <span>Register Now</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                <span>View Results</span>
-              </>
-            )}
-          </Link>
+          hasJoined ? (
+            <div className="space-y-2">
+              <div className="w-full bg-green-500/20 border border-green-500/30 rounded-xl py-3 px-4 text-center">
+                <div className="flex items-center justify-center space-x-2 text-green-400 font-semibold">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Already Registered</span>
+                </div>
+              </div>
+              {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
+                <div className="flex space-x-2">
+                  <Link
+                    to={`/tournament/${tournament._id}/room-lobby`}
+                    className="flex-1 bg-blue-500/20 border border-blue-500/30 rounded-xl py-2 px-3 text-center hover:bg-blue-500/30 transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-center space-x-2 text-blue-400 font-semibold text-sm">
+                      <Settings className="w-4 h-4" />
+                      <span>Edit Slot</span>
+                    </div>
+                  </Link>
+                  <Link
+                    to={`/tournament/${tournament._id}`}
+                    className="bg-purple-500/20 border border-purple-500/30 rounded-xl py-2 px-3 hover:bg-purple-500/30 transition-all duration-300"
+                    title="View Details"
+                  >
+                    <Trophy className="w-4 h-4 text-purple-400" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              to={`/tournament/${tournament._id}`}
+              className="w-full btn-primary flex items-center justify-center space-x-2"
+            >
+              {tournament.status === 'live' || tournament.status === 'ongoing' ? (
+                <>
+                  <Play className="w-4 h-4" />
+                  <span>Join Live</span>
+                </>
+              ) : tournament.status === 'upcoming' || tournament.status === 'registration' ? (
+                <>
+                  <Trophy className="w-4 h-4" />
+                  <span>Register Now</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>View Results</span>
+                </>
+              )}
+            </Link>
+          )
         ) : (
           <button
             onClick={() => onRequireAuth && onRequireAuth('login')}

@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Users, 
-  Calendar, 
   Clock, 
   CreditCard,
   Play,
@@ -12,10 +11,22 @@ import {
   AlertCircle,
   Target,
   Crown,
-  Zap
+  Zap,
+  Edit,
+  Settings
 } from 'lucide-react';
+import SlotEditModal from './SlotEditModal';
 
-const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
+const TournamentCardRedesigned = ({ 
+  tournament, 
+  index = 0, 
+  userParticipation,
+  user,
+  showSuccess,
+  showError,
+  showInfo 
+}) => {
+  const [slotEditOpen, setSlotEditOpen] = useState(false);
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'live':
@@ -122,7 +133,7 @@ const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
           {/* Key Stats */}
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-blue-400" />
+              <Clock className="w-4 h-4 text-blue-400" />
               <div>
                 <p className="text-white/60 text-xs">Date & Time</p>
                 <p className="text-white font-medium text-sm">
@@ -135,7 +146,7 @@ const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
               <div>
                 <p className="text-white/60 text-xs">Entry Fee</p>
                 <p className="text-green-400 font-bold text-sm">
-                  ₹{(tournament.entryFee || 0).toLocaleString()}
+                  ₹{(tournament.entryFee || 0).toLocaleString('en-IN')}
                 </p>
               </div>
             </div>
@@ -149,7 +160,7 @@ const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
                 <span className="text-white/80 text-sm">Prize Pool</span>
               </div>
               <div className="text-yellow-400 font-bold text-lg">
-                ₹{(tournament.prizePool || 0).toLocaleString()}
+                ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
               </div>
             </div>
           </div>
@@ -195,7 +206,29 @@ const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
 
           {/* Action Button */}
           <div className="mt-auto">
-            {tournament.status === 'completed' ? (
+            {userParticipation ? (
+              <div className="flex space-x-2">
+                <div className="flex-1 py-3 px-4 bg-green-500/20 border border-green-500/30 rounded-xl text-center">
+                  <div className="flex items-center justify-center space-x-2 text-green-400 font-semibold">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Already Registered</span>
+                  </div>
+                </div>
+                {(tournament.status === 'upcoming' || tournament.status === 'live') && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSlotEditOpen(true);
+                    }}
+                    className="py-3 px-4 bg-blue-500/20 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 transition-all duration-300"
+                    title="Edit Slot Position"
+                  >
+                    <Edit className="w-4 h-4 text-blue-400" />
+                  </button>
+                )}
+              </div>
+            ) : tournament.status === 'completed' ? (
               <div className="w-full py-3 px-4 bg-green-500/20 border border-green-500/30 rounded-xl text-center">
                 <div className="flex items-center justify-center space-x-2 text-green-400 font-semibold">
                   <Trophy className="w-4 h-4" />
@@ -231,6 +264,19 @@ const TournamentCardRedesigned = ({ tournament, index = 0 }) => {
           )}
         </div>
       </Link>
+      
+      {/* Slot Edit Modal */}
+      {slotEditOpen && (
+        <SlotEditModal
+          open={slotEditOpen}
+          onClose={() => setSlotEditOpen(false)}
+          tournamentId={tournament._id}
+          user={user}
+          showSuccess={showSuccess}
+          showError={showError}
+          showInfo={showInfo}
+        />
+      )}
     </motion.div>
   );
 };

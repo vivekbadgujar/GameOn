@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -26,6 +27,9 @@ export const AuthProvider = ({ children }) => {
             
             // Set API headers
             api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+            
+            // Fetch wallet balance
+            await fetchWalletBalance(storedToken);
           } catch (error) {
             console.error('Error parsing stored user data:', error);
             localStorage.removeItem('user');
@@ -41,6 +45,42 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth();
   }, []);
+
+  // Fetch wallet balance
+  const fetchWalletBalance = async (authToken = token) => {
+    try {
+      if (!authToken) return;
+      
+      const response = await fetch('/api/wallet/balance', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setWalletBalance(data.balance || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+    }
+  };
+
+  // Update wallet balance (for real-time updates)
+  const updateWalletBalance = (newBalance) => {
+    setWalletBalance(newBalance);
+  };
+
+  // Deduct from wallet balance
+  const deductFromWallet = (amount) => {
+    setWalletBalance(prev => Math.max(0, prev - amount));
+  };
+
+  // Add to wallet balance
+  const addToWallet = (amount) => {
+    setWalletBalance(prev => prev + amount);
+  };
 
   const login = (userData, authToken) => {
     try {
@@ -60,6 +100,9 @@ export const AuthProvider = ({ children }) => {
       // Update axios headers
       api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
+      // Fetch wallet balance after login
+      fetchWalletBalance(authToken);
+
       console.log('AuthContext: Login successful');
       return true;
     } catch (error) {
@@ -73,6 +116,7 @@ export const AuthProvider = ({ children }) => {
     // Clear state
     setUser(null);
     setToken(null);
+    setWalletBalance(0);
     
     // Clear local storage
     localStorage.removeItem('user');
@@ -93,9 +137,14 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
+    walletBalance,
     login,
     logout,
     updateUser,
+    fetchWalletBalance,
+    updateWalletBalance,
+    deductFromWallet,
+    addToWallet,
     isAuthenticated: !!user && !!token
   };
 

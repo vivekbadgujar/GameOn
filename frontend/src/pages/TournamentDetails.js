@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Users, 
-  Calendar, 
   Clock, 
   Target,
   Play,
@@ -16,12 +15,16 @@ import {
   MapPin,
   Award,
   Zap,
-  Star
+  Star,
+  Edit3 as EditIcon,
+  Grid3X3 as SlotIcon
 } from 'lucide-react';
 import { getTournamentById, joinTournament } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import { useTournamentParticipation } from '../hooks/useTournamentParticipation';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import SlotEditModal from '../components/Tournament/SlotEditModal';
 
 const TournamentDetails = () => {
   const { id } = useParams();
@@ -32,10 +35,50 @@ const TournamentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  const [slotEditModal, setSlotEditModal] = useState(false);
+  const [notifications, setNotifications] = useState({ success: '', error: '', info: '' });
+
+  // Use the participation hook for better duplicate prevention
+  const {
+    hasJoined,
+    participationDetails,
+    paymentStatus,
+    canJoin,
+    joinButtonState
+  } = useTournamentParticipation(id);
 
   useEffect(() => {
     fetchTournamentDetails();
   }, [id]);
+
+  // Notification helpers
+  const showSuccess = (message) => {
+    setNotifications(prev => ({ ...prev, success: message, error: '', info: '' }));
+    setTimeout(() => setNotifications(prev => ({ ...prev, success: '' })), 3000);
+  };
+
+  const showError = (message) => {
+    setNotifications(prev => ({ ...prev, error: message, success: '', info: '' }));
+    setTimeout(() => setNotifications(prev => ({ ...prev, error: '' })), 5000);
+  };
+
+  const showInfo = (message) => {
+    setNotifications(prev => ({ ...prev, info: message, success: '', error: '' }));
+    setTimeout(() => setNotifications(prev => ({ ...prev, info: '' })), 3000);
+  };
+
+  // Slot edit handlers
+  const handleOpenSlotEdit = () => {
+    setSlotEditModal(true);
+  };
+
+  const handleCloseSlotEdit = () => {
+    setSlotEditModal(false);
+  };
+
+  const handleOpenFullLobby = () => {
+    navigate(`/tournament/${id}/room-lobby`);
+  };
 
   // Real-time updates via socket
   useEffect(() => {
@@ -252,7 +295,7 @@ const TournamentDetails = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-400">
-                      ₹{(tournament.prizePool || 0).toLocaleString()}
+                      ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
                     </div>
                     <div className="text-white/60 text-sm">Prize Pool</div>
                   </div>
@@ -264,7 +307,7 @@ const TournamentDetails = () => {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-400">
-                      ₹{(tournament.entryFee || 0).toLocaleString()}
+                      ₹{(tournament.entryFee || 0).toLocaleString('en-IN')}
                     </div>
                     <div className="text-white/60 text-sm">Entry Fee</div>
                   </div>
@@ -294,10 +337,39 @@ const TournamentDetails = () => {
                       </>
                     )}
                   </button>
-                ) : isUserJoined() ? (
-                  <div className="btn-secondary flex items-center justify-center space-x-2 cursor-default">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span>Already Joined</span>
+                ) : hasJoined ? (
+                  <div className="space-y-3">
+                    <div className="btn-secondary flex items-center justify-center space-x-2 cursor-default">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span>Already Joined</span>
+                    </div>
+                    
+                    {/* Edit Slot Actions - Only show if payment is completed */}
+                    {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleOpenSlotEdit}
+                          className="btn-primary flex items-center justify-center space-x-2 flex-1"
+                        >
+                          <EditIcon className="w-4 h-4" />
+                          <span>Edit Slot</span>
+                        </button>
+                        <button
+                          onClick={handleOpenFullLobby}
+                          className="btn-ghost p-3"
+                          title="Open Full Room Lobby"
+                        >
+                          <SlotIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Payment Pending State */}
+                    {paymentStatus === 'pending' && (
+                      <div className="btn-ghost cursor-default opacity-75 text-yellow-400">
+                        <span>Payment Pending</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="btn-ghost cursor-default opacity-50">
@@ -355,7 +427,7 @@ const TournamentDetails = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
-                    <Calendar className="w-5 h-5 text-blue-400" />
+                    <Clock className="w-5 h-5 text-blue-400" />
                     <div>
                       <p className="text-white font-semibold">Start Time</p>
                       <p className="text-white/60 text-sm">{formatDate(tournament.startTime)}</p>
@@ -490,7 +562,7 @@ const TournamentDetails = () => {
                         </span>
                       </div>
                       <span className="text-green-400 font-bold">
-                        ₹{prize.amount?.toLocaleString() || '0'}
+                        ₹{prize.amount?.toLocaleString('en-IN') || '0'}
                       </span>
                     </div>
                   ))
@@ -504,7 +576,7 @@ const TournamentDetails = () => {
                         <span className="text-white font-semibold">1st Place</span>
                       </div>
                       <span className="text-green-400 font-bold">
-                        ₹{Math.floor((tournament.prizePool || 0) * 0.5).toLocaleString()}
+                        ₹{Math.floor((tournament.prizePool || 0) * 0.5).toLocaleString('en-IN')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
@@ -515,7 +587,7 @@ const TournamentDetails = () => {
                         <span className="text-white font-semibold">2nd Place</span>
                       </div>
                       <span className="text-green-400 font-bold">
-                        ₹{Math.floor((tournament.prizePool || 0) * 0.3).toLocaleString()}
+                        ₹{Math.floor((tournament.prizePool || 0) * 0.3).toLocaleString('en-IN')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
@@ -526,7 +598,7 @@ const TournamentDetails = () => {
                         <span className="text-white font-semibold">3rd Place</span>
                       </div>
                       <span className="text-green-400 font-bold">
-                        ₹{Math.floor((tournament.prizePool || 0) * 0.2).toLocaleString()}
+                        ₹{Math.floor((tournament.prizePool || 0) * 0.2).toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>
@@ -589,7 +661,49 @@ const TournamentDetails = () => {
             <p className="text-red-400 text-center">{error}</p>
           </motion.div>
         )}
+
+        {/* Notifications */}
+        {notifications.success && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed top-20 right-4 bg-green-500/20 border border-green-500/30 rounded-xl p-4 z-50"
+          >
+            <p className="text-green-400">{notifications.success}</p>
+          </motion.div>
+        )}
+        
+        {notifications.error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed top-20 right-4 bg-red-500/20 border border-red-500/30 rounded-xl p-4 z-50"
+          >
+            <p className="text-red-400">{notifications.error}</p>
+          </motion.div>
+        )}
+        
+        {notifications.info && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="fixed top-20 right-4 bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 z-50"
+          >
+            <p className="text-blue-400">{notifications.info}</p>
+          </motion.div>
+        )}
       </div>
+
+      {/* Slot Edit Modal */}
+      <SlotEditModal
+        open={slotEditModal}
+        onClose={handleCloseSlotEdit}
+        tournamentId={id}
+        user={user}
+        showSuccess={showSuccess}
+        showError={showError}
+        showInfo={showInfo}
+      />
     </div>
   );
 };

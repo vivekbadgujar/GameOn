@@ -4,19 +4,21 @@ import {
   Trophy, 
   Clock, 
   Users, 
-  Calendar,
   MapPin,
   Target,
   CheckCircle,
   AlertCircle,
   Eye,
   Copy,
-  Check
+  Check,
+  Edit,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { getTournaments } from '../../services/api';
 import toast from 'react-hot-toast';
+import SlotEditModal from './SlotEditModal';
 
 const TournamentSlots = () => {
   const { user } = useAuth();
@@ -24,6 +26,10 @@ const TournamentSlots = () => {
   const [joinedTournaments, setJoinedTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedCredentials, setCopiedCredentials] = useState({});
+  const [slotEditModal, setSlotEditModal] = useState({
+    open: false,
+    tournamentId: null
+  });
 
   useEffect(() => {
     fetchJoinedTournaments();
@@ -190,6 +196,46 @@ const TournamentSlots = () => {
     });
   };
 
+  const handleEditSlot = (tournament) => {
+    console.log('Opening slot edit modal for tournament:', tournament.title);
+    setSlotEditModal({
+      open: true,
+      tournamentId: tournament._id
+    });
+  };
+
+  const handleCloseSlotEdit = () => {
+    setSlotEditModal({
+      open: false,
+      tournamentId: null
+    });
+    // Refresh tournaments to get updated slot info
+    fetchJoinedTournaments();
+  };
+
+  const canEditSlot = (tournament) => {
+    // Allow slot editing for upcoming and live tournaments
+    const allowedStatuses = ['upcoming', 'live', 'registration'];
+    const hasValidStatus = allowedStatuses.includes(tournament.status?.toLowerCase());
+    
+    // Check if user is actually a participant
+    const isParticipant = tournament.participants && tournament.participants.some(p => {
+      const participantUserId = p.user?._id || p.user || p.userId || p._id;
+      const currentUserId = user?._id;
+      return participantUserId?.toString() === currentUserId?.toString();
+    });
+    
+    console.log('canEditSlot check:', {
+      tournamentId: tournament._id,
+      status: tournament.status,
+      hasValidStatus,
+      isParticipant,
+      participantsCount: tournament.participants?.length || 0
+    });
+    
+    return hasValidStatus && isParticipant;
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -243,7 +289,7 @@ const TournamentSlots = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-blue-400" />
+                    <Clock className="w-4 h-4 text-blue-400" />
                     <span className="text-white/80 text-sm">
                       {formatDate(tournament.startTime || tournament.scheduledAt)}
                     </span>
@@ -257,7 +303,7 @@ const TournamentSlots = () => {
                   <div className="flex items-center space-x-2">
                     <Trophy className="w-4 h-4 text-yellow-400" />
                     <span className="text-white/80 text-sm">
-                      ₹{(tournament.prizePool || 0).toLocaleString()}
+                      ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -269,17 +315,45 @@ const TournamentSlots = () => {
                 </div>
               </div>
 
-              {/* Slot Info */}
-              <div className="lg:ml-6 min-w-[200px]">
-                <div className="glass-card p-4 bg-green-500/10 border-green-500/20">
-                  <div className="flex items-center justify-between mb-2">
+              {/* Slot Info & Edit Button */}
+              <div className="lg:ml-6 min-w-[200px] space-y-3">
+                {/* Current Slot Display */}
+                <div className="glass-card p-3 bg-green-500/10 border-green-500/20">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-white/80 text-sm">Your Slot</span>
                     <CheckCircle className="w-4 h-4 text-green-400" />
                   </div>
-                  <div className="text-2xl font-bold text-green-400">
+                  <div className="text-xl font-bold text-green-400">
                     #{tournament.userSlot}
                   </div>
                 </div>
+
+                {/* Edit Slot Button */}
+                {canEditSlot(tournament) && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleEditSlot(tournament)}
+                    className="w-full glass-card-hover p-3 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 transition-all duration-300 group"
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <Edit className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
+                      <span className="text-blue-400 group-hover:text-blue-300 font-medium text-sm">
+                        Edit Slot
+                      </span>
+                    </div>
+                  </motion.button>
+                )}
+
+                {/* Slot Locked Message */}
+                {!canEditSlot(tournament) && tournament.status === 'completed' && (
+                  <div className="glass-card p-3 bg-gray-500/10 border-gray-500/20">
+                    <div className="flex items-center justify-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-400 text-sm">Tournament Completed</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -365,6 +439,17 @@ const TournamentSlots = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Slot Edit Modal */}
+      <SlotEditModal
+        open={slotEditModal.open}
+        onClose={handleCloseSlotEdit}
+        tournamentId={slotEditModal.tournamentId}
+        user={user}
+        showSuccess={(message) => toast.success(message)}
+        showError={(message) => toast.error(message)}
+        showInfo={(message) => toast(message, { icon: 'ℹ️' })}
+      />
     </div>
   );
 };

@@ -79,6 +79,16 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('squadUpdated', { detail: data }));
     });
 
+    newSocket.on('roomSlotUpdated', (data) => {
+      console.log('🎮 Room slot updated:', data);
+      if (data.action === 'assigned') {
+        showInfo(`Player assigned to Team ${data.teamNumber}, Slot ${data.slotNumber}`);
+      } else {
+        showInfo(`Player moved from Team ${data.fromTeam} to Team ${data.toTeam}`);
+      }
+      window.dispatchEvent(new CustomEvent('roomSlotUpdated', { detail: data }));
+    });
+
     newSocket.on('tournamentUpdated', (data) => {
       console.log('🏆 Tournament updated:', data);
       window.dispatchEvent(new CustomEvent('tournamentUpdated', { detail: data }));

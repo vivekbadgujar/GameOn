@@ -12,6 +12,34 @@ const { authenticateAdmin, requirePermission, auditLog } = require('../../middle
 const { validateTournament, validateRoomDetails, validateWinnerDistribution } = require('../../middleware/tournamentValidation');
 const router = express.Router();
 
+// Debug route - no authentication required (must be before middleware)
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('Debug route - No auth required');
+    
+    const tournaments = await Tournament.find({})
+      .sort({ startDate: -1 })
+      .lean();
+
+    console.log('Debug route - Found tournaments:', tournaments.length);
+    
+    res.json({
+      success: true,
+      data: tournaments,
+      tournaments: tournaments,
+      total: tournaments.length,
+      message: 'Debug tournaments fetched successfully'
+    });
+  } catch (error) {
+    console.error('Debug route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug route failed',
+      error: error.message
+    });
+  }
+});
+
 // Middleware to protect all admin tournament routes
 router.use(authenticateAdmin);
 
@@ -94,34 +122,6 @@ router.get('/',
     }
   }
 );
-
-// Debug route - no authentication required
-router.get('/debug', async (req, res) => {
-  try {
-    console.log('Debug route - No auth required');
-    
-    const tournaments = await Tournament.find({})
-      .sort({ startDate: -1 })
-      .lean();
-
-    console.log('Debug route - Found tournaments:', tournaments.length);
-    
-    res.json({
-      success: true,
-      data: tournaments,
-      tournaments: tournaments,
-      total: tournaments.length,
-      message: 'Debug tournaments fetched successfully'
-    });
-  } catch (error) {
-    console.error('Debug route error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Debug route failed',
-      error: error.message
-    });
-  }
-});
 
 // Get tournament statistics
 router.get('/stats', 

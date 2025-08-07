@@ -8,6 +8,8 @@ const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { sendOTP, verifyOTP } = require('../utils/otpService');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 // User signup route
 router.post('/signup', async (req, res) => {
@@ -665,6 +667,162 @@ router.post('/validate-bgmi-id', async (req, res) => {
 });
 
 
+
+// Forgot Password - Send Reset Link
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return res.json({
+        success: true,
+        message: 'If an account with this email exists, you will receive a password reset link.'
+      });
+    }
+
+    // Check if user has too many recent attempts
+    if (user.passwordReset && user.passwordReset.attempts >= 5) {
+      const timeSinceLastAttempt = Date.now() - user.passwordReset.expiresAt;
+      if (timeSinceLastAttempt < 15 * 60 * 1000) { // 15 minutes
+        return res.status(429).json({
+          success: false,
+          message: 'Too many password reset attempts. Please try again later.'
+        });
+      }
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Save reset token to user
+    user.passwordReset = {
+      token: resetToken,
+      expiresAt: resetTokenExpiry,
+      attempts: (user.passwordReset?.attempts || 0) + 1
+    };
+    await user.save();
+
+    // In a real application, you would send an email here
+    // For now, we'll just return the token (remove this in production)
+    console.log(`Password reset token for ${email}: ${resetToken}`);
+
+    res.json({
+      success: true,
+      message: 'If an account with this email exists, you will receive a password reset link.',
+      // Remove this in production - only for testing
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process password reset request'
+    });
+  }
+});
+
+// Reset Password - Verify Token and Set New Password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      'passwordReset.token': token,
+      'passwordReset.expiresAt': { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update password and clear reset token
+    user.password = newPassword; // Will be hashed by pre-save middleware
+    user.passwordReset = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+});
+
+// Verify Reset Token
+router.post('/verify-reset-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token is required'
+      });
+    }
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      'passwordReset.token': token,
+      'passwordReset.expiresAt': { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Reset token is valid',
+      email: user.email
+    });
+
+  } catch (error) {
+    console.error('Verify reset token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify reset token'
+    });
+  }
+});
 
 // Simulate BGMI API validation function
 async function validateBgmiIdWithAPI(bgmiId) {

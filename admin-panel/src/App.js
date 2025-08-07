@@ -9,7 +9,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 import { theme } from './theme/theme';
-import AdminLogin from './AdminLogin';
+import AdminLogin from './components/Auth/AdminLogin';
 import AdminLayout from './components/Layout/AdminLayout';
 import Dashboard from './components/Dashboard/Dashboard';
 import TournamentList from './components/Tournaments/TournamentList';
@@ -29,6 +29,7 @@ import SearchFilter from './components/SearchExport/SearchFilter';
 import ExportData from './components/SearchExport/ExportData';
 import NotificationManager from './components/Notifications/NotificationManager';
 import TournamentVideoManager from './components/Videos/TournamentVideoManager';
+import DataTest from './components/Debug/DataTest';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
@@ -90,6 +91,7 @@ function AppRoutes() {
           <Route path="/ai-suggestions" element={<SuggestionsPanel />} />
           <Route path="/search" element={<SearchFilter />} />
           <Route path="/export" element={<ExportData />} />
+          <Route path="/debug" element={<DataTest />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </ErrorBoundary>

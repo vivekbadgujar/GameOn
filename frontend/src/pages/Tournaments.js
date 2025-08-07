@@ -5,7 +5,6 @@ import {
   Filter, 
   Trophy, 
   Users, 
-  Calendar, 
   Clock,
   Gamepad2,
   Target,
@@ -19,11 +18,14 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../contexts/WalletContext';
+import { useNotification } from '../contexts/NotificationContext';
 import AuthModal from '../components/Auth/AuthModal';
 import { useAuthModal } from '../hooks/useAuthModal';
 
 const Tournaments = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { showSuccess, showError, showInfo } = useNotification();
   const { 
     isAuthModalOpen, 
     authModalTab, 
@@ -180,6 +182,16 @@ const Tournaments = () => {
     setSelectedGame('all');
     setSelectedPrizeRange('all');
     setShowFilters(false);
+  };
+
+  const handleJoinTournament = async (tournament) => {
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    
+    // Navigate to tournament details page for joining
+    window.location.href = `/tournament/${tournament._id}`;
   };
 
   if (loading) {

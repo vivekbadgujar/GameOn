@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Users, 
-  Calendar, 
   Clock, 
   Target,
   Play,
@@ -30,6 +29,8 @@ import {
 } from 'lucide-react';
 import { getTournamentById, joinTournament, createPaymentOrder } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useWallet } from '../contexts/WalletContext';
+import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import PaymentModal from '../components/Modals/PaymentModal';
 import CountdownTimer from '../components/UI/CountdownTimer';
@@ -39,6 +40,8 @@ const TournamentDetailsRedesigned = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { balance, hasSufficientBalance, deductFromWallet } = useWallet();
+  const { showSuccess, showError, showWarning } = useNotification();
   
   // State management
   const [tournament, setTournament] = useState(null);
@@ -80,10 +83,44 @@ const TournamentDetailsRedesigned = () => {
       return;
     }
 
+    // Check if user has sufficient wallet balance
     if (tournament.entryFee > 0) {
-      setShowPaymentModal(true);
+      if (!hasSufficientBalance(tournament.entryFee)) {
+        showWarning(
+          `Insufficient wallet balance. You need ₹${tournament.entryFee} but have ₹${balance}. Please add money to your wallet.`,
+          'Insufficient Balance'
+        );
+        return;
+      }
+      
+      // Show confirmation for wallet payment
+      if (window.confirm(`Pay ₹${tournament.entryFee} from your wallet to join this tournament?`)) {
+        await processJoinWithWallet();
+      }
     } else {
       await processJoin();
+    }
+  };
+
+  const processJoinWithWallet = async () => {
+    try {
+      setJoining(true);
+      setError('');
+      
+      // Deduct from wallet first
+      await deductFromWallet(
+        tournament.entryFee, 
+        `Tournament entry fee - ${tournament.title}`,
+        tournament._id
+      );
+      
+      // Then join tournament
+      await processJoin({ paymentMethod: 'wallet', amount: tournament.entryFee });
+      
+    } catch (error) {
+      console.error('Error processing wallet payment:', error);
+      showError(error.message || 'Failed to process wallet payment');
+      setJoining(false);
     }
   };
 
@@ -106,7 +143,7 @@ const TournamentDetailsRedesigned = () => {
         // Refresh tournament data
         await fetchTournamentDetails();
         
-        toast.success(`✅ Successfully joined! Your slot: #${slotNumber}`);
+        showSuccess(`Successfully joined! Your slot: #${slotNumber}`, 'Tournament Joined');
         setShowPaymentModal(false);
       } else {
         throw new Error(response.data?.error || 'Failed to join tournament');
@@ -118,7 +155,7 @@ const TournamentDetailsRedesigned = () => {
                           error.message || 
                           'Failed to join tournament. Please try again.';
       setError(errorMessage);
-      toast.error(errorMessage);
+      showError(errorMessage);
     } finally {
       setJoining(false);
     }
@@ -132,12 +169,12 @@ const TournamentDetailsRedesigned = () => {
     try {
       await navigator.clipboard.writeText(text);
       setCredentialsCopied(prev => ({ ...prev, [type]: true }));
-      toast.success(`${type === 'id' ? 'Room ID' : 'Password'} copied!`);
+      showSuccess(`${type === 'id' ? 'Room ID' : 'Password'} copied!`);
       setTimeout(() => {
         setCredentialsCopied(prev => ({ ...prev, [type]: false }));
       }, 2000);
     } catch (err) {
-      toast.error('Failed to copy');
+      showError('Failed to copy');
     }
   };
 
@@ -306,7 +343,7 @@ const TournamentDetailsRedesigned = () => {
                 {/* Key Info Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="glass-card p-4 text-center">
-                    <Calendar className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+                    <Clock className="w-6 h-6 text-blue-400 mx-auto mb-2" />
                     <div className="text-sm text-white/60">Date</div>
                     <div className="font-bold text-white">
                       {new Date(tournament.startTime || tournament.scheduledAt).toLocaleDateString()}
@@ -323,14 +360,14 @@ const TournamentDetailsRedesigned = () => {
                     <CreditCard className="w-6 h-6 text-green-400 mx-auto mb-2" />
                     <div className="text-sm text-white/60">Entry Fee</div>
                     <div className="font-bold text-green-400">
-                      ₹{(tournament.entryFee || 0).toLocaleString()}
+                      ₹{(tournament.entryFee || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
                   <div className="glass-card p-4 text-center">
                     <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
                     <div className="text-sm text-white/60">Prize Pool</div>
                     <div className="font-bold text-yellow-400">
-                      ₹{(tournament.prizePool || 0).toLocaleString()}
+                      ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
                 </div>
@@ -622,7 +659,7 @@ const TournamentDetailsRedesigned = () => {
                             </div>
                             <div className="text-right">
                               <span className="text-green-400 font-bold text-2xl">
-                                ₹{prize.amount?.toLocaleString() || '0'}
+                                ₹{prize.amount?.toLocaleString('en-IN') || '0'}
                               </span>
                             </div>
                           </div>
@@ -648,7 +685,7 @@ const TournamentDetailsRedesigned = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-green-400 font-bold text-2xl">
-                                  ₹{prize.amount.toLocaleString()}
+                                  ₹{prize.amount.toLocaleString('en-IN')}
                                 </span>
                               </div>
                             </div>
@@ -665,7 +702,7 @@ const TournamentDetailsRedesigned = () => {
                           <span className="text-white font-bold text-lg">Total Prize Pool</span>
                         </div>
                         <span className="text-green-400 font-bold text-3xl">
-                          ₹{(tournament.prizePool || 0).toLocaleString()}
+                          ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>

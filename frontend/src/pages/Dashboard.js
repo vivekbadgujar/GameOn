@@ -26,6 +26,7 @@ import TournamentCard from '../components/UI/TournamentCard';
 import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
 import TournamentSlots from '../components/Dashboard/TournamentSlots';
+import MyTournaments from '../components/Tournament/MyTournaments';
 import { useAuthModal } from '../hooks/useAuthModal';
 
 const Dashboard = () => {
@@ -396,11 +397,26 @@ const Dashboard = () => {
           <LeaderboardSlider />
         </motion.div>
 
+        {/* My Tournaments Section - Only for authenticated users */}
+        {isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mb-8"
+          >
+            <h2 className="text-2xl font-bold text-white mb-6">My Tournaments</h2>
+            <div className="glass-card p-6">
+              <MyTournaments user={user} />
+            </div>
+          </motion.div>
+        )}
+
         {/* Recent Activity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: isAuthenticated ? 0.6 : 0.5 }}
+          transition={{ duration: 0.6, delay: isAuthenticated ? 0.7 : 0.5 }}
         >
           <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
           <div className="glass-card p-6">

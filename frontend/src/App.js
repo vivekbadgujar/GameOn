@@ -6,6 +6,8 @@ import { Toaster } from 'react-hot-toast';
 // Context Providers
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { WalletProvider } from './contexts/WalletContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Device detection
 import { isMobileApp, getDeviceType } from './utils/deviceDetection';
@@ -29,6 +31,7 @@ const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 // Policy Pages
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
@@ -158,6 +161,24 @@ const AppRoutes = () => {
                             transition={pageTransition}
                           >
                             <Register />
+                          </motion.div>
+                        </PublicRoute>
+                      } 
+                    />
+
+                    {/* Reset Password Route */}
+                    <Route 
+                      path="/reset-password/:token" 
+                      element={
+                        <PublicRoute>
+                          <motion.div
+                            initial="initial"
+                            animate="in"
+                            exit="out"
+                            variants={pageVariants}
+                            transition={pageTransition}
+                          >
+                            <ResetPassword />
                           </motion.div>
                         </PublicRoute>
                       } 
@@ -398,11 +419,15 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <SocketProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-      </SocketProvider>
+      <NotificationProvider>
+        <WalletProvider>
+          <SocketProvider>
+            <Router>
+              <AppRoutes />
+            </Router>
+          </SocketProvider>
+        </WalletProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

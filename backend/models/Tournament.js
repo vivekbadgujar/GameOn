@@ -86,9 +86,18 @@ const TournamentSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date, default: Date.now },
     slotNumber: { type: Number, required: true },
+    teamNumber: { type: Number }, // BGMI team number (1-25)
     kills: { type: Number, default: 0 },
     rank: { type: Number },
-    paymentData: { type: mongoose.Schema.Types.Mixed }
+    paymentData: { type: mongoose.Schema.Types.Mixed },
+    paymentStatus: { 
+      type: String, 
+      enum: ['pending', 'completed', 'failed'], 
+      default: 'pending' 
+    },
+    paymentId: { type: String }, // Razorpay payment ID
+    hasEditedSlot: { type: Boolean, default: false }, // Track if user has used slot editing
+    slotUpdatedAt: { type: Date } // Track when slot was last updated
   }],
   winners: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -116,11 +125,26 @@ const TournamentSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for better performance
+TournamentSchema.index({ status: 1, startDate: 1 });
+TournamentSchema.index({ 'participants.user': 1 });
+TournamentSchema.index({ game: 1, status: 1 });
+
 // Pre-save middleware for timestamps
 TournamentSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Instance method to check if user has joined
+TournamentSchema.methods.hasUserJoined = function(userId) {
+  return this.participants.some(p => p.user.toString() === userId.toString());
+};
+
+// Instance method to get user participation
+TournamentSchema.methods.getUserParticipation = function(userId) {
+  return this.participants.find(p => p.user.toString() === userId.toString());
+};
 
 module.exports = mongoose.model('Tournament', TournamentSchema);
 

@@ -35,6 +35,13 @@ const UserSchema = new mongoose.Schema({
     attempts: { type: Number, default: 0 }
   },
 
+  // Password Reset
+  passwordReset: {
+    token: String,
+    expiresAt: Date,
+    attempts: { type: Number, default: 0 }
+  },
+
   // Profile Information
   username: {
     type: String,

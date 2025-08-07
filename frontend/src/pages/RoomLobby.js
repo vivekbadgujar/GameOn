@@ -145,6 +145,12 @@ const RoomLobby = () => {
       setTournament(data.data.tournament);
       setRoomSlot(data.data.roomSlot);
       setPlayerSlot(data.data.playerSlot);
+
+      // Show welcome message for new players
+      if (data.data.playerSlot && !sessionStorage.getItem(`welcomed_${tournamentId}`)) {
+        showSuccess(`Welcome to ${data.data.tournament.title}! You're assigned to Team ${data.data.playerSlot.teamNumber}, Slot ${data.data.playerSlot.slotNumber}`);
+        sessionStorage.setItem(`welcomed_${tournamentId}`, 'true');
+      }
     } catch (error) {
       console.error('Error fetching room data:', error);
       showError(error.message || 'Failed to load room data');
@@ -153,7 +159,7 @@ const RoomLobby = () => {
     }
   };
 
-  // Calculate time remaining
+  // Calculate time remaining and auto-lock slots
   useEffect(() => {
     if (!tournament) return;
 
@@ -162,12 +168,21 @@ const RoomLobby = () => {
       const startTime = dayjs(tournament.startDate);
       const lockTime = startTime.subtract(10, 'minutes'); // Lock 10 minutes before start
 
-      setTimeToLock(lockTime.diff(now));
-      setTimeToStart(startTime.diff(now));
+      const timeToLockMs = lockTime.diff(now);
+      const timeToStartMs = startTime.diff(now);
+
+      setTimeToLock(timeToLockMs);
+      setTimeToStart(timeToStartMs);
+
+      // Auto-lock slots when time reaches 10 minutes before start
+      if (timeToLockMs <= 0 && roomSlot && !roomSlot.isLocked) {
+        showInfo('🔒 Slots are now locked! Tournament starts soon.');
+        fetchRoomData(); // Refresh to get updated lock status
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [tournament]);
+  }, [tournament, roomSlot, showInfo]);
 
   // Initial data fetch
   useEffect(() => {
@@ -559,7 +574,7 @@ const RoomLobby = () => {
                                 border: '2px solid',
                                 borderColor: snapshot.isDraggingOver 
                                   ? 'primary.main' 
-                                  : slot.player?.._id === user._id
+                                  : slot.player?._id === user._id
                                     ? 'primary.main'
                                     : slot.player
                                       ? 'success.light'

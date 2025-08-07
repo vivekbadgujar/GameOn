@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { login as apiLogin } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import ForgotPasswordModal from '../components/Auth/ForgotPasswordModal';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,6 +23,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
@@ -70,7 +72,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <>
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/20" />
@@ -226,9 +228,13 @@ const Login = () => {
                   />
                   <span className="text-white/80 text-sm">Remember me</span>
                 </label>
-                <a href="#" className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-300">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-300"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
 
               <button
@@ -269,7 +275,13 @@ const Login = () => {
           </p>
         </motion.div>
       </div>
-    </div>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
+    </>
   );
 };
 

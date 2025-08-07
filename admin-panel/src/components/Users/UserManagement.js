@@ -193,12 +193,23 @@ const UserManagement = () => {
   // Fetch users
   const { data: usersData, isLoading, error, refetch } = useQuery({
     queryKey: ['users', { page, search: searchQuery, status: filterStatus }],
-    queryFn: () => userAPI.getAll({
-      page,
-      limit: rowsPerPage,
-      search: searchQuery,
-      status: filterStatus
-    }),
+    queryFn: async () => {
+      console.log('UserManagement: Fetching users with params:', {
+        page,
+        limit: rowsPerPage,
+        search: searchQuery,
+        status: filterStatus
+      });
+      const response = await userAPI.getAll({
+        page,
+        limit: rowsPerPage,
+        search: searchQuery,
+        status: filterStatus === 'all' ? undefined : filterStatus
+      });
+      console.log('UserManagement: API response:', response);
+      console.log('UserManagement: Users data:', response.data);
+      return response.data;
+    },
   });
 
   // Ban user mutation
@@ -220,9 +231,14 @@ const UserManagement = () => {
     },
   });
 
-  const users = usersData?.data?.users || [];
-  const totalUsers = usersData?.data?.total || 0;
-  const stats = usersData?.data?.stats || {};
+  // Try multiple possible data structures for users
+  const users = usersData?.data?.users || usersData?.users || [];
+  const totalUsers = usersData?.data?.total || usersData?.total || 0;
+  const stats = usersData?.data?.stats || usersData?.stats || {};
+  
+  console.log('UserManagement: Processed users:', users.length);
+  console.log('UserManagement: Total users:', totalUsers);
+  console.log('UserManagement: Sample user:', users[0]);
 
   const handleMenuOpen = (event, userId) => {
     setAnchorEl(event.currentTarget);

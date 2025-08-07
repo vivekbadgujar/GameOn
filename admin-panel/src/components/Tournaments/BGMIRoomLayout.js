@@ -140,12 +140,34 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
       }
     };
 
+    const handleRoomSlotUpdate = (event) => {
+      const data = event.detail;
+      if (data.tournamentId === tournament?.data?._id) {
+        console.log('🎮 Room slot update received in admin panel:', data);
+        onRefresh?.();
+        refetchStats?.();
+        
+        // Highlight updated slots briefly
+        if (data.fromTeam && data.toTeam) {
+          setRecentlyUpdated(new Set([
+            `${data.fromTeam}-${data.fromSlot}`,
+            `${data.toTeam}-${data.toSlot}`
+          ]));
+        } else if (data.teamNumber && data.slotNumber) {
+          setRecentlyUpdated(new Set([`${data.teamNumber}-${data.slotNumber}`]));
+        }
+        
+        setTimeout(() => setRecentlyUpdated(new Set()), 3000);
+      }
+    };
+
     // Add event listeners
     window.addEventListener('tournamentUpdated', handleTournamentUpdate);
     window.addEventListener('participantUpdated', handleParticipantUpdate);
     window.addEventListener('participantsUpdated', handleParticipantUpdate);
     window.addEventListener('slotsUpdated', handleSlotsUpdate);
     window.addEventListener('squadUpdated', handleSquadUpdate);
+    window.addEventListener('roomSlotUpdated', handleRoomSlotUpdate);
 
     return () => {
       // Cleanup event listeners
@@ -154,6 +176,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
       window.removeEventListener('participantsUpdated', handleParticipantUpdate);
       window.removeEventListener('slotsUpdated', handleSlotsUpdate);
       window.removeEventListener('squadUpdated', handleSquadUpdate);
+      window.removeEventListener('roomSlotUpdated', handleRoomSlotUpdate);
     };
   }, [tournament?.data?._id, onRefresh]);
 

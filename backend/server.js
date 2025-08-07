@@ -301,6 +301,130 @@ io.on('connection', (socket) => {
     io.to(`tournament_${tournamentId}`).emit('tournament_update', update);
   });
 
+  // Join tournament room for BGMI lobby
+  socket.on('join_tournament_room', (tournamentId) => {
+    socket.join(`tournament_room_${tournamentId}`);
+    console.log(`User ${socket.id} joined tournament room ${tournamentId}`);
+  });
+
+  // Leave tournament room
+  socket.on('leave_tournament_room', (tournamentId) => {
+    socket.leave(`tournament_room_${tournamentId}`);
+    console.log(`User ${socket.id} left tournament room ${tournamentId}`);
+  });
+
+  // Handle slot locking for BGMI lobby
+  socket.on('lock_slot', (data) => {
+    const { tournamentId, teamNumber, slotNumber, user } = data;
+    socket.to(`tournament_room_${tournamentId}`).emit('slot_locked', {
+      teamNumber,
+      slotNumber,
+      user
+    });
+  });
+
+  // Handle slot unlocking
+  socket.on('unlock_slot', (data) => {
+    const { tournamentId, teamNumber, slotNumber } = data;
+    socket.to(`tournament_room_${tournamentId}`).emit('slot_unlocked', {
+      teamNumber,
+      slotNumber
+    });
+  });
+
+  // Handle slot updates
+  socket.on('update_slot', (data) => {
+    const { tournamentId, teamNumber, slotNumber, player } = data;
+    io.to(`tournament_room_${tournamentId}`).emit('slot_updated', {
+      teamNumber,
+      slotNumber,
+      player
+    });
+  });
+
+  // Handle slot editing events
+  socket.on('slot_edit_start', (data) => {
+    const { tournamentId, userId, teamNumber, slotNumber } = data;
+    // Notify others that someone is editing a slot
+    socket.to(`tournament_${tournamentId}`).emit('slot_edit_start', {
+      userId,
+      teamNumber,
+      slotNumber,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  socket.on('slot_edit_end', (data) => {
+    const { tournamentId, userId, teamNumber, slotNumber } = data;
+    // Notify others that slot editing has ended
+    socket.to(`tournament_${tournamentId}`).emit('slot_edit_end', {
+      userId,
+      teamNumber,
+      slotNumber,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle real-time slot locking
+  socket.on('request_slot_lock', async (data) => {
+    const { tournamentId, teamNumber, slotNumber, userId } = data;
+    
+    try {
+      const RoomSlot = require('./models/RoomSlot');
+      const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+      
+      if (roomSlot) {
+        const team = roomSlot.teams.find(t => t.teamNumber === teamNumber);
+        const slot = team?.slots.find(s => s.slotNumber === slotNumber);
+        
+        if (slot && !slot.player && !slot.isLocked) {
+          // Temporarily lock the slot
+          slot.isLocked = true;
+          slot.lockedAt = new Date();
+          slot.lockedBy = userId;
+          
+          await roomSlot.save();
+          
+          // Notify all users in the tournament
+          io.to(`tournament_${tournamentId}`).emit('slot_locked', {
+            teamNumber,
+            slotNumber,
+            lockedBy: userId,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Auto-unlock after 5 seconds if no move is made
+          setTimeout(async () => {
+            try {
+              const updatedRoomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+              const updatedTeam = updatedRoomSlot.teams.find(t => t.teamNumber === teamNumber);
+              const updatedSlot = updatedTeam?.slots.find(s => s.slotNumber === slotNumber);
+              
+              if (updatedSlot && updatedSlot.isLocked && updatedSlot.lockedBy?.toString() === userId) {
+                updatedSlot.isLocked = false;
+                updatedSlot.lockedAt = null;
+                updatedSlot.lockedBy = null;
+                
+                await updatedRoomSlot.save();
+                
+                io.to(`tournament_${tournamentId}`).emit('slot_unlocked', {
+                  teamNumber,
+                  slotNumber,
+                  reason: 'timeout',
+                  timestamp: new Date().toISOString()
+                });
+              }
+            } catch (error) {
+              console.error('Error auto-unlocking slot:', error);
+            }
+          }, 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Error handling slot lock request:', error);
+    }
+  });
+
   // Handle live match updates
   socket.on('match_update', (data) => {
     const { tournamentId, matchData } = data;
