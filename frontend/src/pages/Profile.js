@@ -132,8 +132,12 @@ const Profile = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl font-bold text-white mb-2">Player Profile</h1>
-          <p className="text-white/60">Manage your gaming profile and statistics</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <span className="text-gradient">Player Profile</span>
+          </h1>
+          <p className="text-white/60 text-lg max-w-3xl mx-auto">
+            Manage your gaming profile and statistics
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

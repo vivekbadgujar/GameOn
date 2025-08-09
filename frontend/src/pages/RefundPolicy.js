@@ -26,8 +26,10 @@ const RefundPolicy = () => {
             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <RefreshCw className="w-8 h-8 text-green-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">Refund Policy</h1>
-            <p className="text-white/60 text-lg">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Refund Policy</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
               Last Updated: {new Date().toLocaleDateString('en-IN', { 
                 year: 'numeric', 
                 month: 'long', 

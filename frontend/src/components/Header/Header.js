@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, User, Home, Trophy, Video, Users, Menu, LogOut, Settings } from 'lucide-react';
 import { useSocket } from '../../contexts/SocketContext';
+import Logo from '../UI/Logo';
 
 const navLinks = [
   { name: 'Home', to: '/', icon: <Home size={20} /> },
@@ -50,11 +51,8 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 w-full z-30 bg-glass backdrop-blur-xl border-b border-border shadow-xl">
       <div className="max-w-[1200px] mx-auto flex items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-accent-blue to-accent-purple shadow-neon flex items-center justify-center">
-            <span className="font-display text-2xl text-primary">G</span>
-          </div>
-          <span className="font-display text-xl font-bold text-primary hidden sm:block">GameOn</span>
+        <Link to="/" className="flex items-center">
+          <Logo size="md" showText={true} textClassName="hidden sm:block" />
         </Link>
         <nav className="hidden md:flex gap-2">
           {navLinks.map(link => (

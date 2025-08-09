@@ -1,5 +1,12 @@
 const express = require('express');
+const Chat = require('../models/Chat');
+const User = require('../models/User');
+const Tournament = require('../models/Tournament');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
+
+// Middleware to protect chat routes
+router.use(authenticateToken);
 
 // Get chat messages for a tournament
 router.get('/tournament/:tournamentId', async (req, res) => {
@@ -7,55 +14,61 @@ router.get('/tournament/:tournamentId', async (req, res) => {
     const { tournamentId } = req.params;
     const { page = 1, limit = 50 } = req.query;
     
-    // Mock chat messages - would query from database
-    const messages = [
-      {
-        id: 'msg_001',
-        userId: 'user_123',
-        username: 'ProGamer',
-        gamerTag: 'PG_Elite',
-        message: 'Good luck everyone! May the best player win 🎮',
-        timestamp: '2024-01-20T14:30:00Z',
-        type: 'text',
-        avatar: '/avatars/user_123.jpg'
-      },
-      {
-        id: 'msg_002',
-        userId: 'user_456',
-        username: 'CompetitiveAce',
-        gamerTag: 'CA_Master',
-        message: 'Ready for action! See you on the battlefield 💪',
-        timestamp: '2024-01-20T14:32:15Z',
-        type: 'text',
-        avatar: '/avatars/user_456.jpg'
-      },
-      {
-        id: 'msg_003',
-        userId: 'system',
-        username: 'GameOn System',
-        gamerTag: 'System',
-        message: 'Tournament starting in 15 minutes. Please ensure you have the game ready!',
-        timestamp: '2024-01-20T14:45:00Z',
-        type: 'system',
-        avatar: '/avatars/system.jpg'
-      }
-    ];
+    // Verify user is participant in the tournament
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tournament not found'
+      });
+    }
+    
+    const isParticipant = tournament.participants.some(p => 
+      p.userId.toString() === req.user._id.toString()
+    );
+    
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be a tournament participant to access chat'
+      });
+    }
+    
+    // Get messages
+    const messages = await Chat.getTournamentMessages(tournamentId, parseInt(page), parseInt(limit));
+    const totalMessages = await Chat.countDocuments({
+      tournament: tournamentId,
+      chatType: 'tournament',
+      status: { $ne: 'deleted' }
+    });
+    
+    // Format messages for frontend
+    const formattedMessages = messages.reverse().map(msg => ({
+      id: msg._id,
+      userId: msg.sender._id,
+      username: msg.senderUsername,
+      gamerTag: msg.senderGamerTag || msg.sender.gameProfile?.bgmiId || msg.senderUsername,
+      message: msg.message,
+      timestamp: msg.createdAt,
+      type: msg.type
+    }));
     
     res.json({
       success: true,
       message: 'Chat messages retrieved successfully',
       data: {
         tournamentId,
-        messages,
+        messages: formattedMessages,
         pagination: {
           currentPage: parseInt(page),
-          totalPages: Math.ceil(150 / limit), // Assuming 150 total messages
-          totalMessages: 150,
+          totalPages: Math.ceil(totalMessages / limit),
+          totalMessages,
           limit: parseInt(limit)
         }
       }
     });
   } catch (err) {
+    console.error('Error fetching tournament messages:', err);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to retrieve chat messages', 
@@ -68,13 +81,13 @@ router.get('/tournament/:tournamentId', async (req, res) => {
 router.post('/tournament/:tournamentId', async (req, res) => {
   try {
     const { tournamentId } = req.params;
-    const { userId, message, type = 'text' } = req.body;
+    const { message, type = 'text' } = req.body;
     
     // Validate required fields
-    if (!userId || !message) {
+    if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: userId, message'
+        message: 'Message is required'
       });
     }
     
@@ -83,6 +96,26 @@ router.post('/tournament/:tournamentId', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Message too long. Maximum 500 characters allowed.'
+      });
+    }
+    
+    // Verify tournament exists and user is participant
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tournament not found'
+      });
+    }
+    
+    const isParticipant = tournament.participants.some(p => 
+      p.userId.toString() === req.user._id.toString()
+    );
+    
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be a tournament participant to send messages'
       });
     }
     
@@ -99,29 +132,42 @@ router.post('/tournament/:tournamentId', async (req, res) => {
       });
     }
     
-    // Create new message
-    const newMessage = {
-      id: 'msg_' + Date.now(),
-      userId,
-      username: 'CurrentUser', // Would fetch from user data
-      gamerTag: 'CU_Tag', // Would fetch from user data
+    // Create new chat message
+    const chatMessage = new Chat({
       message,
-      timestamp: new Date().toISOString(),
       type,
-      tournamentId,
-      avatar: '/avatars/default.jpg'
+      sender: req.user._id,
+      senderUsername: req.user.username || req.user.displayName,
+      senderGamerTag: req.user.gameProfile?.bgmiId || req.user.username,
+      chatType: 'tournament',
+      tournament: tournamentId
+    });
+    
+    await chatMessage.save();
+    
+    // Format response
+    const responseMessage = {
+      id: chatMessage._id,
+      userId: req.user._id,
+      username: chatMessage.senderUsername,
+      gamerTag: chatMessage.senderGamerTag,
+      message: chatMessage.message,
+      timestamp: chatMessage.createdAt,
+      type: chatMessage.type
     };
     
-    // Save message to database
-    // await ChatMessage.create(newMessage);
-    
     // Emit message to connected clients via WebSocket
-    // socketEmit('tournament_message', { tournamentId, message: newMessage });
+    if (req.app.get('io')) {
+      req.app.get('io').emit('tournament_message', {
+        tournamentId,
+        message: responseMessage
+      });
+    }
     
     res.status(201).json({
       success: true,
       message: 'Message sent successfully',
-      data: newMessage
+      data: responseMessage
     });
   } catch (err) {
     res.status(500).json({ 

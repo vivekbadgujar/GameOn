@@ -172,8 +172,10 @@ const Support = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-white mb-4">Help & Support</h1>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <span className="text-gradient">Help & Support</span>
+          </h1>
+          <p className="text-white/60 text-lg max-w-3xl mx-auto">
             Get help with tournaments, payments, account issues, and more. 
             We're here to ensure you have the best gaming experience.
           </p>
@@ -430,7 +432,7 @@ const Support = () => {
                   </div>
                   <div>
                     <p className="text-white font-semibold">Phone</p>
-                    <p className="text-white/60 text-sm">+91 9876543210</p>
+                    <p className="text-white/60 text-sm">+91 8488956724</p>
                   </div>
                 </div>
 
@@ -440,7 +442,7 @@ const Support = () => {
                   </div>
                   <div>
                     <p className="text-white font-semibold">Discord</p>
-                    <p className="text-white/60 text-sm">discord.gg/gameon</p>
+                    <p className="text-white/60 text-sm">Giving Soon</p>
                   </div>
                 </div>
               </div>
@@ -451,7 +453,7 @@ const Support = () => {
                   <div>
                     <p className="text-blue-400 font-semibold text-sm">Support Hours</p>
                     <p className="text-white/80 text-sm">
-                      Monday - Sunday: 9:00 AM - 11:00 PM IST
+                      Monday - Friday : 9:00 AM - 11:00 PM IST
                     </p>
                   </div>
                 </div>

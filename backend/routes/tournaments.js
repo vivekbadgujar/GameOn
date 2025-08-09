@@ -384,17 +384,57 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
       console.log('Error auto-assigning to room slot:', error.message);
     }
 
-    // Emit real-time update for tournament join
+    // Enhanced real-time sync for unified platform
+    const syncService = req.app.get('syncService');
+    const pushService = req.app.get('pushNotificationService');
+    
+    if (syncService) {
+      // Sync tournament update across all platforms
+      syncService.syncTournamentUpdate(id, 'tournament_joined', {
+        tournamentId: id,
+        title: tournament.title,
+        currentParticipants: tournament.currentParticipants,
+        maxParticipants: tournament.maxParticipants,
+        participants: tournament.participants,
+        userJoined: {
+          userId: userId.toString(),
+          slotNumber: slotNumber,
+          joinedAt: new Date().toISOString()
+        }
+      });
+
+      // Sync user update for the joining user
+      syncService.syncUserUpdate(userId.toString(), 'tournament_joined', {
+        tournamentId: id,
+        tournamentTitle: tournament.title,
+        slotNumber: slotNumber,
+        roomCredentials: tournament.roomDetails
+      });
+    }
+
+    // Send push notification to user
+    if (pushService) {
+      await pushService.sendTournamentNotification(
+        id,
+        [userId.toString()],
+        'tournament_joined',
+        {
+          tournamentTitle: tournament.title,
+          slotNumber: slotNumber,
+          startTime: tournament.startDate
+        }
+      );
+    }
+
+    // Legacy socket events for backward compatibility
     const io = req.app.get('io');
     if (io) {
-      // Notify all users about tournament update
       io.emit('tournamentUpdated', {
         _id: tournament._id,
         currentParticipants: tournament.currentParticipants,
         participants: tournament.participants
       });
       
-      // Notify the specific user about successful join
       io.to(`user_${userId}`).emit('tournamentJoined', {
         tournamentId: id,
         slotNumber: slotNumber,

@@ -25,6 +25,7 @@ import { useSocket } from '../../contexts/SocketContext';
 import { useWallet } from '../../contexts/WalletContext';
 import AuthModal from '../Auth/AuthModal';
 import { useAuthModal } from '../../hooks/useAuthModal';
+import Logo from '../UI/Logo';
 
 const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -161,11 +162,8 @@ const Header = () => {
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/dashboard" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center">
-              <Trophy className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gradient">GameOn</span>
+          <Link to="/dashboard" className="flex items-center">
+            <Logo size="md" showText={true} />
           </Link>
 
           {/* Desktop Navigation */}

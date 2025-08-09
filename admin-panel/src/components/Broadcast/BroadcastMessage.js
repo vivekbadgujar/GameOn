@@ -87,8 +87,12 @@ const BroadcastMessage = () => {
 
   // Send message mutation
   const sendMutation = useMutation({
-    mutationFn: (data) => broadcastAPI.sendMessage(data),
-    onSuccess: () => {
+    mutationFn: (data) => {
+      console.log('Sending broadcast message with data:', data);
+      return broadcastAPI.sendMessage(data);
+    },
+    onSuccess: (response) => {
+      console.log('Broadcast message sent successfully:', response);
       queryClient.invalidateQueries(['broadcast-history']);
       setMessageData({
         title: '',
@@ -103,12 +107,19 @@ const BroadcastMessage = () => {
         includeSMS: false
       });
     },
+    onError: (error) => {
+      console.error('Failed to send broadcast message:', error);
+    }
   });
 
   // Schedule message mutation
   const scheduleMutation = useMutation({
-    mutationFn: (data) => broadcastAPI.scheduleMessage(data),
-    onSuccess: () => {
+    mutationFn: (data) => {
+      console.log('Scheduling broadcast message with data:', data);
+      return broadcastAPI.scheduleMessage(data);
+    },
+    onSuccess: (response) => {
+      console.log('Broadcast message scheduled successfully:', response);
       queryClient.invalidateQueries(['broadcast-history']);
       setMessageData({
         title: '',
@@ -123,6 +134,9 @@ const BroadcastMessage = () => {
         includeSMS: false
       });
     },
+    onError: (error) => {
+      console.error('Failed to schedule broadcast message:', error);
+    }
   });
 
   const handleChange = (field, value) => {
@@ -232,15 +246,19 @@ const BroadcastMessage = () => {
                   Compose Message
                 </Typography>
 
-                {sendMutation.error && (
+                {(sendMutation.error || scheduleMutation.error) && (
                   <Alert severity="error" sx={{ mb: 2 }}>
-                    {sendMutation.error.response?.data?.message || 'Failed to send message'}
+                    {sendMutation.error?.response?.data?.message || 
+                     scheduleMutation.error?.response?.data?.message || 
+                     sendMutation.error?.message || 
+                     scheduleMutation.error?.message || 
+                     'Failed to send message'}
                   </Alert>
                 )}
 
-                {sendMutation.isSuccess && (
+                {(sendMutation.isSuccess || scheduleMutation.isSuccess) && (
                   <Alert severity="success" sx={{ mb: 2 }}>
-                    Message sent successfully!
+                    {messageData.isScheduled ? 'Message scheduled successfully!' : 'Message sent successfully!'}
                   </Alert>
                 )}
 

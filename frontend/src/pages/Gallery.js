@@ -92,10 +92,10 @@ const Gallery = () => {
           className="mb-8"
         >
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Media Gallery
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Media Gallery</span>
             </h1>
-            <p className="text-white/60 text-lg max-w-2xl mx-auto">
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
               Explore our collection of tournament highlights, promotional content, and gaming moments
             </p>
           </div>

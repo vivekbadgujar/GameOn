@@ -47,6 +47,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../common/Logo';
 
 const drawerWidth = 280;
 
@@ -111,11 +112,21 @@ const AdminLayout = ({ children }) => {
           p: 3,
           background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
           color: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           textAlign: 'center'
         }}
       >
-        <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
-          GameOn Admin
+        <Logo 
+          size="medium" 
+          showText={true} 
+          variant="white"
+          sx={{ mb: 1 }}
+          textSx={{ color: 'white' }}
+        />
+        <Typography variant="subtitle1" component="div" fontWeight="600" sx={{ mb: 1 }}>
+          Admin Panel
         </Typography>
         <Chip
           label="Platform Management"

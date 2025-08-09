@@ -26,8 +26,10 @@ const PrivacyPolicy = () => {
             <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Shield className="w-8 h-8 text-purple-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy</h1>
-            <p className="text-white/60 text-lg">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Privacy Policy</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
               Last Updated: {new Date().toLocaleDateString('en-IN', { 
                 year: 'numeric', 
                 month: 'long', 

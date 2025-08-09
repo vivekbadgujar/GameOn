@@ -1017,160 +1017,9 @@ router.post('/:id/results',
   }
 );
 
-// Update tournament status
-router.patch('/:id/status', 
-  requirePermission('tournaments_manage'),
-  auditLog('update_tournament_status'),
-  async (req, res) => {
-    try {
-      const tournamentId = req.params.id;
-      const { status } = req.body;
-      
-      // Validate status
-      const validStatuses = ['upcoming', 'live', 'completed', 'cancelled'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
-        });
-      }
-      
-      const tournament = await Tournament.findById(tournamentId);
-      
-      if (!tournament) {
-        return res.status(404).json({
-          success: false,
-          message: 'Tournament not found'
-        });
-      }
-      
-      // Update status
-      tournament.status = status;
-      
-      // Set end date if completing or cancelling
-      if (['completed', 'cancelled'].includes(status)) {
-        tournament.endDate = new Date();
-      }
-      
-      await tournament.save();
-      
-      // Emit Socket.IO events for real-time updates
-      const io = req.app.get('io');
-      if (io) {
-        console.log('Emitting socket events for tournament update');
-        // Emit to all clients with structured data
-        io.emit('tournamentUpdated', {
-          type: 'tournamentUpdated',
-          data: tournament
-        });
-        // Emit specifically to admin clients
-        io.emit('adminUpdate', {
-          type: 'tournamentUpdated',
-          data: tournament
-        });
-      }
-      req.app.get('emitToTournament')(tournamentId, 'tournament_status_updated', {
-        tournamentId,
-        status,
-        timestamp: new Date().toISOString()
-      });
-      
-      res.json({
-        success: true,
-        message: 'Tournament status updated successfully',
-        data: {
-          id: tournament._id,
-          status: tournament.status,
-          endDate: tournament.endDate
-        }
-      });
-    } catch (error) {
-      console.error('Error updating tournament status:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update tournament status',
-        error: error.message
-      });
-    }
-  }
-);
 
-// Update tournament status
-router.patch('/:id/status', 
-  requirePermission('tournaments_manage'),
-  auditLog('update_tournament_status'),
-  async (req, res) => {
-    try {
-      const tournamentId = req.params.id;
-      const { status } = req.body;
-      
-      if (!['upcoming', 'live', 'completed', 'cancelled'].includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid status. Must be one of: upcoming, live, completed, cancelled'
-        });
-      }
-      
-      const tournament = await Tournament.findById(tournamentId);
-      
-      if (!tournament) {
-        return res.status(404).json({
-          success: false,
-          message: 'Tournament not found'
-        });
-      }
-      
-      // Validate status transitions
-      const validTransitions = {
-        upcoming: ['live', 'cancelled'],
-        live: ['completed', 'cancelled'],
-        completed: [], // Cannot change from completed
-        cancelled: [] // Cannot change from cancelled
-      };
-      
-      if (!validTransitions[tournament.status].includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot change status from ${tournament.status} to ${status}`
-        });
-      }
-      
-      tournament.status = status;
-      
-      // Set end date if completing tournament
-      if (status === 'completed' && !tournament.endDate) {
-        tournament.endDate = new Date();
-      }
-      
-      await tournament.save();
-      
-      // Emit Socket.IO event for real-time updates
-      req.app.get('io').emit('tournamentStatusUpdated', {
-        tournamentId: tournament._id,
-        status: tournament.status,
-        endDate: tournament.endDate
-      });
-      
-      const tournaments = await Tournament.find({ status: tournament.status })
-        .sort({ createdAt: -1 })
-        .populate('createdBy', 'name username')
-        .lean();
-        
-      res.json({
-        success: true,
-        message: 'Tournament status updated successfully',
-        data: tournaments
-      });
-    } catch (error) {
-      console.error('Error updating tournament status:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update tournament status',
-        error: error.message
-      });
-    }
-  }
-);
+
+
 
 // Export tournaments
 router.get('/export', 
@@ -1455,36 +1304,50 @@ router.patch('/:id/status',
       const { status } = req.body;
       const tournamentId = req.params.id;
 
+      console.log(`Admin ${req.admin.name} (${req.admin._id}) updating tournament ${tournamentId} status to ${status}`);
+
       // Validate status
       const validStatuses = ['upcoming', 'live', 'completed', 'cancelled'];
       if (!validStatuses.includes(status)) {
+        console.error('Invalid status provided:', status);
         return res.status(400).json({
           success: false,
-          message: 'Invalid tournament status'
+          message: 'Invalid tournament status. Must be one of: ' + validStatuses.join(', ')
         });
       }
 
       const tournament = await Tournament.findById(tournamentId);
       if (!tournament) {
+        console.error('Tournament not found:', tournamentId);
         return res.status(404).json({
           success: false,
           message: 'Tournament not found'
         });
       }
 
+      console.log(`Tournament found: ${tournament.title}, current status: ${tournament.status}`);
+
       // Update status
+      const oldStatus = tournament.status;
       tournament.status = status;
       
-      // Set completion date if marking as completed
-      if (status === 'completed') {
+      // Set completion date if marking as completed or cancelled
+      if (['completed', 'cancelled'].includes(status)) {
         tournament.endDate = new Date();
       }
 
+      // Reset end date if reactivating
+      if (status === 'upcoming' && oldStatus === 'completed') {
+        tournament.endDate = null;
+      }
+
       await tournament.save();
+      console.log(`Tournament status updated successfully from ${oldStatus} to ${status}`);
 
       // Emit Socket.IO events for real-time updates
       const io = req.app.get('io');
       if (io) {
+        console.log('Emitting socket events for tournament status update');
         io.emit('tournamentStatusUpdated', {
           tournamentId,
           status,
@@ -1500,8 +1363,14 @@ router.patch('/:id/status',
 
       res.json({
         success: true,
-        message: `Tournament ${status === 'completed' ? 'completed' : 'status updated'} successfully`,
-        data: tournament
+        message: `Tournament ${status === 'completed' ? 'completed' : status === 'upcoming' ? 'reactivated' : 'status updated'} successfully`,
+        data: {
+          id: tournament._id,
+          title: tournament.title,
+          status: tournament.status,
+          endDate: tournament.endDate,
+          oldStatus: oldStatus
+        }
       });
 
     } catch (error) {
@@ -1509,7 +1378,7 @@ router.patch('/:id/status',
       res.status(500).json({
         success: false,
         message: 'Failed to update tournament status',
-        error: error.message
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }

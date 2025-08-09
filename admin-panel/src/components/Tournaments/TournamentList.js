@@ -145,45 +145,71 @@ const TournamentList = () => {
   // Handle tournament status change
   const handleStatusChange = async (tournament, status) => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/tournaments/${tournament._id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (!response.ok) throw new Error('Failed to update tournament status');
-
-      showSuccess(`Tournament ${status === 'completed' ? 'completed' : 'updated'} successfully`);
-      refetch();
-      handleMenuClose();
+      console.log('Updating tournament status:', tournament._id, status);
+      console.log('Tournament details:', { title: tournament.title, currentStatus: tournament.status });
+      
+      const response = await tournamentAPI.updateStatus(tournament._id, status);
+      console.log('Status update response:', response.data);
+      
+      if (response.data.success) {
+        const message = status === 'completed' 
+          ? 'Tournament marked as completed successfully' 
+          : status === 'upcoming' 
+            ? 'Tournament reactivated successfully'
+            : `Tournament status updated to ${status} successfully`;
+        
+        showSuccess(message);
+        refetch();
+        handleMenuClose();
+      } else {
+        throw new Error(response.data.message || 'Failed to update tournament status');
+      }
 
     } catch (error) {
-      showError(error.message || 'Failed to update tournament status');
+      console.error('Error updating tournament status:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      let errorMessage = 'Failed to update tournament status';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to update tournament status.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Tournament not found.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showError(errorMessage);
     }
   };
 
   // Handle tournament deletion
   const handleDeleteTournament = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/tournaments/${selectedTournament._id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete tournament');
-
-      showSuccess('Tournament deleted successfully');
-      setDeleteDialog(false);
-      refetch();
-      handleMenuClose();
+      console.log('Deleting tournament:', selectedTournament._id);
+      const response = await tournamentAPI.delete(selectedTournament._id);
+      
+      if (response.data.success) {
+        showSuccess('Tournament deleted successfully');
+        setDeleteDialog(false);
+        refetch();
+        handleMenuClose();
+      } else {
+        throw new Error(response.data.message || 'Failed to delete tournament');
+      }
 
     } catch (error) {
-      showError(error.message || 'Failed to delete tournament');
+      console.error('Error deleting tournament:', error);
+      showError(error.response?.data?.message || error.message || 'Failed to delete tournament');
     }
   };
 

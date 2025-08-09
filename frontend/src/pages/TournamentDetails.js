@@ -25,6 +25,7 @@ import { useSocket } from '../contexts/SocketContext';
 import { useTournamentParticipation } from '../hooks/useTournamentParticipation';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import SlotEditModal from '../components/Tournament/SlotEditModal';
+import TournamentChat from '../components/Chat/TournamentChat';
 
 const TournamentDetails = () => {
   const { id } = useParams();
@@ -37,6 +38,7 @@ const TournamentDetails = () => {
   const [error, setError] = useState('');
   const [slotEditModal, setSlotEditModal] = useState(false);
   const [notifications, setNotifications] = useState({ success: '', error: '', info: '' });
+  const [chatVisible, setChatVisible] = useState(false);
 
   // Use the participation hook for better duplicate prevention
   const {
@@ -704,6 +706,16 @@ const TournamentDetails = () => {
         showError={showError}
         showInfo={showInfo}
       />
+
+      {/* Tournament Chat - Only show for participants */}
+      {hasJoined && tournament && (
+        <TournamentChat
+          tournamentId={id}
+          isVisible={chatVisible}
+          onToggle={() => setChatVisible(!chatVisible)}
+          participantCount={tournament.currentParticipants}
+        />
+      )}
     </div>
   );
 };

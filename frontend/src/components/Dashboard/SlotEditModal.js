@@ -306,14 +306,23 @@ const SlotEditModal = ({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" 
+          style={{ 
+            display: 'flex',
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '100vh',
+            width: '100vw'
+          }}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
           
           {/* Modal */}
@@ -321,7 +330,16 @@ const SlotEditModal = ({
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden glass-card"
+            className="relative w-full max-w-4xl overflow-hidden"
+            style={{
+              background: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '16px',
+              maxHeight: 'calc(100vh - 4rem)',
+              margin: '0 auto',
+              position: 'relative'
+            }}
           >
             {/* Loading Overlay for Slot Changes */}
             {slotChangeLoading && (
@@ -333,10 +351,10 @@ const SlotEditModal = ({
               </div>
             )}
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
               <div>
-                <h2 className="text-2xl font-bold text-white flex items-center space-x-2">
-                  <Zap className="w-6 h-6 text-blue-400" />
+                <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+                  <Zap className="w-5 h-5 text-blue-400" />
                   <span>Edit Slot Position</span>
                 </h2>
                 {tournament && (
@@ -352,7 +370,7 @@ const SlotEditModal = ({
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 8rem)' }}>
               {loading ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
@@ -364,18 +382,18 @@ const SlotEditModal = ({
                   <p className="text-white/60">Please try again later</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Status Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Tournament Info */}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="glass-card p-4 bg-blue-500/10 border-blue-500/20"
+                      className="glass-card p-3 bg-blue-500/10 border-blue-500/20"
                     >
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Timer className="w-5 h-5 text-blue-400" />
-                        <h3 className="text-lg font-semibold text-white">Tournament Status</h3>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Timer className="w-4 h-4 text-blue-400" />
+                        <h3 className="text-base font-semibold text-white">Tournament Status</h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -393,11 +411,11 @@ const SlotEditModal = ({
                     <motion.div
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="glass-card p-4 bg-green-500/10 border-green-500/20"
+                      className="glass-card p-3 bg-green-500/10 border-green-500/20"
                     >
-                      <div className="flex items-center space-x-3 mb-3">
-                        <Users className="w-5 h-5 text-green-400" />
-                        <h3 className="text-lg font-semibold text-white">Room Status</h3>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Users className="w-4 h-4 text-green-400" />
+                        <h3 className="text-base font-semibold text-white">Room Status</h3>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -423,13 +441,13 @@ const SlotEditModal = ({
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-4 bg-yellow-500/10 border-yellow-500/20"
+                      className="glass-card p-3 bg-yellow-500/10 border-yellow-500/20"
                     >
-                      <div className="flex items-start space-x-3">
-                        <Hand className="w-5 h-5 text-yellow-400 mt-0.5" />
+                      <div className="flex items-start space-x-2">
+                        <Hand className="w-4 h-4 text-yellow-400 mt-0.5" />
                         <div>
-                          <h3 className="text-lg font-semibold text-yellow-400 mb-2">How to change your position:</h3>
-                          <p className="text-white/80 mb-2">
+                          <h3 className="text-base font-semibold text-yellow-400 mb-1">How to change your position:</h3>
+                          <p className="text-white/80 mb-1 text-sm">
                             Click on any empty slot to move there. Your current position will be highlighted in blue.
                           </p>
                           {timeToLock > 0 && timeToLock < 600000 && (
@@ -447,11 +465,11 @@ const SlotEditModal = ({
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-card p-4 bg-red-500/10 border-red-500/20"
+                      className="glass-card p-3 bg-red-500/10 border-red-500/20"
                     >
-                      <div className="flex items-center space-x-3">
-                        <Lock className="w-5 h-5 text-red-400" />
-                        <span className="text-red-400 font-semibold">Slot editing is currently disabled or locked.</span>
+                      <div className="flex items-center space-x-2">
+                        <Lock className="w-4 h-4 text-red-400" />
+                        <span className="text-red-400 font-semibold text-sm">Slot editing is currently disabled or locked.</span>
                       </div>
                     </motion.div>
                   )}
@@ -475,7 +493,7 @@ const SlotEditModal = ({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-white/10">
+            <div className="flex items-center justify-between p-4 border-t border-white/10">
               <div className="flex items-center space-x-4">
                 {/* Connection Status */}
                 <div className={`flex items-center space-x-2 ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
@@ -519,9 +537,9 @@ const BGMIRoomLayout = ({ teams, isSlotChangeable, user, onSlotClick, playerSlot
   const totalPlayers = teams.reduce((acc, team) => acc + team.slots.filter(s => s.player).length, 0);
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* BGMI-Style Room Header */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg p-4 border border-gray-600">
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg p-3 border border-gray-600">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="text-white font-bold text-lg">WF~ZaRU's room</div>
@@ -544,10 +562,10 @@ const BGMIRoomLayout = ({ teams, isSlotChangeable, user, onSlotClick, playerSlot
       </div>
       
       {/* BGMI-Style Team Grid */}
-      <div className="bg-gray-900/80 rounded-lg p-6 border border-gray-700">
-        <div className="grid grid-cols-2 gap-8">
+      <div className="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
+        <div className="grid grid-cols-2 gap-4">
           {/* Left Column - Teams 1, 3, 5 */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {teams.filter((_, index) => index % 2 === 0).map((team) => (
               <BGMITeamCard
                 key={team.teamNumber}
@@ -561,7 +579,7 @@ const BGMIRoomLayout = ({ teams, isSlotChangeable, user, onSlotClick, playerSlot
           </div>
           
           {/* Right Column - Teams 2, 4, 6 */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {teams.filter((_, index) => index % 2 === 1).map((team) => (
               <BGMITeamCard
                 key={team.teamNumber}
@@ -577,7 +595,7 @@ const BGMIRoomLayout = ({ teams, isSlotChangeable, user, onSlotClick, playerSlot
       </div>
       
       {/* Room Controls Footer */}
-      <div className="bg-gray-800/60 rounded-lg p-4 border border-gray-600">
+      <div className="bg-gray-800/60 rounded-lg p-3 border border-gray-600">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors">
@@ -598,7 +616,7 @@ const BGMIRoomLayout = ({ teams, isSlotChangeable, user, onSlotClick, playerSlot
       
       {/* Instructions */}
       {isSlotChangeable && (
-        <div className="text-center text-blue-400 text-sm bg-blue-500/10 rounded-lg p-3 border border-blue-500/20">
+        <div className="text-center text-blue-400 text-sm bg-blue-500/10 rounded-lg p-2 border border-blue-500/20">
           💡 Click on any empty slot to move there • Your current position is highlighted in blue
         </div>
       )}
@@ -619,9 +637,9 @@ const BGMITeamCard = ({ team, isSlotChangeable, user, onSlotClick, playerSlot })
       className="bg-gray-800/80 rounded-lg border border-gray-600 overflow-hidden shadow-lg"
     >
       {/* Team Header - BGMI Style */}
-      <div className="bg-gradient-to-r from-gray-700 to-gray-600 px-4 py-3 border-b border-gray-500">
+      <div className="bg-gradient-to-r from-gray-700 to-gray-600 px-3 py-2 border-b border-gray-500">
         <div className="flex items-center justify-between">
-          <h4 className="text-white font-bold text-lg">Team {team.teamNumber}</h4>
+          <h4 className="text-white font-bold text-base">Team {team.teamNumber}</h4>
           <div className="flex items-center space-x-3">
             <span className="text-sm text-gray-300 font-medium">
               {filledSlots}/4
@@ -637,8 +655,8 @@ const BGMITeamCard = ({ team, isSlotChangeable, user, onSlotClick, playerSlot })
       </div>
       
       {/* Team Slots Grid - 2x2 like BGMI */}
-      <div className="p-4 bg-gray-900/40">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="p-3 bg-gray-900/40">
+        <div className="grid grid-cols-2 gap-2">
           {team.slots.map((slot) => (
             <BGMISlotCard
               key={`${team.teamNumber}-${slot.slotNumber}`}
@@ -682,7 +700,7 @@ const BGMISlotCard = ({ team, slot, isSlotChangeable, user, onSlotClick, isMySlo
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`
-        relative aspect-[4/3] rounded-lg border-2 transition-all duration-200 overflow-hidden
+        relative aspect-[3/2] rounded-lg border-2 transition-all duration-200 overflow-hidden
         ${isEmpty 
           ? isClickable 
             ? 'border-dashed border-blue-400/60 bg-gray-700/40 hover:bg-blue-500/20 hover:border-blue-400 cursor-pointer hover:shadow-lg' 
@@ -694,14 +712,14 @@ const BGMISlotCard = ({ team, slot, isSlotChangeable, user, onSlotClick, isMySlo
       `}
     >
       {isEmpty ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-3">
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
           {/* Empty Slot - BGMI Style */}
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-2 ${
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 ${
             isClickable 
               ? 'bg-blue-500/20 border border-blue-400/50' 
               : 'bg-gray-600/40 border border-gray-600'
           }`}>
-            <Users className={`w-6 h-6 ${
+            <Users className={`w-4 h-4 ${
               isClickable ? 'text-blue-400' : 'text-gray-500'
             }`} />
           </div>
@@ -723,17 +741,17 @@ const BGMISlotCard = ({ team, slot, isSlotChangeable, user, onSlotClick, isMySlo
           )}
         </div>
       ) : (
-        <div className="absolute inset-0 p-3">
+        <div className="absolute inset-0 p-2">
           {/* Player Card - BGMI Style */}
           <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-lg border border-gray-600/50">
             
             {/* Player Avatar */}
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-2 ${
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 ${
               isMySlot 
                 ? 'bg-gradient-to-br from-blue-500 to-blue-600 ring-2 ring-blue-400/70' 
                 : 'bg-gradient-to-br from-gray-600 to-gray-700 border border-gray-500'
             }`}>
-              <span className="text-white text-sm font-bold">
+              <span className="text-white text-xs font-bold">
                 {slot.player.username.charAt(0).toUpperCase()}
               </span>
             </div>
@@ -743,13 +761,13 @@ const BGMISlotCard = ({ team, slot, isSlotChangeable, user, onSlotClick, isMySlo
               <div className={`text-xs font-semibold truncate ${
                 isMySlot ? 'text-blue-300' : 'text-white'
               }`}>
-                {slot.player.username}
+                {slot.player.username.length > 8 ? slot.player.username.substring(0, 8) + '...' : slot.player.username}
               </div>
               
               {/* BGMI ID */}
               {slot.player.gameProfile?.bgmiName && (
-                <div className="text-xs text-gray-400 truncate mt-1">
-                  {slot.player.gameProfile.bgmiName}
+                <div className="text-xs text-gray-400 truncate">
+                  {slot.player.gameProfile.bgmiName.length > 8 ? slot.player.gameProfile.bgmiName.substring(0, 8) + '...' : slot.player.gameProfile.bgmiName}
                 </div>
               )}
             </div>
@@ -758,8 +776,8 @@ const BGMISlotCard = ({ team, slot, isSlotChangeable, user, onSlotClick, isMySlo
             {isMySlot && (
               <>
                 {/* "You" Badge */}
-                <div className="absolute -top-1 -right-1">
-                  <div className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full font-bold shadow-lg">
+                <div className="absolute -top-0.5 -right-0.5">
+                  <div className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-lg">
                     YOU
                   </div>
                 </div>

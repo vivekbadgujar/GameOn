@@ -239,10 +239,14 @@ const Wallet = () => {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-white mb-2">Wallet</h1>
-          <p className="text-white/60 text-lg">
-            Manage your funds and track your transactions
-          </p>
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Wallet</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
+              Manage your funds and track your transactions
+            </p>
+          </div>
         </motion.div>
 
         {/* Balance Card */}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameOn Logo Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .dark-bg {
+            background: #1a1a1a;
+            color: white;
+        }
+        .blue-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+        }
+        .logo-test {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .logo {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+        .logo-with-border {
+            border: 2px solid #000;
+            border-radius: 50%;
+        }
+        .logo-large {
+            width: 80px;
+            height: 80px;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        .brand-text {
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 GameOn Logo Integration Test</h1>
+        
+        <!-- Light Background Test -->
+        <div class="test-section">
+            <h2>Light Background (Default)</h2>
+            <div class="logo-test">
+                <img src="frontend/public/logo.png" alt="GameOn Logo" class="logo" />
+                <span class="brand-text">GameOn</span>
+            </div>
+            <p>✅ Logo should appear normally on light background</p>
+        </div>
+
+        <!-- White Background Test (with border) -->
+        <div class="test-section" style="background: white;">
+            <h2>White Background (With Black Border)</h2>
+            <div class="logo-test">
+                <img src="frontend/public/logo.png" alt="GameOn Logo" class="logo logo-with-border" />
+                <span class="brand-text">GameOn</span>
+            </div>
+            <p>✅ Logo should have black border on white background for better visibility</p>
+        </div>
+
+        <!-- Dark Background Test -->
+        <div class="test-section dark-bg">
+            <h2>Dark Background</h2>
+            <div class="logo-test">
+                <img src="frontend/public/logo.png" alt="GameOn Logo" class="logo" />
+                <span class="brand-text">GameOn</span>
+            </div>
+            <p>✅ Logo should appear clearly on dark background</p>
+        </div>
+
+        <!-- Blue Gradient Background (Admin Panel Style) -->
+        <div class="test-section blue-bg">
+            <h2>Blue Gradient Background (Admin Panel)</h2>
+            <div class="logo-test">
+                <img src="frontend/public/logo.png" alt="GameOn Logo" class="logo logo-with-border" />
+                <span class="brand-text">GameOn Admin</span>
+            </div>
+            <p>✅ Logo with border for admin panel visibility</p>
+        </div>
+
+        <!-- Large Size Test -->
+        <div class="test-section">
+            <h2>Large Size Test</h2>
+            <div class="logo-test">
+                <img src="frontend/public/logo.png" alt="GameOn Logo" class="logo logo-large" />
+                <span class="brand-text" style="font-size: 32px;">GameOn</span>
+            </div>
+            <p>✅ Logo should scale properly at different sizes</p>
+        </div>
+
+        <!-- Integration Status -->
+        <div class="test-section">
+            <h2>📋 Integration Status</h2>
+            <ul>
+                <li>✅ Logo components created for both frontend and admin panel</li>
+                <li>✅ PNG image copied to public directories</li>
+                <li>✅ Black border added for white/light backgrounds</li>
+                <li>✅ Fallback placeholder for missing images</li>
+                <li>✅ Responsive sizing (sm, md, lg, xl)</li>
+                <li>✅ Multiple variants (default, white, dark)</li>
+            </ul>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="test-section">
+            <h2>🚀 Next Steps</h2>
+            <ol>
+                <li>Start the frontend application to see the logo in the header</li>
+                <li>Start the admin panel to see the logo in the sidebar and login page</li>
+                <li>Check browser tabs for favicon (may need manual conversion)</li>
+                <li>Test on different screen sizes and devices</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

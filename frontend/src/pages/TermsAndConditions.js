@@ -26,8 +26,10 @@ const TermsAndConditions = () => {
             <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-blue-400" />
             </div>
-            <h1 className="text-4xl font-bold text-white mb-4">Terms & Conditions</h1>
-            <p className="text-white/60 text-lg">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Terms & Conditions</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
               Last Updated: {new Date().toLocaleDateString('en-IN', { 
                 year: 'numeric', 
                 month: 'long', 

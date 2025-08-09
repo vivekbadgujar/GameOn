@@ -23,8 +23,17 @@ export default function PlayersPage() {
   if (error) return <div className="text-center text-accent-red py-12">{error}</div>;
 
   return (
-    <div className="mt-8">
-      <h2 className="font-display text-3xl mb-6">Top Players</h2>
+    <div className="min-h-screen pt-20 pb-8">
+      <div className="container-custom">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <span className="text-gradient">Top Players</span>
+          </h1>
+          <p className="text-white/60 text-lg max-w-3xl mx-auto">
+            Discover the best players and their achievements on our platform
+          </p>
+        </div>
       <div className="flex flex-wrap gap-6 justify-center">
         {players.map((p, i) => (
           <div key={p._id || i} className="bg-glass rounded-xl shadow-neon px-8 py-6 flex flex-col items-center min-w-[180px]">
@@ -33,6 +42,7 @@ export default function PlayersPage() {
             <span className="text-secondary text-sm">Points: {p.points || p.totalPoints || 0}</span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

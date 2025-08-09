@@ -26,7 +26,6 @@ import TournamentCard from '../components/UI/TournamentCard';
 import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
 import TournamentSlots from '../components/Dashboard/TournamentSlots';
-import MyTournaments from '../components/Tournament/MyTournaments';
 import { useAuthModal } from '../hooks/useAuthModal';
 
 const Dashboard = () => {
@@ -224,31 +223,32 @@ const Dashboard = () => {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
-                Welcome back, {user?.username || 'Gamer'} 👋
-              </h1>
-              <p className="text-white/60 text-lg">
-                Ready to dominate some tournaments today?
-              </p>
-            </div>
-            {isAuthenticated && (
-              <div className="hidden md:flex items-center space-x-4">
-                <div className="glass-card px-6 py-3">
-                  <div className="flex items-center space-x-3">
-                    <Wallet className="w-5 h-5 text-green-400" />
-                    <div>
-                      <p className="text-sm text-white/60">Wallet Balance</p>
-                      <p className="text-xl font-bold text-green-400">
-                        ₹{dashboardData.walletBalance.toLocaleString()}
-                      </p>
-                    </div>
+          {/* Header Section */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Welcome back, {user?.username || 'Gamer'} 👋</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
+              Ready to dominate some tournaments today?
+            </p>
+          </div>
+
+          {/* Wallet Balance Card */}
+          {isAuthenticated && (
+            <div className="flex justify-center mb-6">
+              <div className="glass-card px-6 py-3">
+                <div className="flex items-center space-x-3">
+                  <Wallet className="w-5 h-5 text-green-400" />
+                  <div>
+                    <p className="text-sm text-white/60">Wallet Balance</p>
+                    <p className="text-xl font-bold text-green-400">
+                      ₹{dashboardData.walletBalance.toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Quick Actions */}
@@ -397,26 +397,13 @@ const Dashboard = () => {
           <LeaderboardSlider />
         </motion.div>
 
-        {/* My Tournaments Section - Only for authenticated users */}
-        {isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mb-8"
-          >
-            <h2 className="text-2xl font-bold text-white mb-6">My Tournaments</h2>
-            <div className="glass-card p-6">
-              <MyTournaments user={user} />
-            </div>
-          </motion.div>
-        )}
+
 
         {/* Recent Activity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: isAuthenticated ? 0.7 : 0.5 }}
+          transition={{ duration: 0.6, delay: isAuthenticated ? 0.6 : 0.5 }}
         >
           <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
           <div className="glass-card p-6">

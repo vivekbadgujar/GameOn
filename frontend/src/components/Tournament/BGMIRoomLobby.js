@@ -239,22 +239,22 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
       <Card
         key={`${teamNumber}-${slotNumber}`}
         sx={{
-          minHeight: 80,
+          minHeight: 65,
           cursor: roomData?.roomSlot?.isLocked ? 'not-allowed' : 'pointer',
           bgcolor: getSlotBgColor(slot, teamNumber, slotNumber),
-          border: 2,
+          border: 1.5,
           borderColor: getSlotBorderColor(slot, teamNumber, slotNumber),
           borderStyle: isSelected ? 'dashed' : 'solid',
           transition: 'all 0.2s ease',
           '&:hover': roomData?.roomSlot?.isLocked ? {} : {
             transform: 'scale(1.02)',
-            boxShadow: 4
+            boxShadow: 3
           },
           position: 'relative'
         }}
         onClick={() => handleSlotClick(teamNumber, slotNumber, slot)}
       >
-        <CardContent sx={{ p: 1, textAlign: 'center', '&:last-child': { pb: 1 } }}>
+        <CardContent sx={{ p: 0.75, textAlign: 'center', '&:last-child': { pb: 0.75 } }}>
           {isLocked && (
             <LockIcon 
               sx={{ 
@@ -272,21 +272,27 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
               <Avatar
                 src={slot.player.avatar}
                 sx={{ 
-                  width: 32, 
-                  height: 32, 
+                  width: 28, 
+                  height: 28, 
                   mx: 'auto', 
-                  mb: 0.5,
+                  mb: 0.25,
                   bgcolor: isCurrentPlayer ? 'primary.main' : 'success.main'
                 }}
               >
                 {slot.player.username?.[0]?.toUpperCase()}
               </Avatar>
-              <Typography variant="caption" display="block" fontWeight="bold">
-                {slot.player.displayName || slot.player.username}
+              <Typography variant="caption" display="block" fontWeight="bold" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
+                {(slot.player.displayName || slot.player.username).length > 8 
+                  ? `${(slot.player.displayName || slot.player.username).substring(0, 8)}...`
+                  : slot.player.displayName || slot.player.username
+                }
               </Typography>
               {slot.player.gameProfile?.bgmiName && (
-                <Typography variant="caption" display="block" color="text.secondary">
-                  {slot.player.gameProfile.bgmiName}
+                <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
+                  {slot.player.gameProfile.bgmiName.length > 10 
+                    ? `${slot.player.gameProfile.bgmiName.substring(0, 10)}...`
+                    : slot.player.gameProfile.bgmiName
+                  }
                 </Typography>
               )}
               {isCurrentPlayer && (
@@ -294,14 +300,14 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                   label="YOU" 
                   size="small" 
                   color="primary" 
-                  sx={{ mt: 0.5, fontSize: '0.6rem', height: 16 }} 
+                  sx={{ mt: 0.25, fontSize: '0.55rem', height: 14 }} 
                 />
               )}
             </>
           ) : (
             <>
-              <PersonIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 0.5 }} />
-              <Typography variant="caption" color="text.disabled">
+              <PersonIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 0.25 }} />
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
                 Empty Slot
               </Typography>
             </>
@@ -313,9 +319,9 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
 
   // Render team
   const renderTeam = (team) => (
-    <Card key={team.teamNumber} sx={{ mb: 2 }}>
-      <CardContent sx={{ p: 2 }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+    <Card key={team.teamNumber} sx={{ mb: 1.5 }}>
+      <CardContent sx={{ p: 1.5 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
           <Box display="flex" alignItems="center" gap={1}>
             <GroupsIcon color="primary" />
             <Typography variant="h6" fontWeight="bold">
@@ -336,11 +342,11 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           />
         </Box>
         
-        <Grid container spacing={1}>
+        <Grid container spacing={0.75}>
           {team.slots.map((slot) => (
             <Grid item xs={6} sm={3} key={slot.slotNumber}>
-              <Box textAlign="center" mb={1}>
-                <Typography variant="caption" color="text.secondary">
+              <Box textAlign="center" mb={0.5}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                   Slot {slot.slotNumber}
                 </Typography>
               </Box>
@@ -368,10 +374,15 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     <Dialog 
       open 
       onClose={onClose} 
-      maxWidth="xl" 
+      maxWidth="lg" 
       fullWidth
       PaperProps={{
-        sx: { minHeight: '80vh' }
+        sx: { 
+          minHeight: '70vh',
+          maxHeight: '85vh',
+          bgcolor: alpha(theme.palette.background.paper, 0.95),
+          backdropFilter: 'blur(10px)'
+        }
       }}
     >
       <DialogTitle>
@@ -502,7 +513,7 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
         <Divider sx={{ my: 2 }} />
 
         {/* Teams Grid */}
-        <Box sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+        <Box sx={{ maxHeight: '50vh', overflow: 'auto' }}>
           {roomData?.roomSlot?.teams?.map(renderTeam)}
         </Box>
 

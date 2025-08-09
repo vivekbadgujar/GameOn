@@ -15,6 +15,10 @@ const { Server } = require('socket.io');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Import unified platform services
+const SyncService = require('./services/syncService');
+const PushNotificationService = require('./services/pushNotificationService');
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -28,6 +32,10 @@ const io = new Server(server, {
   transports: ['websocket', 'polling'],
   allowEIO3: true
 });
+
+// Initialize unified platform services
+const syncService = new SyncService(io);
+const pushNotificationService = new PushNotificationService();
 
 // Force port 5000 for consistency
 const PORT = 5000;
@@ -126,8 +134,8 @@ app.use(cors({
         return callback(new Error('Not allowed by CORS'));
       },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Rate limiting - prevent abuse (disabled for development)
@@ -144,6 +152,14 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware
 app.use(morgan('combined'));
+
+// Debug middleware for admin routes
+app.use('/api/admin', (req, res, next) => {
+  console.log(`Admin API Request: ${req.method} ${req.originalUrl}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
+});
 
 // Root route
 app.get('/', (req, res) => {
@@ -175,8 +191,10 @@ app.get('/', (req, res) => {
   });
 });
 
-// Make Socket.IO available to routes
+// Make Socket.IO and services available to routes
 app.set('io', io);
+app.set('syncService', syncService);
+app.set('pushNotificationService', pushNotificationService);
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -193,6 +211,7 @@ app.use('/api/stats', require('./routes/stats'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/room-slots', require('./routes/roomSlots'));
+app.use('/api/sync', require('./routes/sync'));
 
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));
@@ -253,20 +272,58 @@ app.use((err, req, res, next) => {
 
 
 
-// Socket.IO Configuration for Real-time Features
+// Socket.IO Configuration for Unified Platform Real-time Features
 io.on('connection', (socket) => {
   console.log('👤 User connected:', socket.id);
 
-  // Join tournament room
-  socket.on('join_tournament', (tournamentId) => {
-    socket.join(`tournament_${tournamentId}`);
-    console.log(`User ${socket.id} joined tournament ${tournamentId}`);
+  // User authentication and registration
+  socket.on('authenticate', (data) => {
+    const { userId, platform = 'web', token } = data;
+    
+    // TODO: Verify JWT token here
+    if (userId) {
+      syncService.registerUser(socket.id, userId, platform);
+      
+      // Register push notification token if provided
+      if (token) {
+        pushNotificationService.registerDeviceToken(userId, token, platform);
+      }
+      
+      socket.emit('authenticated', {
+        success: true,
+        userId,
+        platform,
+        timestamp: new Date().toISOString()
+      });
+    }
   });
 
-  // Leave tournament room
-  socket.on('leave_tournament', (tournamentId) => {
-    socket.leave(`tournament_${tournamentId}`);
-    console.log(`User ${socket.id} left tournament ${tournamentId}`);
+  // Join tournament room with sync service
+  socket.on('join_tournament', (data) => {
+    const { tournamentId, userId } = data;
+    
+    if (userId) {
+      syncService.subscribeTournament(userId, tournamentId);
+      socket.emit('tournament_joined', { tournamentId, timestamp: new Date().toISOString() });
+    } else {
+      // Fallback for legacy clients
+      socket.join(`tournament_${tournamentId}`);
+      console.log(`User ${socket.id} joined tournament ${tournamentId} (legacy)`);
+    }
+  });
+
+  // Leave tournament room with sync service
+  socket.on('leave_tournament', (data) => {
+    const { tournamentId, userId } = data;
+    
+    if (userId) {
+      syncService.unsubscribeTournament(userId, tournamentId);
+      socket.emit('tournament_left', { tournamentId, timestamp: new Date().toISOString() });
+    } else {
+      // Fallback for legacy clients
+      socket.leave(`tournament_${tournamentId}`);
+      console.log(`User ${socket.id} left tournament ${tournamentId} (legacy)`);
+    }
   });
 
   // Join admin room for admin-specific updates
@@ -281,17 +338,49 @@ io.on('connection', (socket) => {
     console.log(`User ${userId} joined user room`);
   });
 
-  // Handle chat messages
-  socket.on('tournament_message', (data) => {
-    const { tournamentId, message, userId, username } = data;
+  // Join tournament chat
+  socket.on('join_tournament_chat', (data) => {
+    const { tournamentId, userId, username, gamerTag } = data;
+    socket.join(`tournament_chat_${tournamentId}`);
     
-    // Broadcast message to tournament room
-    io.to(`tournament_${tournamentId}`).emit('tournament_message', {
+    // Notify others that user joined
+    socket.to(`tournament_chat_${tournamentId}`).emit('user_joined_chat', {
+      tournamentId,
+      userId,
+      username,
+      gamerTag,
+      onlineUsers: [] // Would track online users
+    });
+    
+    console.log(`User ${username} joined tournament chat ${tournamentId}`);
+  });
+
+  // Leave tournament chat
+  socket.on('leave_tournament_chat', (data) => {
+    const { tournamentId } = data;
+    socket.leave(`tournament_chat_${tournamentId}`);
+    
+    // Notify others that user left
+    socket.to(`tournament_chat_${tournamentId}`).emit('user_left_chat', {
+      tournamentId,
+      onlineUsers: [] // Would track online users
+    });
+  });
+
+  // Send tournament message
+  socket.on('send_tournament_message', (data) => {
+    const { tournamentId, userId, username, gamerTag, message, timestamp, type } = data;
+    
+    // Broadcast message to tournament chat room
+    io.to(`tournament_chat_${tournamentId}`).emit('tournament_message', {
       id: Date.now(),
       userId,
       username,
+      gamerTag,
       message,
-      timestamp: new Date().toISOString()
+      timestamp,
+      type,
+      tournamentId
     });
   });
 
@@ -567,31 +656,63 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} left leaderboard room`);
   });
 
-  // Handle disconnection
+  // Handle heartbeat for connection monitoring
+  socket.on('heartbeat', () => {
+    syncService.updateLastSeen(socket.id);
+  });
+
+  // Handle sync events
+  socket.on('sync_request', (data) => {
+    const { type, lastSyncId } = data;
+    // Handle sync requests from clients
+    socket.emit('sync_response', {
+      type,
+      lastSyncId,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Handle push notification token updates
+  socket.on('update_push_token', (data) => {
+    const { userId, token, platform } = data;
+    if (userId && token) {
+      pushNotificationService.registerDeviceToken(userId, token, platform);
+      socket.emit('push_token_updated', { success: true });
+    }
+  });
+
+  // Handle disconnection with sync service cleanup
   socket.on('disconnect', () => {
     console.log('👤 User disconnected:', socket.id);
+    syncService.unregisterUser(socket.id);
   });
 });
 
 // Make socket.io instance available to routes
 app.set('io', io);
 
-// Global Socket.IO event emitters for admin actions
+// Enhanced Global Socket.IO event emitters with sync service
 const emitToAll = (event, data) => {
   io.emit(event, data);
 };
 
 const emitToTournament = (tournamentId, event, data) => {
-  io.to(`tournament_${tournamentId}`).emit(event, data);
+  syncService.syncTournamentUpdate(tournamentId, event, data);
 };
 
 const emitToUser = (userId, event, data) => {
-  io.to(`user_${userId}`).emit(event, data);
+  syncService.syncUserUpdate(userId, event, data);
 };
 
 const emitToAdmins = (event, data) => {
   io.emit(event, data); // All admins will receive this
 };
+
+// Export sync and notification services for use in routes
+app.set('emitToTournament', emitToTournament);
+app.set('emitToUser', emitToUser);
+app.set('emitToAll', emitToAll);
+app.set('emitToAdmins', emitToAdmins);
 
 
 
@@ -601,7 +722,14 @@ server.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000, localhost:3001'}`);
   console.log(`⚡ Socket.IO enabled for real-time features`);
+  console.log(`🔄 Unified Platform Sync Service initialized`);
+  console.log(`📱 Push Notification Service initialized`);
 });
+
+// Cleanup interval for sync service
+setInterval(() => {
+  syncService.cleanup();
+}, 5 * 60 * 1000); // Every 5 minutes
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

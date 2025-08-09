@@ -20,6 +20,7 @@ import {
   Email
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../common/Logo';
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
@@ -111,11 +112,20 @@ const AdminLogin = () => {
               color: 'white',
               textAlign: 'center',
               py: 4,
-              px: 3
+              px: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
             }}
           >
-            <LockOutlined sx={{ fontSize: 48, mb: 2 }} />
-            <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+            <Logo 
+              size="large" 
+              showText={true} 
+              variant="white"
+              sx={{ mb: 2 }}
+              textSx={{ color: 'white' }}
+            />
+            <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
               Admin Panel
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.9 }}>

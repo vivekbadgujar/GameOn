@@ -92,8 +92,17 @@ export default function VideosPage() {
   if (error) return <div className="text-center text-accent-red py-12">{error}</div>;
 
   return (
-    <div className="mt-8">
-      <h2 className="font-display text-3xl mb-6">Tournament Highlights</h2>
+    <div className="min-h-screen pt-20 pb-8">
+      <div className="container-custom">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <span className="text-gradient">Tournament Highlights</span>
+          </h1>
+          <p className="text-white/60 text-lg max-w-3xl mx-auto">
+            Watch epic moments and highlights from our tournaments
+          </p>
+        </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {videos.length === 0 ? (
           <div className="col-span-full text-center text-secondary py-12">
@@ -149,6 +158,7 @@ export default function VideosPage() {
             </div>
           ))
         )}
+      </div>
       </div>
     </div>
   );

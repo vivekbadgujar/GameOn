@@ -85,13 +85,17 @@ const MediaUpload = () => {
 
   // Upload media mutation
   const uploadMutation = useMutation({
-    mutationFn: (data) => mediaAPI.upload(data.file, {
-      title: data.title,
-      description: data.description,
-      type: data.type,
-      tags: data.tags
-    }),
-    onSuccess: () => {
+    mutationFn: (data) => {
+      console.log('Uploading media with data:', data);
+      return mediaAPI.upload(data.file, {
+        title: data.title,
+        description: data.description,
+        type: data.type,
+        tags: data.tags
+      });
+    },
+    onSuccess: (response) => {
+      console.log('Media upload successful:', response);
       queryClient.invalidateQueries(['media-files']);
       setUploadDialog(false);
       setUploadData({
@@ -104,6 +108,10 @@ const MediaUpload = () => {
       setUploadingFile(null);
       setUploadProgress(0);
     },
+    onError: (error) => {
+      console.error('Media upload failed:', error);
+      setUploadProgress(0);
+    }
   });
 
   // Update media mutation
@@ -464,6 +472,11 @@ const MediaUpload = () => {
       <Dialog open={uploadDialog} onClose={() => setUploadDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Upload Media</DialogTitle>
         <DialogContent>
+          {uploadMutation.error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {uploadMutation.error.response?.data?.message || uploadMutation.error.message || 'Upload failed'}
+            </Alert>
+          )}
           <Grid container spacing={3} sx={{ mt: 1 }}>
             <Grid item xs={12}>
               <Box

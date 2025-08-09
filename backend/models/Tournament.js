@@ -85,7 +85,7 @@ const TournamentSchema = new mongoose.Schema({
   participants: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date, default: Date.now },
-    slotNumber: { type: Number, required: true },
+    slotNumber: { type: Number, default: 0 }, // Changed from required: true to default: 0
     teamNumber: { type: Number }, // BGMI team number (1-25)
     kills: { type: Number, default: 0 },
     rank: { type: Number },

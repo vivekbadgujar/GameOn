@@ -434,6 +434,81 @@ export const verifyResetToken = async (token) => {
   }
 };
 
+// Chat API functions
+export const getTournamentMessages = async (tournamentId, page = 1, limit = 50) => {
+  try {
+    const response = await api.get(`/chat/tournament/${tournamentId}`, {
+      params: { page, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tournament messages:', error);
+    throw error;
+  }
+};
+
+export const sendTournamentMessage = async (tournamentId, messageData) => {
+  try {
+    const response = await api.post(`/chat/tournament/${tournamentId}`, messageData);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending tournament message:', error);
+    throw error;
+  }
+};
+
+export const getDirectMessages = async (userId1, userId2, page = 1, limit = 50) => {
+  try {
+    const response = await api.get(`/chat/direct/${userId1}/${userId2}`, {
+      params: { page, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching direct messages:', error);
+    throw error;
+  }
+};
+
+export const sendDirectMessage = async (messageData) => {
+  try {
+    const response = await api.post('/chat/direct', messageData);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending direct message:', error);
+    throw error;
+  }
+};
+
+export const markMessagesAsRead = async (userId, messageIds) => {
+  try {
+    const response = await api.put(`/chat/read/${userId}`, { messageIds });
+    return response.data;
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    throw error;
+  }
+};
+
+export const getUserConversations = async (userId) => {
+  try {
+    const response = await api.get(`/chat/conversations/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user conversations:', error);
+    throw error;
+  }
+};
+
+export const reportMessage = async (messageId, reportData) => {
+  try {
+    const response = await api.post(`/chat/report/${messageId}`, reportData);
+    return response.data;
+  } catch (error) {
+    console.error('Error reporting message:', error);
+    throw error;
+  }
+};
+
 // Tournament API object for easier imports
 export const tournamentAPI = {
   getTournaments,
@@ -441,6 +516,17 @@ export const tournamentAPI = {
   getTournamentParticipationStatus,
   joinTournament,
   submitResult
+};
+
+// Chat API object for easier imports
+export const chatAPI = {
+  getTournamentMessages,
+  sendTournamentMessage,
+  getDirectMessages,
+  sendDirectMessage,
+  markMessagesAsRead,
+  getUserConversations,
+  reportMessage
 };
 
 export default api;

@@ -196,10 +196,14 @@ const Videos = () => {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold text-white mb-2">Tournament Videos</h1>
-          <p className="text-white/60 text-lg">
-            Watch highlights, tutorials, and epic moments from our tournaments
-          </p>
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              <span className="text-gradient">Tournament Videos</span>
+            </h1>
+            <p className="text-white/60 text-lg max-w-3xl mx-auto">
+              Watch highlights, tutorials, and epic moments from our tournaments
+            </p>
+          </div>
         </motion.div>
 
         {/* Search and Filters */}

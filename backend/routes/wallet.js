@@ -93,7 +93,35 @@ router.post('/deduct', authenticateToken, async (req, res) => {
     // Save user
     await user.save();
 
-    // Emit real-time wallet update
+    // Enhanced real-time sync for unified platform
+    const syncService = req.app.get('syncService');
+    const pushService = req.app.get('pushNotificationService');
+    
+    if (syncService) {
+      // Sync wallet update across all platforms
+      syncService.syncWalletUpdate(userId.toString(), 'wallet_debited', {
+        amount: amount,
+        newBalance: user.wallet.balance,
+        transaction: transaction,
+        description: description,
+        tournamentId: tournamentId
+      });
+    }
+
+    // Send push notification for significant deductions
+    if (pushService && amount >= 50) {
+      await pushService.sendWalletNotification(
+        userId.toString(),
+        'wallet_debited',
+        {
+          amount: amount,
+          balance: user.wallet.balance,
+          description: description
+        }
+      );
+    }
+
+    // Legacy socket events for backward compatibility
     const io = req.app.get('io');
     if (io) {
       io.to(`user_${userId}`).emit('walletUpdated', {

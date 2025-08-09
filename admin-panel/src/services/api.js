@@ -87,7 +87,18 @@ export const tournamentAPI = {
     return api.put(`/admin/tournaments/${id}`, data);
   },
   delete: (id) => api.delete(`/admin/tournaments/${id}`),
-  updateStatus: (id, status) => api.patch(`/admin/tournaments/${id}/status`, { status }),
+  updateStatus: (id, status) => {
+    console.log('API: Updating tournament status:', { id, status });
+    return api.patch(`/admin/tournaments/${id}/status`, { status }).then(response => {
+      console.log('API: Status update response:', response.data);
+      return response;
+    }).catch(error => {
+      console.error('API: Status update error:', error);
+      console.error('API: Error response:', error.response?.data);
+      console.error('API: Error status:', error.response?.status);
+      throw error;
+    });
+  },
   postResult: (id, result) => api.post(`/admin/tournaments/${id}/results`, result),
   getParticipants: (id) => api.get(`/admin/tournaments/${id}/participants`),
   releaseCredentials: (id) => api.post(`/admin/tournaments/${id}/release-credentials`),

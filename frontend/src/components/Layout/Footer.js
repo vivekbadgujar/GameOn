@@ -36,7 +36,7 @@ const Footer = () => {
   const socialLinks = [
     { icon: Facebook, href: '#', label: 'Facebook' },
     { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Instagram, href: '#', label: 'Instagram' },
+    { icon: Instagram, href: 'https://www.instagram.com/gameon_.official?utm_source=qr&igsh=MWt5YW52bHM5NWRjZA==', label: 'Instagram' },
     { icon: Youtube, href: '#', label: 'YouTube' }
   ];
 
@@ -146,16 +146,16 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <Phone className="w-4 h-4 text-green-400 flex-shrink-0" />
                 <a 
-                  href="tel:+91-XXXX-XXXXXX" 
+                  href="tel:+91-8488956724" 
                   className="text-white/60 hover:text-white transition-colors duration-300 text-sm"
                 >
-                  +91-XXXX-XXXXXX
+                  +91-8488956724
                 </a>
               </div>
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                 <span className="text-white/60 text-sm">
-                  Mumbai, Maharashtra, India
+                  Ahmebadab, Gujarat, India
                 </span>
               </div>
             </div>
@@ -174,7 +174,7 @@ const Footer = () => {
             <div className="text-white/60 text-sm text-center md:text-left">
               <p>© {currentYear} GameOn. All rights reserved.</p>
               <p className="mt-1">
-                Designed with ❤️ for the gaming community
+                Designed with Love for the gaming community
               </p>
             </div>
             

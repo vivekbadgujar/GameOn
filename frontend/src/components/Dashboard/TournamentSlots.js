@@ -318,14 +318,22 @@ const TournamentSlots = () => {
               {/* Slot Info & Edit Button */}
               <div className="lg:ml-6 min-w-[200px] space-y-3">
                 {/* Current Slot Display */}
-                <div className="glass-card p-3 bg-green-500/10 border-green-500/20">
+                <div className="glass-card p-3 bg-green-500/10 border-green-500/20 ring-1 ring-green-500/30">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-white/80 text-sm">Your Slot</span>
+                    <span className="text-white/90 text-sm font-medium">Your Slot</span>
                     <CheckCircle className="w-4 h-4 text-green-400" />
                   </div>
-                  <div className="text-xl font-bold text-green-400">
+                  <div className="text-xl font-bold text-green-400 flex items-center">
                     #{tournament.userSlot}
+                    <span className="ml-2 text-xs bg-green-500/20 px-2 py-1 rounded-full text-green-300">
+                      Assigned
+                    </span>
                   </div>
+                  {tournament.userTeam && (
+                    <div className="text-xs text-green-300/80 mt-1">
+                      Team {tournament.userTeam}
+                    </div>
+                  )}
                 </div>
 
                 {/* Edit Slot Button */}
