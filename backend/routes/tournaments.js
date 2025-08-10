@@ -10,6 +10,34 @@ const { authenticateToken } = require('../middleware/auth');
 const { validateTournamentParticipation } = require('../middleware/tournamentParticipationValidation');
 const router = express.Router();
 
+// Get user's tournaments (for mobile sync)
+router.get('/my-tournaments', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Find tournaments where user is a participant
+    const tournaments = await Tournament.find({
+      'participants.user': userId
+    })
+    .populate('participants.user', 'username displayName gameProfile.bgmiId')
+    .sort({ startDate: -1 });
+    
+    res.json({
+      success: true,
+      tournaments,
+      count: tournaments.length,
+      message: 'User tournaments fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching user tournaments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user tournaments',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // Get all tournaments
 router.get('/', async (req, res) => {
   try {

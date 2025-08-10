@@ -1,50 +1,39 @@
 /**
  * Home Screen
- * Main dashboard with live tournaments and stats
+ * Main dashboard showing synced data from website
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  StyleSheet,
+  Alert,
   Dimensions,
 } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { Card, Button, Avatar, Badge } from 'react-native-paper';
+import { useDispatch, useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useSync } from '../providers/SyncProvider';
-import { setTournaments } from '../store/slices/tournamentsSlice';
-import { updateWallet } from '../store/slices/walletSlice';
 import TournamentCard from '../components/TournamentCard';
-import StatsCard from '../components/StatsCard';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { API_BASE_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
-  const { tournaments } = useSelector(state => state.tournaments);
   const { balance } = useSelector(state => state.wallet);
+  const { tournaments } = useSelector(state => state.tournaments);
   const { isConnected, lastSyncTime } = useSelector(state => state.sync);
   
+  const { syncAllData } = useSync();
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    activeTournaments: 0,
-    totalPlayers: 0,
-    totalPrizePool: 0,
-    onlineUsers: 0
-  });
-
-  const { forceSync } = useSync();
+  const [syncStatus, setSyncStatus] = useState('');
 
   useEffect(() => {
     loadHomeData();

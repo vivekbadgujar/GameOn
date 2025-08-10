@@ -12,6 +12,94 @@ class SyncService {
   }
 
   /**
+   * Handle user authentication for sync
+   */
+  async handleAuthentication(socket, data) {
+    const { userId, platform, token } = data;
+    
+    if (!userId) {
+      socket.emit('auth_error', { message: 'User ID required' });
+      return;
+    }
+
+    try {
+      // Register user connection
+      this.registerUser(socket.id, userId, platform);
+      
+      // Join user to their personal room
+      socket.join(`user_${userId}`);
+      socket.userId = userId;
+      socket.platform = platform;
+
+      console.log(`✅ User ${userId} authenticated on ${platform}`);
+      
+      // Get current user data for initial sync
+      const currentData = await this.getCurrentUserData(userId);
+      
+      socket.emit('authenticated', {
+        userId,
+        platform,
+        sessionId: socket.id,
+        connectedSessions: this.getUserSessions(userId),
+        currentData // Include current user data
+      });
+
+      // Notify other sessions about new connection
+      this.syncUserUpdate(userId, 'session_connected', {
+        platform,
+        sessionId: socket.id,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Authentication error:', error);
+      socket.emit('auth_error', { message: 'Authentication failed' });
+    }
+  }
+
+  /**
+   * Get current user data for initial sync
+   */
+  async getCurrentUserData(userId) {
+    try {
+      const User = require('../models/User');
+      const Tournament = require('../models/Tournament');
+      
+      // Get user with wallet data
+      const user = await User.findById(userId).select('wallet username displayName gameProfile');
+      
+      // Get user's active tournaments
+      const userTournaments = await Tournament.find({
+        'participants.user': userId,
+        status: { $in: ['upcoming', 'live'] }
+      }).populate('participants.user', 'username displayName');
+      
+      return {
+        wallet: {
+          balance: user?.wallet?.balance || 0,
+          transactions: user?.wallet?.transactions?.slice(-10) || [] // Last 10 transactions
+        },
+        tournaments: userTournaments,
+        profile: {
+          username: user?.username,
+          displayName: user?.displayName,
+          gameProfile: user?.gameProfile
+        },
+        syncTimestamp: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error('Error getting current user data:', error);
+      return {
+        wallet: { balance: 0, transactions: [] },
+        tournaments: [],
+        profile: {},
+        syncTimestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
    * Register user connection
    */
   registerUser(socketId, userId, platform = 'web') {

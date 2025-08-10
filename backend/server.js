@@ -276,25 +276,21 @@ app.use((err, req, res, next) => {
 io.on('connection', (socket) => {
   console.log('👤 User connected:', socket.id);
 
-  // User authentication and registration
-  socket.on('authenticate', (data) => {
+  // User authentication and registration with data sync
+  socket.on('authenticate', async (data) => {
     const { userId, platform = 'web', token } = data;
     
     // TODO: Verify JWT token here
     if (userId) {
-      syncService.registerUser(socket.id, userId, platform);
+      // Use enhanced authentication with data sync
+      await syncService.handleAuthentication(socket, { userId, platform, token });
       
       // Register push notification token if provided
       if (token) {
         pushNotificationService.registerDeviceToken(userId, token, platform);
       }
-      
-      socket.emit('authenticated', {
-        success: true,
-        userId,
-        platform,
-        timestamp: new Date().toISOString()
-      });
+    } else {
+      socket.emit('auth_error', { message: 'User ID required' });
     }
   });
 

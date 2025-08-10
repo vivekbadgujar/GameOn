@@ -144,11 +144,14 @@ const SyncProvider = ({ children }) => {
     socket.on('authenticated', (data) => {
       console.log('✅ Authenticated with sync service', data);
       
-      // Request current sync status
-      socket.emit('sync_request', {
-        type: 'initial_sync',
-        lastSyncId: null
-      });
+      // If server provides current data, use it immediately
+      if (data.currentData) {
+        console.log('📦 Received current data from server');
+        syncDataFromServer(data.currentData);
+      }
+      
+      // Also perform additional data sync for completeness
+      performInitialDataSync();
     });
 
     socket.on('disconnect', (reason) => {
@@ -352,6 +355,306 @@ const SyncProvider = ({ children }) => {
     }
   };
 
+  const performInitialDataSync = async () => {
+    console.log('🔄 Starting initial data sync...');
+    
+    try {
+      // Sync wallet data
+      await syncWalletData();
+      
+      // Sync tournaments data
+      await syncTournamentsData();
+      
+      // Sync user profile data
+      await syncUserProfileData();
+      
+      // Sync notifications
+      await syncNotificationsData();
+      
+      console.log('✅ Initial data sync completed');
+      dispatch(updateSyncTime());
+      
+    } catch (error) {
+      console.error('❌ Initial data sync failed:', error);
+      dispatch(setError('Failed to sync data'));
+    }
+  };
+
+  const syncWalletData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wallet/balance`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        dispatch(updateWallet({ 
+          balance: data.balance,
+          lastUpdated: new Date().toISOString()
+        }));
+        console.log('💰 Wallet synced:', data.balance);
+      }
+    } catch (error) {
+      console.error('❌ Wallet sync failed:', error);
+    }
+  };
+
+  const syncTournamentsData = async () => {
+    try {
+      // Get user's tournaments
+      const myTournamentsResponse = await fetch(`${API_BASE_URL}/api/tournaments/my-tournaments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const myTournamentsData = await myTournamentsResponse.json();
+      
+      if (myTournamentsData.success) {
+        // Update user's joined tournaments
+        myTournamentsData.tournaments.forEach(tournament => {
+          dispatch(updateTournament(tournament));
+        });
+        console.log('🎮 My tournaments synced:', myTournamentsData.tournaments.length);
+      }
+      
+      // Get all available tournaments
+      const allTournamentsResponse = await fetch(`${API_BASE_URL}/api/tournaments?status=upcoming&limit=20`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const allTournamentsData = await allTournamentsResponse.json();
+      
+      if (allTournamentsData.success) {
+        dispatch(setTournaments(allTournamentsData.tournaments));
+        console.log('🎮 All tournaments synced:', allTournamentsData.tournaments.length);
+      }
+      
+    } catch (error) {
+      console.error('❌ Tournaments sync failed:', error);
+    }
+  };
+
+  const syncUserProfileData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update user profile in auth slice
+        // dispatch(updateUserProfile(data.user));
+        console.log('👤 Profile synced');
+      }
+    } catch (error) {
+      console.error('❌ Profile sync failed:', error);
+    }
+  };
+
+  const syncNotificationsData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notifications?limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Add all notifications to store
+        data.notifications.forEach(notification => {
+          dispatch(addNotification(notification));
+        });
+        console.log('🔔 Notifications synced:', data.notifications.length);
+      }
+    } catch (error) {
+      console.error('❌ Notifications sync failed:', error);
+    }
+  };
+
+  const performInitialDataSync = async () => {
+    console.log('🔄 Starting initial data sync...');
+    
+    try {
+      // Sync wallet data
+      await syncWalletData();
+      
+      // Sync tournaments data
+      await syncTournamentsData();
+      
+      // Sync user profile data
+      await syncUserProfileData();
+      
+      // Sync notifications
+      await syncNotificationsData();
+      
+      console.log('✅ Initial data sync completed');
+      dispatch(updateSyncTime());
+      
+    } catch (error) {
+      console.error('❌ Initial data sync failed:', error);
+      dispatch(setError('Failed to sync data'));
+    }
+  };
+
+  const syncDataFromServer = (serverData) => {
+    console.log('📦 Syncing data from server...');
+    
+    try {
+      // Sync wallet data
+      if (serverData.wallet) {
+        dispatch(updateWallet({
+          balance: serverData.wallet.balance,
+          transactions: serverData.wallet.transactions,
+          lastUpdated: serverData.syncTimestamp
+        }));
+        console.log('💰 Wallet synced from server:', serverData.wallet.balance);
+      }
+      
+      // Sync tournaments data
+      if (serverData.tournaments && serverData.tournaments.length > 0) {
+        serverData.tournaments.forEach(tournament => {
+          dispatch(updateTournament(tournament));
+        });
+        console.log('🎮 Tournaments synced from server:', serverData.tournaments.length);
+      }
+      
+      // Sync profile data
+      if (serverData.profile) {
+        // dispatch(updateUserProfile(serverData.profile));
+        console.log('👤 Profile synced from server');
+      }
+      
+      dispatch(updateSyncTime());
+      console.log('✅ Server data sync completed');
+      
+    } catch (error) {
+      console.error('❌ Server data sync failed:', error);
+    }
+  };
+
+  const syncWalletData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wallet/balance`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        dispatch(updateWallet({ 
+          balance: data.balance,
+          lastUpdated: new Date().toISOString()
+        }));
+        console.log('💰 Wallet synced:', data.balance);
+      }
+    } catch (error) {
+      console.error('❌ Wallet sync failed:', error);
+    }
+  };
+
+  const syncTournamentsData = async () => {
+    try {
+      // Get user's tournaments
+      const myTournamentsResponse = await fetch(`${API_BASE_URL}/api/tournaments/my-tournaments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const myTournamentsData = await myTournamentsResponse.json();
+      
+      if (myTournamentsData.success) {
+        // Update user's joined tournaments
+        myTournamentsData.tournaments.forEach(tournament => {
+          dispatch(updateTournament(tournament));
+        });
+        console.log('🎮 My tournaments synced:', myTournamentsData.tournaments.length);
+      }
+      
+      // Get all available tournaments
+      const allTournamentsResponse = await fetch(`${API_BASE_URL}/api/tournaments?status=upcoming&limit=20`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const allTournamentsData = await allTournamentsResponse.json();
+      
+      if (allTournamentsData.success) {
+        dispatch(setTournaments(allTournamentsData.tournaments));
+        console.log('🎮 All tournaments synced:', allTournamentsData.tournaments.length);
+      }
+      
+    } catch (error) {
+      console.error('❌ Tournaments sync failed:', error);
+    }
+  };
+
+  const syncUserProfileData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update user profile in auth slice
+        // dispatch(updateUserProfile(data.user));
+        console.log('👤 Profile synced');
+      }
+    } catch (error) {
+      console.error('❌ Profile sync failed:', error);
+    }
+  };
+
+  const syncNotificationsData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notifications?limit=50`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Add all notifications to store
+        data.notifications.forEach(notification => {
+          dispatch(addNotification(notification));
+        });
+        console.log('🔔 Notifications synced:', data.notifications.length);
+      }
+    } catch (error) {
+      console.error('❌ Notifications sync failed:', error);
+    }
+  };
+
   const forceSync = (type = 'user_data', data = {}) => {
     if (socketRef.current?.connected) {
       const syncId = `sync_${Date.now()}`;
@@ -373,11 +676,58 @@ const SyncProvider = ({ children }) => {
     return null;
   };
 
+  const syncAllData = async () => {
+    console.log('🔄 Manual sync requested...');
+    await performInitialDataSync();
+  };
+
+  const syncDataFromServer = (serverData) => {
+    console.log('📦 Syncing data from server...');
+    
+    try {
+      // Sync wallet data
+      if (serverData.wallet) {
+        dispatch(updateWallet({
+          balance: serverData.wallet.balance,
+          transactions: serverData.wallet.transactions,
+          lastUpdated: serverData.syncTimestamp
+        }));
+        console.log('💰 Wallet synced from server:', serverData.wallet.balance);
+      }
+      
+      // Sync tournaments data
+      if (serverData.tournaments && serverData.tournaments.length > 0) {
+        serverData.tournaments.forEach(tournament => {
+          dispatch(updateTournament(tournament));
+        });
+        console.log('🎮 Tournaments synced from server:', serverData.tournaments.length);
+      }
+      
+      // Sync profile data
+      if (serverData.profile) {
+        // dispatch(updateUserProfile(serverData.profile));
+        console.log('👤 Profile synced from server');
+      }
+      
+      dispatch(updateSyncTime());
+      console.log('✅ Server data sync completed');
+      
+    } catch (error) {
+      console.error('❌ Server data sync failed:', error);
+    }
+  };
+
+  const syncAllData = async () => {
+    console.log('🔄 Manual sync requested...');
+    await performInitialDataSync();
+  };
+
   const contextValue = {
     joinTournament,
     leaveTournament,
     updateSlot,
     forceSync,
+    syncAllData,
     isConnected: socketRef.current?.connected || false,
   };
 
