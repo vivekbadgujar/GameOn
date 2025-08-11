@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import { loginUser, sendOTP, verifyOTP } from '../store/slices/authSlice';
 import { useSync } from '../providers/SyncProvider';

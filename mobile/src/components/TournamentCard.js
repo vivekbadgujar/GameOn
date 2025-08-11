@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Card, Button, Chip, ProgressBar } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import FastImage from 'react-native-fast-image';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+// import FastImage from 'react-native-fast-image';
 
 const { width } = Dimensions.get('window');
 
@@ -53,14 +53,15 @@ const TournamentCard = ({ tournament, onPress, style }) => {
     switch (game?.toLowerCase()) {
       case 'bgmi':
       case 'pubg':
-        return require('../assets/images/bgmi-icon.png');
+        return 'gamepad-variant';
       case 'free fire':
-        return require('../assets/images/freefire-icon.png');
+      case 'freefire':
+        return 'fire';
       case 'cod':
       case 'call of duty':
-        return require('../assets/images/cod-icon.png');
+        return 'pistol';
       default:
-        return require('../assets/images/game-default.png');
+        return 'gamepad';
     }
   };
 
@@ -81,11 +82,13 @@ const TournamentCard = ({ tournament, onPress, style }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.gameInfo}>
-              <FastImage
-                source={getGameIcon(tournament.game)}
-                style={styles.gameIcon}
-                resizeMode={FastImage.resizeMode.contain}
-              />
+              <View style={styles.gameIconContainer}>
+                <Icon
+                  name={getGameIcon(tournament.game)}
+                  size={24}
+                  color="#FF6B35"
+                />
+              </View>
               <View style={styles.titleContainer}>
                 <Text style={styles.title} numberOfLines={2}>
                   {tournament.title}
@@ -247,11 +250,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  gameIcon: {
+  gameIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 8,
     marginRight: 12,
+    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   titleContainer: {
     flex: 1,

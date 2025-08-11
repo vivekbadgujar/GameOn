@@ -5,13 +5,13 @@
 
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 /**
  * GET /api/sync/status
  * Get sync service status and user's active sessions
  */
-router.get('/status', auth, async (req, res) => {
+router.get('/status', authenticateToken, async (req, res) => {
   try {
     const syncService = req.app.get('syncService');
     const userId = req.user.id;
@@ -43,7 +43,7 @@ router.get('/status', auth, async (req, res) => {
  * GET /api/sync/stats
  * Get platform-wide sync statistics (admin only)
  */
-router.get('/stats', auth, async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     // TODO: Add admin check
     const syncService = req.app.get('syncService');
@@ -73,7 +73,7 @@ router.get('/stats', auth, async (req, res) => {
  * POST /api/sync/register-device
  * Register device for push notifications
  */
-router.post('/register-device', auth, async (req, res) => {
+router.post('/register-device', authenticateToken, async (req, res) => {
   try {
     const { token, platform = 'web' } = req.body;
     const userId = req.user.id;
@@ -110,7 +110,7 @@ router.post('/register-device', auth, async (req, res) => {
  * DELETE /api/sync/unregister-device
  * Unregister device from push notifications
  */
-router.delete('/unregister-device', auth, async (req, res) => {
+router.delete('/unregister-device', authenticateToken, async (req, res) => {
   try {
     const { token } = req.body;
     const userId = req.user.id;
@@ -146,7 +146,7 @@ router.delete('/unregister-device', auth, async (req, res) => {
  * POST /api/sync/test-notification
  * Send test notification (development only)
  */
-router.post('/test-notification', auth, async (req, res) => {
+router.post('/test-notification', authenticateToken, async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({
@@ -178,7 +178,7 @@ router.post('/test-notification', auth, async (req, res) => {
  * GET /api/sync/user-sessions
  * Get user's active sessions across platforms
  */
-router.get('/user-sessions', auth, async (req, res) => {
+router.get('/user-sessions', authenticateToken, async (req, res) => {
   try {
     const syncService = req.app.get('syncService');
     const userId = req.user.id;
@@ -218,7 +218,7 @@ router.get('/user-sessions', auth, async (req, res) => {
  * POST /api/sync/force-sync
  * Force sync user data across all sessions
  */
-router.post('/force-sync', auth, async (req, res) => {
+router.post('/force-sync', authenticateToken, async (req, res) => {
   try {
     const { type = 'user_data', data = {} } = req.body;
     const userId = req.user.id;

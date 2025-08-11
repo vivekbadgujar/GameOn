@@ -15,13 +15,28 @@ import {
   Dimensions,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { Avatar, Badge, Card, Button } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import { useSync } from '../providers/SyncProvider';
 import TournamentCard from '../components/TournamentCard';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { fetchTournaments } from '../store/slices/tournamentsSlice';
+import { fetchWalletBalance, updateBalance } from '../store/slices/walletSlice';
+import { API_CONFIG } from '../config';
 
 const { width } = Dimensions.get('window');
+
+const StatsCard = ({ icon, title, value, color }) => (
+  <View style={[styles.statsCard, { borderLeftColor: color }]}>
+    <Icon name={icon} size={24} color={color} />
+    <View style={styles.statsCardContent}>
+      <Text style={styles.statsCardValue}>{value}</Text>
+      <Text style={styles.statsCardTitle}>{title}</Text>
+    </View>
+  </View>
+);
 
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -33,7 +48,13 @@ const HomeScreen = ({ navigation }) => {
   const { syncAllData } = useSync();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    activeTournaments: 0,
+    totalPlayers: 0,
+    totalPrizePool: 0,
+    onlineUsers: 0,
+  });
 
   useEffect(() => {
     loadHomeData();
@@ -44,32 +65,18 @@ const HomeScreen = ({ navigation }) => {
       setLoading(true);
       
       // Load tournaments
-      const tournamentsResponse = await fetch(`${API_BASE_URL}/api/tournaments?status=upcoming&limit=5`);
-      const tournamentsData = await tournamentsResponse.json();
-      
-      if (tournamentsData.success) {
-        dispatch(setTournaments(tournamentsData.tournaments));
-      }
+      await dispatch(fetchTournaments({ status: 'upcoming', limit: 5 }));
 
       // Load wallet balance
-      const walletResponse = await fetch(`${API_BASE_URL}/api/wallet/balance`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
-      const walletData = await walletResponse.json();
-      
-      if (walletData.success) {
-        dispatch(updateWallet({ balance: walletData.balance }));
-      }
+      await dispatch(fetchWalletBalance());
 
-      // Load platform stats
-      const statsResponse = await fetch(`${API_BASE_URL}/api/stats/platform`);
-      const statsData = await statsResponse.json();
-      
-      if (statsData.success) {
-        setStats(statsData.data);
-      }
+      // Load platform stats (mock data for now)
+      setStats({
+        activeTournaments: 12,
+        totalPlayers: 1250,
+        totalPrizePool: 50000,
+        onlineUsers: 89,
+      });
 
     } catch (error) {
       console.error('Error loading home data:', error);
@@ -83,8 +90,8 @@ const HomeScreen = ({ navigation }) => {
     await loadHomeData();
     
     // Force sync with server
-    if (isConnected) {
-      forceSync('home_refresh');
+    if (isConnected && syncAllData) {
+      await syncAllData();
     }
     
     setRefreshing(false);
@@ -429,6 +436,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     padding: 20,
+  },
+  statsCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: (width - 60) / 2,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+  },
+  statsCardContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  statsCardValue: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statsCardTitle: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
   },
 });
 
