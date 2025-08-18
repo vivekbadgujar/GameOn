@@ -64,15 +64,38 @@ const AdminLogin = () => {
     }
 
     try {
+      console.log('Attempting login with:', { 
+        email: formData.email, 
+        apiUrl: process.env.REACT_APP_API_URL 
+      });
+      
       const result = await login(formData);
+      console.log('Login result:', result);
+      
       if (result.success) {
         setSuccess('Login successful! Redirecting...');
         // Redirect will be handled by the auth context
       } else {
-        setError(result.message || 'Login failed');
+        console.error('Login failed:', result);
+        setError(result.message || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
-      setError('An unexpected error occurred. Please try again.');
+      console.error('Login error:', error);
+      
+      // More detailed error messages
+      if (error.response?.status === 401) {
+        setError('Invalid email or password. Please check your credentials.');
+      } else if (error.response?.status === 423) {
+        setError('Account is temporarily locked. Please try again later.');
+      } else if (error.response?.status === 403) {
+        setError('Account not verified. Please contact administrator.');
+      } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+        setError('Cannot connect to server. Please check your internet connection.');
+      } else if (error.response?.status >= 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(error.response?.data?.message || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

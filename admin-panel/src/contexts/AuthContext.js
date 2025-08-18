@@ -62,20 +62,30 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      console.log('AuthContext: Attempting login...');
+      console.log('API Base URL:', process.env.REACT_APP_API_URL);
+      
       const response = await authAPI.login(credentials);
+      console.log('AuthContext: Login response:', response.data);
+      
       if (response.data.success) {
         localStorage.setItem('adminToken', response.data.token);
         setIsAuthenticated(true);
         setAdmin(response.data.admin);
+        console.log('AuthContext: Login successful, token stored');
         return { success: true };
       } else {
+        console.log('AuthContext: Login failed -', response.data.message);
         return { success: false, message: response.data.message };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('AuthContext: Login error:', error);
+      console.error('AuthContext: Error response:', error.response?.data);
+      console.error('AuthContext: Error status:', error.response?.status);
+      
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: error.response?.data?.message || error.message || 'Login failed' 
       };
     }
   };
