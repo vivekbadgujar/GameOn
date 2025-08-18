@@ -24,7 +24,13 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? ['https://gameon-platform.vercel.app']
+      ? [
+          'https://gameon-platform.vercel.app',
+          'https://gameon-frontend.vercel.app', 
+          'https://game-on-topaz.vercel.app',
+          'https://gameon-admin.vercel.app',
+          'https://gameon-admin-panel.vercel.app'
+        ]
       : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
     credentials: true,
     methods: ['GET', 'POST']
@@ -134,6 +140,7 @@ app.use(cors({
           'https://gameon-frontend.vercel.app',
           'https://gameon-admin.vercel.app',
           'https://gameon-admin-panel.vercel.app',
+          'https://game-on-topaz.vercel.app', // Your actual admin panel domain
           // Add your custom domains here
         ];
         
