@@ -106,11 +106,25 @@ const TournamentDetails = () => {
   const fetchTournamentDetails = async () => {
     try {
       setLoading(true);
+      setError(''); // Clear previous errors
       const data = await getTournamentById(id);
       setTournament(data);
     } catch (error) {
       console.error('Error fetching tournament details:', error);
-      setError('Tournament not found');
+      
+      // Handle different types of errors
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message;
+        if (errorMessage === 'Token has expired') {
+          setError('Your session has expired. Please login again to view this tournament.');
+        } else {
+          setError('Authentication required. Please login to view this tournament.');
+        }
+      } else if (error.response?.status === 404) {
+        setError('Tournament not found or has been removed.');
+      } else {
+        setError('Failed to load tournament details. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -124,11 +138,35 @@ const TournamentDetails = () => {
 
     try {
       setJoining(true);
+      setError(''); // Clear previous errors
       await joinTournament(id);
+      
+      // Show success message
+      showSuccess('Successfully joined tournament!');
+      
       // Refresh tournament data to show updated participant count
       await fetchTournamentDetails();
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to join tournament');
+      console.error('Error joining tournament:', error);
+      
+      // Handle different types of errors
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message;
+        if (errorMessage === 'Token has expired') {
+          showError('Your session has expired. Please login again.');
+          setTimeout(() => navigate('/login'), 2000);
+        } else {
+          showError('Authentication required. Please login again.');
+          setTimeout(() => navigate('/login'), 2000);
+        }
+      } else if (error.response?.status === 404) {
+        showError('Tournament not found or has been removed.');
+      } else if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error;
+        showError(errorMessage || 'Unable to join tournament. Please try again.');
+      } else {
+        showError('Failed to join tournament. Please try again.');
+      }
     } finally {
       setJoining(false);
     }
@@ -229,16 +267,35 @@ const TournamentDetails = () => {
         <div className="container-custom">
           <div className="glass-card p-12 text-center">
             <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-4">Tournament Not Found</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">
+              {error?.includes('session has expired') ? 'Session Expired' : 'Tournament Not Found'}
+            </h2>
             <p className="text-white/60 mb-6">
-              The tournament you're looking for doesn't exist or has been removed.
+              {error || 'The tournament you\'re looking for doesn\'t exist or has been removed.'}
             </p>
-            <button
-              onClick={() => navigate('/tournaments')}
-              className="btn-primary"
-            >
-              Browse Tournaments
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {error?.includes('session has expired') || error?.includes('Authentication required') ? (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="btn-primary"
+                >
+                  Login Again
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/tournaments')}
+                  className="btn-primary"
+                >
+                  Browse Tournaments
+                </button>
+              )}
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-secondary"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -258,6 +315,49 @@ const TournamentDetails = () => {
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Tournaments</span>
         </motion.button>
+
+        {/* Notifications */}
+        {notifications.success && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="glass-card p-4 mb-6 bg-green-500/20 border border-green-500/30"
+          >
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              <span className="text-green-100">{notifications.success}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {notifications.error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="glass-card p-4 mb-6 bg-red-500/20 border border-red-500/30"
+          >
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              <span className="text-red-100">{notifications.error}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {notifications.info && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="glass-card p-4 mb-6 bg-blue-500/20 border border-blue-500/30"
+          >
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-blue-400" />
+              <span className="text-blue-100">{notifications.info}</span>
+            </div>
+          </motion.div>
+        )}
 
         {/* Tournament Header */}
         <motion.div

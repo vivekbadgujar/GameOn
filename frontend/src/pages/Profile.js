@@ -14,7 +14,9 @@ import {
   Star,
   Target,
   Award,
-  TrendingUp
+  TrendingUp,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
@@ -24,6 +26,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [tournaments, setTournaments] = useState([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -115,6 +118,54 @@ const Profile = () => {
     setEditing(false);
   };
 
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setPhotoUploading(true);
+      
+      const formData = new FormData();
+      formData.append('profilePhoto', file);
+
+      const response = await fetch('http://localhost:5000/api/users/upload-photo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        updateUser(data.user);
+        alert('Profile photo updated successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to upload photo');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Failed to upload photo. Please try again.');
+    } finally {
+      setPhotoUploading(false);
+      // Reset the file input
+      event.target.value = '';
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -149,9 +200,18 @@ const Profile = () => {
           >
             <div className="glass-card p-6">
               <div className="text-center mb-6">
-                <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <User className="w-12 h-12 text-white" />
+                <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                  {user.avatar ? (
+                    <img 
+                      src={`http://localhost:5000${user.avatar}`} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-white" />
+                  )}
                 </div>
+                
                 <h2 className="text-2xl font-bold text-white mb-1">
                   {user.gameProfile?.bgmiName || user.username}
                 </h2>
@@ -278,6 +338,39 @@ const Profile = () => {
                     />
                   </div>
                 </div>
+
+                {/* Profile Photo Upload - Only show when editing */}
+                {editing && (
+                  <div>
+                    <label className="block text-white font-semibold mb-2">
+                      Profile Photo
+                    </label>
+                    <div className="relative">
+                      <Camera className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <label 
+                        htmlFor="photo-upload" 
+                        className="input-field pl-10 w-full cursor-pointer flex items-center justify-between hover:bg-white/10 transition-colors"
+                      >
+                        <span className="text-white/60">
+                          {photoUploading ? 'Uploading...' : 'Choose profile photo'}
+                        </span>
+                        {photoUploading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : (
+                          <Upload className="w-4 h-4 text-white/60" />
+                        )}
+                      </label>
+                      <input
+                        id="photo-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        disabled={photoUploading}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-white font-semibold mb-2">

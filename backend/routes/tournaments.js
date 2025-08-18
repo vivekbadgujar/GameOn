@@ -208,6 +208,12 @@ router.get('/:id/participation-status', authenticateToken, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🔍 Tournament Details Request:', {
+      id,
+      userAgent: req.headers['user-agent'],
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    });
     
     const tournament = await Tournament.findById(id)
       .populate('participants.user', 'username displayName gameProfile.bgmiId')
@@ -226,17 +232,20 @@ router.get('/:id', async (req, res) => {
     const transformedTournament = {
       _id: tournament._id,
       title: tournament.title,
+      name: tournament.title, // Add name field for compatibility
       description: tournament.description,
       status: tournament.status,
       game: tournament.game,
       map: tournament.map || 'TBD',
       teamType: tournament.tournamentType,
+      tournamentType: tournament.tournamentType, // Add for compatibility
       maxParticipants: tournament.maxParticipants,
       currentParticipants: tournament.currentParticipants,
       participants: tournament.participants || [],
       winners: tournament.winners || [],
       entryFee: tournament.entryFee,
       prizePool: tournament.prizePool,
+      startDate: tournament.startDate, // Add for compatibility
       scheduledAt: tournament.startDate,
       endDate: tournament.endDate,
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
@@ -1340,26 +1349,53 @@ router.get('/:id/room-layout', authenticateToken, async (req, res) => {
       teams.push(team);
     }
     
-    // Assign participants to slots (auto-assign for now)
-    let currentTeam = 0;
-    let currentSlot = 0;
-    
+    // Assign participants to their actual slot positions
     tournament.participants.forEach((participant, index) => {
-      if (currentTeam < teams.length && currentSlot < maxPlayersPerTeam) {
-        teams[currentTeam].slots[currentSlot].player = {
-          _id: participant.user._id,
-          username: participant.user.username,
-          displayName: participant.user.displayName,
-          gameProfile: participant.user.gameProfile
-        };
-        
-        currentSlot++;
-        if (currentSlot >= maxPlayersPerTeam) {
-          currentSlot = 0;
-          currentTeam++;
+      let teamNumber = participant.teamNumber;
+      let slotNumber = participant.slotNumber;
+      
+      // If participant doesn't have assigned slot, auto-assign them
+      if (!teamNumber || !slotNumber) {
+        // Find the first available slot
+        let assigned = false;
+        for (let t = 0; t < teams.length && !assigned; t++) {
+          for (let s = 0; s < teams[t].slots.length && !assigned; s++) {
+            if (!teams[t].slots[s].player) {
+              teamNumber = teams[t].teamNumber;
+              slotNumber = teams[t].slots[s].slotNumber;
+              
+              // Update the participant's slot assignment in the database
+              participant.teamNumber = teamNumber;
+              participant.slotNumber = slotNumber;
+              assigned = true;
+            }
+          }
+        }
+      }
+      
+      // Place the participant in their assigned slot
+      if (teamNumber && slotNumber) {
+        const targetTeam = teams.find(t => t.teamNumber === teamNumber);
+        if (targetTeam) {
+          const targetSlot = targetTeam.slots.find(s => s.slotNumber === slotNumber);
+          if (targetSlot && !targetSlot.player) {
+            targetSlot.player = {
+              _id: participant.user._id,
+              username: participant.user.username,
+              displayName: participant.user.displayName,
+              gameProfile: participant.user.gameProfile,
+              hasEditedSlot: participant.hasEditedSlot || false,
+              slotUpdatedAt: participant.slotUpdatedAt
+            };
+          }
         }
       }
     });
+    
+    // Save any auto-assignments made
+    if (tournament.participants.some(p => p.isModified && p.isModified())) {
+      await tournament.save();
+    }
     
     // Update team completion status
     teams.forEach(team => {
@@ -1421,8 +1457,18 @@ router.post('/:id/move-slot', authenticateToken, async (req, res) => {
     
     console.log('Move slot request:', { tournamentId: id, userId: userId.toString(), toTeam, toSlot });
     
-    // Find the tournament
-    const tournament = await Tournament.findById(id);
+    // Validate input parameters
+    if (!toTeam || !toSlot || toTeam < 1 || toSlot < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid team or slot number'
+      });
+    }
+    
+    // Find the tournament with populated participants
+    const tournament = await Tournament.findById(id)
+      .populate('participants.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId');
+    
     if (!tournament) {
       return res.status(404).json({
         success: false,
@@ -1431,11 +1477,11 @@ router.post('/:id/move-slot', authenticateToken, async (req, res) => {
     }
     
     // Check if user is a participant
-    const isParticipant = tournament.participants.some(p => 
-      p.user.toString() === userId.toString()
+    const userParticipant = tournament.participants.find(p => 
+      p.user._id.toString() === userId.toString()
     );
     
-    if (!isParticipant) {
+    if (!userParticipant) {
       return res.status(403).json({
         success: false,
         error: 'You are not a participant in this tournament'
@@ -1450,7 +1496,88 @@ router.post('/:id/move-slot', authenticateToken, async (req, res) => {
       });
     }
     
-    // For now, just return success (actual slot management would be more complex)
+    // Check if slots are locked (10 minutes before tournament start)
+    const now = new Date();
+    const startTime = new Date(tournament.startDate);
+    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
+    
+    if (now >= lockTime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Slots are locked. Changes not allowed within 10 minutes of tournament start.'
+      });
+    }
+    
+    // Validate team and slot numbers based on tournament type
+    const maxPlayersPerTeam = tournament.tournamentType === 'solo' ? 1 : 
+                             tournament.tournamentType === 'duo' ? 2 : 4;
+    const maxTeams = Math.ceil(tournament.maxParticipants / maxPlayersPerTeam);
+    
+    if (toTeam > maxTeams) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid team number. Maximum teams: ${maxTeams}`
+      });
+    }
+    
+    if (toSlot > maxPlayersPerTeam) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid slot number. Maximum slots per team: ${maxPlayersPerTeam}`
+      });
+    }
+    
+    // Check if the target slot is already occupied by another player
+    const targetSlotOccupied = tournament.participants.find(p => 
+      p.user._id.toString() !== userId.toString() && 
+      p.teamNumber === toTeam && 
+      p.slotNumber === toSlot
+    );
+    
+    if (targetSlotOccupied) {
+      return res.status(400).json({
+        success: false,
+        error: 'This slot is already taken by another player'
+      });
+    }
+    
+    // Store the user's previous position for logging
+    const previousTeam = userParticipant.teamNumber;
+    const previousSlot = userParticipant.slotNumber;
+    
+    // Update the user's slot position
+    userParticipant.teamNumber = toTeam;
+    userParticipant.slotNumber = toSlot;
+    userParticipant.hasEditedSlot = true;
+    userParticipant.slotUpdatedAt = new Date();
+    
+    // Save the tournament with updated slot information
+    await tournament.save();
+    
+    console.log('Slot move completed:', {
+      userId: userId.toString(),
+      username: userParticipant.user.username,
+      from: { team: previousTeam, slot: previousSlot },
+      to: { team: toTeam, slot: toSlot }
+    });
+    
+    // Emit socket event for real-time updates (if socket is available)
+    if (req.app.get('io')) {
+      req.app.get('io').to(`tournament_${id}`).emit('slotChanged', {
+        tournamentId: id,
+        playerId: userId.toString(),
+        username: userParticipant.user.username,
+        fromTeam: previousTeam,
+        fromSlot: previousSlot,
+        toTeam: toTeam,
+        toSlot: toSlot,
+        playerSlot: {
+          teamNumber: toTeam,
+          slotNumber: toSlot
+        }
+      });
+    }
+    
     res.json({
       success: true,
       message: `Successfully moved to Team ${toTeam}, Slot ${toSlot}`,
@@ -1458,7 +1585,12 @@ router.post('/:id/move-slot', authenticateToken, async (req, res) => {
         newPosition: {
           teamNumber: toTeam,
           slotNumber: toSlot
-        }
+        },
+        previousPosition: {
+          teamNumber: previousTeam,
+          slotNumber: previousSlot
+        },
+        updatedAt: userParticipant.slotUpdatedAt
       }
     });
     

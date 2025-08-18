@@ -19,16 +19,20 @@ import LoadingSpinner from './components/UI/LoadingSpinner';
 import SupportChat from './components/UI/SupportChat';
 import NotificationSystem from './components/UI/NotificationSystem';
 import NotificationToast from './components/UI/NotificationToast';
+import GlobalNotifications from './components/UI/GlobalNotifications';
+import ModernBackground from './components/UI/ModernBackground';
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Tournaments = lazy(() => import('./pages/Tournaments'));
 const TournamentDetails = lazy(() => import('./pages/TournamentDetailsRedesigned'));
+const TournamentDebug = lazy(() => import('./components/Debug/TournamentDebug'));
 const RoomLobby = lazy(() => import('./pages/RoomLobby'));
 const MediaGallery = lazy(() => import('./pages/MediaGallery'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Friends = lazy(() => import('./pages/Friends'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
@@ -120,11 +124,15 @@ const MobileAppRoute = ({ children }) => {
 // Main App Routes Component (needs to be inside AuthProvider)
 const AppRoutes = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative">
+      {/* Modern Background */}
+      <ModernBackground />
+      
       {/* Global Components */}
       <Header />
       <NotificationSystem />
       <NotificationToast />
+      <GlobalNotifications />
       <SupportChat />
       
       {/* Main Content */}
@@ -222,17 +230,29 @@ const AppRoutes = () => {
                     <Route 
                       path="/tournament/:id" 
                       element={
-                        <ProtectedRoute>
-                          <motion.div
-                            initial="initial"
-                            animate="in"
-                            exit="out"
-                            variants={pageVariants}
-                            transition={pageTransition}
-                          >
-                            <TournamentDetails />
-                          </motion.div>
-                        </ProtectedRoute>
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <TournamentDetails />
+                        </motion.div>
+                      } 
+                    />
+                    <Route 
+                      path="/debug/tournament/:id" 
+                      element={
+                        <motion.div
+                          initial="initial"
+                          animate="in"
+                          exit="out"
+                          variants={pageVariants}
+                          transition={pageTransition}
+                        >
+                          <TournamentDebug />
+                        </motion.div>
                       } 
                     />
                     <Route 
@@ -312,6 +332,22 @@ const AppRoutes = () => {
                             transition={pageTransition}
                           >
                             <Profile />
+                          </motion.div>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/friends" 
+                      element={
+                        <ProtectedRoute>
+                          <motion.div
+                            initial="initial"
+                            animate="in"
+                            exit="out"
+                            variants={pageVariants}
+                            transition={pageTransition}
+                          >
+                            <Friends />
                           </motion.div>
                         </ProtectedRoute>
                       } 

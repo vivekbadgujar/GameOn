@@ -5,6 +5,6 @@
   "minify": false,
   "urlRandomness": "dJyXGi8",
   "https": false,
-  "scheme": null,
+  "scheme": "com.gameon.mobile",
   "devClient": false
 }

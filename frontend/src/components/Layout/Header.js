@@ -18,7 +18,8 @@ import {
   LogIn,
   UserPlus,
   Image,
-  ChevronDown
+  ChevronDown,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
@@ -53,6 +54,7 @@ const Header = () => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/tournaments', label: 'Tournaments', icon: Trophy },
+    { path: '/friends', label: 'Friends', icon: Users },
     { path: '/media', label: 'Videos & Gallery', icon: Play },
     { path: '/wallet', label: 'Wallet', icon: CreditCard },
     { path: '/support', label: 'Support', icon: HelpCircle },
@@ -157,7 +159,7 @@ const Header = () => {
     <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10"
+      className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10"
     >
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
@@ -176,14 +178,14 @@ const Header = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all duration-300 ${
                     isActive 
-                      ? 'bg-white/10 text-blue-400' 
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-400/30' 
                       : 'text-white/70 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium text-sm">{item.label}</span>
                 </Link>
               );
             })}
@@ -194,9 +196,9 @@ const Header = () => {
             {isAuthenticated ? (
               <>
                 {/* Wallet Balance */}
-                <div className="hidden sm:flex items-center space-x-2 glass-card px-4 py-2">
+                <div className="hidden sm:flex items-center space-x-2 glass-card px-3 py-1.5">
                   <Wallet className="w-4 h-4 text-green-400" />
-                  <span className="font-semibold text-green-400">
+                  <span className="font-semibold text-green-400 text-sm">
                     {formatBalance(balance)}
                   </span>
                 </div>
@@ -263,12 +265,12 @@ const Header = () => {
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-3 p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
+                    className="flex items-center space-x-2 p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
+                    <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
+                      <User className="w-3.5 h-3.5 text-white" />
                     </div>
-                    <span className="hidden sm:block font-medium text-white">
+                    <span className="hidden sm:block font-medium text-white text-sm">
                       {user?.username || 'User'}
                     </span>
                   </button>
@@ -335,10 +337,10 @@ const Header = () => {
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span className="font-medium">Join GameOn</span>
+                    <span className="font-medium text-sm">Join GameOn</span>
                     <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${
                       isProfileOpen ? 'rotate-180' : ''
                     }`} />

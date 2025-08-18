@@ -72,7 +72,7 @@ const Login = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/20" />
@@ -281,7 +281,7 @@ const Login = () => {
         isOpen={showForgotPassword}
         onClose={() => setShowForgotPassword(false)}
       />
-    </>
+    </div>
   );
 };
 

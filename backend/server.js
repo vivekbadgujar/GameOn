@@ -37,16 +37,19 @@ const io = new Server(server, {
 const syncService = new SyncService(io);
 const pushNotificationService = new PushNotificationService();
 
-// Force port 5000 for consistency
-const PORT = 5000;
+// Use environment PORT for deployment (Render) or default to 5000
+const PORT = process.env.PORT || 5000;
 
 // Debug environment variables
 console.log('Environment check:');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
-// Temporary hardcoded MongoDB URI for testing
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority';
+// MongoDB URI from environment variables (DATABASE_URL for Render compatibility)
+const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
+
+console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
 
 // MongoDB Connection
 mongoose.set('debug', false); // Disable debug mode for cleaner logs
@@ -65,15 +68,21 @@ mongoose.connection.on('connected', () => {
 });
 
 // Connect to MongoDB with enhanced options
-mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority', {
+const connectionOptions = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  family: 4,
-  retryWrites: true,
-  w: 'majority'
-}).then(() => {
+  family: 4
+};
+
+// Add Atlas-specific options if using cloud database
+if (MONGODB_URI.includes('mongodb+srv://')) {
+  connectionOptions.retryWrites = true;
+  connectionOptions.w = 'majority';
+}
+
+mongoose.connect(MONGODB_URI, connectionOptions).then(() => {
   console.log('🍃 Connected to MongoDB successfully');
   console.log('Database Name:', mongoose.connection.name);
   console.log('Host:', mongoose.connection.host);
@@ -115,7 +124,22 @@ app.use(compression());
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://gameon-platform.vercel.app'] 
+    ? function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Allow specific production domains
+        const allowedOrigins = [
+          'https://gameon-platform.vercel.app',
+          // Add your frontend domain here when deployed
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        
+        return callback(new Error('Not allowed by CORS'));
+      }
     : function(origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
@@ -152,6 +176,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware
 app.use(morgan('combined'));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Debug middleware for admin routes
 app.use('/api/admin', (req, res, next) => {
@@ -234,6 +261,9 @@ app.use('/api/admin/search', require('./routes/admin/search'));
 app.use('/api/admin/export', require('./routes/admin/export'));
 app.use('/api/admin/user-monitoring', require('./routes/admin/user-monitoring'));
 app.use('/api/admin/room-slots', require('./routes/admin/roomSlots'));
+
+// Friends System Routes
+app.use('/api/friends', require('./routes/friends-simple'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

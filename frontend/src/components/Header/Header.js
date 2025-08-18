@@ -56,9 +56,9 @@ export default function Header() {
         </Link>
         <nav className="hidden md:flex gap-2">
           {navLinks.map(link => (
-            <Link key={link.name} to={link.to} className="flex items-center gap-2 px-4 py-2 rounded-xl text-secondary hover:text-primary hover:bg-glass transition-all font-medium">
+            <Link key={link.name} to={link.to} className="flex items-center gap-2 px-3 py-2 rounded-xl text-secondary hover:text-primary hover:bg-glass transition-all font-medium">
               {link.icon}
-              <span>{link.name}</span>
+              <span className="text-sm">{link.name}</span>
             </Link>
           ))}
         </nav>

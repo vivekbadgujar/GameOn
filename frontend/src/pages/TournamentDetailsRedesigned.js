@@ -33,6 +33,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import PaymentModal from '../components/Modals/PaymentModal';
+import SlotEditModal from '../components/Dashboard/SlotEditModal';
 import CountdownTimer from '../components/UI/CountdownTimer';
 import toast from 'react-hot-toast';
 
@@ -50,6 +51,7 @@ const TournamentDetailsRedesigned = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showSlotEditModal, setShowSlotEditModal] = useState(false);
   const [userSlot, setUserSlot] = useState(null);
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentialsCopied, setCredentialsCopied] = useState({ id: false, password: false });
@@ -61,8 +63,39 @@ const TournamentDetailsRedesigned = () => {
   const fetchTournamentDetails = async () => {
     try {
       setLoading(true);
+      setError(''); // Clear any previous errors
+      console.log('🔍 Fetching tournament details for ID:', id);
+      console.log('🔍 Current URL:', window.location.href);
+      console.log('🔍 API Base URL:', 'http://localhost:5000/api');
+      
+      // Test direct fetch first
+      try {
+        console.log('🔍 Testing direct fetch...');
+        const directResponse = await fetch(`http://localhost:5000/api/tournaments/${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include'
+        });
+        console.log('🔍 Direct fetch status:', directResponse.status);
+        const directData = await directResponse.json();
+        console.log('🔍 Direct fetch data:', directData);
+      } catch (directError) {
+        console.error('🔍 Direct fetch failed:', directError);
+      }
+      
+      // Now try with our API service
+      console.log('🔍 Using API service...');
       const data = await getTournamentById(id);
+      console.log('🔍 Tournament data received:', data);
+      
+      if (!data) {
+        throw new Error('No tournament data received from API service');
+      }
+      
       setTournament(data);
+      console.log('🔍 Tournament state set successfully');
       
       // Check if user is already joined and get slot number
       const userParticipant = data.participants?.find(p => p._id === user?._id || p.userId === user?._id);
@@ -70,8 +103,31 @@ const TournamentDetailsRedesigned = () => {
         setUserSlot(userParticipant.slotNumber || Math.floor(Math.random() * 100) + 1);
       }
     } catch (error) {
-      console.error('Error fetching tournament details:', error);
-      setError('Tournament not found');
+      console.error('❌ Error fetching tournament details:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      
+      // Set more specific error messages
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message;
+        if (errorMessage === 'Token has expired') {
+          setError('Your session has expired. Please login again to view this tournament.');
+        } else {
+          setError('Authentication required. Please login to view this tournament.');
+        }
+      } else if (error.response?.status === 404) {
+        setError('Tournament not found - The tournament ID may be invalid or the tournament may have been removed.');
+      } else if (error.response?.status >= 500) {
+        setError('Server error. Please try again later or contact support.');
+      } else if (error.name === 'NetworkError' || error.message.includes('fetch')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(`Failed to load tournament details: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -145,17 +201,40 @@ const TournamentDetailsRedesigned = () => {
         
         showSuccess(`Successfully joined! Your slot: #${slotNumber}`, 'Tournament Joined');
         setShowPaymentModal(false);
+        
+        // Automatically open the Slot Edit Modal after successful join
+        setTimeout(() => {
+          setShowSlotEditModal(true);
+        }, 1000); // Small delay to let the success message show
       } else {
         throw new Error(response.data?.error || 'Failed to join tournament');
       }
     } catch (error) {
       console.error('Error joining tournament:', error);
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          'Failed to join tournament. Please try again.';
-      setError(errorMessage);
-      showError(errorMessage);
+      
+      // Handle different types of errors
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message;
+        if (errorMessage === 'Token has expired') {
+          showError('Your session has expired. Please login again.');
+          setTimeout(() => navigate('/login'), 2000);
+        } else {
+          showError('Authentication required. Please login again.');
+          setTimeout(() => navigate('/login'), 2000);
+        }
+      } else if (error.response?.status === 404) {
+        showError('Tournament not found or has been removed.');
+      } else if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error;
+        showError(errorMessage || 'Unable to join tournament. Please try again.');
+      } else {
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Failed to join tournament. Please try again.';
+        setError(errorMessage);
+        showError(errorMessage);
+      }
     } finally {
       setJoining(false);
     }
@@ -889,6 +968,17 @@ const TournamentDetailsRedesigned = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Slot Edit Modal */}
+      <SlotEditModal
+        open={showSlotEditModal}
+        onClose={() => setShowSlotEditModal(false)}
+        tournamentId={id}
+        user={user}
+        showSuccess={showSuccess}
+        showError={showError}
+        showInfo={showWarning}
+      />
     </div>
   );
 };

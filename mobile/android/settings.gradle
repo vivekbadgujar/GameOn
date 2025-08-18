@@ -44,7 +44,7 @@ if (getRNMinorVersion() >= 75) {
   }
 }
 
-rootProject.name = 'GameOnMobile'
+rootProject.name = 'GameOn Mobile'
 
 dependencyResolutionManagement {
   versionCatalogs {

@@ -82,7 +82,13 @@ export const useTournamentJoin = (tournament, onSuccess) => {
             }, 1500);
           }
         } else {
-          enqueueSnackbar('Successfully joined tournament!', { variant: 'success' });
+          enqueueSnackbar('Successfully joined tournament! Redirecting to room lobby...', { variant: 'success' });
+          
+          // Redirect to room lobby using the URL provided by backend
+          const roomLobbyUrl = joinResponse.data.data?.roomLobbyUrl || `/tournament/${tournament._id}/room-lobby`;
+          setTimeout(() => {
+            window.location.href = roomLobbyUrl;
+          }, 2000);
         }
         
         // Refresh wallet balance to ensure accuracy

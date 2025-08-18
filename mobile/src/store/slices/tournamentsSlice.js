@@ -78,10 +78,15 @@ export const joinTournament = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        return rejectWithValue(data.message || 'Failed to join tournament');
+        return rejectWithValue(data.message || data.error || 'Failed to join tournament');
       }
 
-      return { tournamentId, participantData: data.participant };
+      return { 
+        tournamentId, 
+        participantData: data.data,
+        roomLobbyUrl: data.data?.roomLobbyUrl,
+        message: data.message
+      };
     } catch (error) {
       return rejectWithValue(error.message || 'Network error');
     }

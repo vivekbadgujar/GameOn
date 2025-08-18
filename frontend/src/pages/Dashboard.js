@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Wallet, 
@@ -27,6 +26,7 @@ import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
 import TournamentSlots from '../components/Dashboard/TournamentSlots';
 import { useAuthModal } from '../hooks/useAuthModal';
+import HeroSection3D from '../components/UI/HeroSection3D';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -216,48 +216,30 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen pt-20 pb-8">
       <div className="container-custom">
-        {/* Welcome Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
-        >
-          {/* Header Section */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              <span className="text-gradient">Welcome back, {user?.username || 'Gamer'} 👋</span>
-            </h1>
-            <p className="text-white/60 text-lg max-w-3xl mx-auto">
-              Ready to dominate some tournaments today?
-            </p>
-          </div>
+        {/* Hero Section */}
+        <div className="mb-12">
+          <HeroSection3D user={user} isAuthenticated={isAuthenticated} />
+        </div>
 
-          {/* Wallet Balance Card */}
-          {isAuthenticated && (
-            <div className="flex justify-center mb-6">
-              <div className="glass-card px-6 py-3">
-                <div className="flex items-center space-x-3">
-                  <Wallet className="w-5 h-5 text-green-400" />
-                  <div>
-                    <p className="text-sm text-white/60">Wallet Balance</p>
-                    <p className="text-xl font-bold text-green-400">
-                      ₹{dashboardData.walletBalance.toLocaleString()}
-                    </p>
-                  </div>
+        {/* Wallet Balance Card */}
+        {isAuthenticated && (
+          <div className="flex justify-center mb-8">
+            <div className="glass-card px-6 py-3">
+              <div className="flex items-center space-x-3">
+                <Wallet className="w-5 h-5 text-green-400" />
+                <div>
+                  <p className="text-sm text-white/60">Wallet Balance</p>
+                  <p className="text-xl font-bold text-green-400">
+                    ₹{dashboardData.walletBalance.toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
-        </motion.div>
+          </div>
+        )}
 
         {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
@@ -267,9 +249,7 @@ const Dashboard = () => {
                   to={action.link}
                   className="group"
                 >
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                  <div
                     className={`glass-card-hover p-6 relative overflow-hidden ${
                       action.action === 'primary' ? 'ring-2 ring-blue-400/50' : ''
                     }`}
@@ -285,28 +265,22 @@ const Dashboard = () => {
                     
                     {/* Hover effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                  </motion.div>
+                  </div>
                 </Link>
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* Stats Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Your Performance</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {statsCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <motion.div
+                <div
                   key={index}
-                  whileHover={{ scale: 1.05 }}
                   className="glass-card p-6 text-center"
                 >
                   <div className={`w-12 h-12 ${stat.bgColor} rounded-xl flex items-center justify-center mx-auto mb-4`}>
@@ -314,31 +288,21 @@ const Dashboard = () => {
                   </div>
                   <p className="text-2xl font-bold text-white mb-1">{stat.value}</p>
                   <p className="text-sm text-white/60">{stat.title}</p>
-                </motion.div>
+                </div>
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* My Tournaments (for authenticated users) */}
         {isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mb-8"
-          >
+          <div className="mb-8">
             <TournamentSlots />
-          </motion.div>
+          </div>
         )}
 
         {/* Upcoming Tournaments */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: isAuthenticated ? 0.4 : 0.3 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Upcoming Tournaments</h2>
             <Link
@@ -353,18 +317,13 @@ const Dashboard = () => {
           {dashboardData.tournaments.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {dashboardData.tournaments.map((tournament, index) => (
-                <motion.div
-                  key={tournament._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 * index }}
-                >
+                <div key={tournament._id}>
                   <TournamentCard 
                     tournament={tournament} 
                     isAuthenticated={isAuthenticated}
                     onRequireAuth={openAuthModal}
                   />
-                </motion.div>
+                </div>
               ))}
             </div>
           ) : (
@@ -378,15 +337,10 @@ const Dashboard = () => {
               </Link>
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Leaderboard */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: isAuthenticated ? 0.5 : 0.4 }}
-          className="mb-8"
-        >
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Top Players This Month</h2>
             <div className="flex items-center space-x-2 text-white/60">
@@ -395,16 +349,10 @@ const Dashboard = () => {
             </div>
           </div>
           <LeaderboardSlider />
-        </motion.div>
-
-
+        </div>
 
         {/* Recent Activity */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: isAuthenticated ? 0.6 : 0.5 }}
-        >
+        <div>
           <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
           <div className="glass-card p-6">
             {dashboardData.recentActivity.length > 0 ? (
@@ -434,7 +382,7 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Auth Modal */}

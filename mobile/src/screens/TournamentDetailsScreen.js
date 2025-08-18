@@ -81,15 +81,21 @@ const TournamentDetailsScreen = ({ route, navigation }) => {
     }
 
     try {
-      await dispatch(joinTournament({ 
+      const result = await dispatch(joinTournament({ 
         tournamentId, 
         teamData 
       })).unwrap();
       
       Alert.alert(
         'Success!',
-        'You have successfully joined the tournament!',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        'You have successfully joined the tournament! Redirecting to room lobby...',
+        [{ 
+          text: 'Go to Room Lobby', 
+          onPress: () => {
+            // Navigate to room lobby screen
+            navigation.navigate('RoomLobby', { tournamentId });
+          }
+        }]
       );
     } catch (error) {
       Alert.alert('Error', error || 'Failed to join tournament');

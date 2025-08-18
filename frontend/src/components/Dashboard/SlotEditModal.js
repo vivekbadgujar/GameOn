@@ -213,6 +213,12 @@ const SlotEditModal = ({
       return;
     }
 
+    // Check if user is trying to move to their current slot
+    if (playerSlot && playerSlot.teamNumber === toTeam && playerSlot.slotNumber === toSlot) {
+      showInfo('You are already in this slot position');
+      return;
+    }
+
     try {
       setSlotChangeLoading(true);
       
@@ -252,15 +258,25 @@ const SlotEditModal = ({
         slotNumber: toSlot
       });
       
-      // Refresh room data
-      fetchRoomData();
+      // Refresh room data to show updated positions
+      await fetchRoomData();
       
-      showSuccess(`✅ Moved to Team ${toTeam}, Slot ${toSlot} successfully!`);
+      // Show success message with previous position info if available
+      const previousPos = data.data?.previousPosition;
+      let successMessage = `✅ Moved to Team ${toTeam}, Slot ${toSlot} successfully!`;
+      
+      if (previousPos && (previousPos.teamNumber || previousPos.slotNumber)) {
+        successMessage += ` (Previously: Team ${previousPos.teamNumber}, Slot ${previousPos.slotNumber})`;
+      }
+      
+      showSuccess(successMessage);
       
       console.log('Slot move successful:', {
         toTeam,
         toSlot,
-        newPosition: data.data.newPosition
+        newPosition: data.data.newPosition,
+        previousPosition: data.data.previousPosition,
+        updatedAt: data.data.updatedAt
       });
       
     } catch (error) {

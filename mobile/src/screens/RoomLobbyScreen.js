@@ -13,6 +13,7 @@ import {
   Alert,
   Clipboard,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Button, Chip } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
@@ -45,32 +46,89 @@ const RoomLobbyScreen = ({ route, navigation }) => {
     try {
       setIsLoading(true);
       
-      // Mock data - replace with actual API calls
-      setTournament({
-        _id: tournamentId,
-        title: 'BGMI Squad Championship',
-        game: 'bgmi',
-        status: 'live',
-        startTime: new Date(Date.now() + 300000), // 5 minutes from now
-        map: 'Erangel',
-        mode: 'Squad',
-        maxParticipants: 100,
+      // Get auth token
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'Authentication required');
+        navigation.navigate('Login');
+        return;
+      }
+      
+      // Fetch tournament details
+      const tournamentResponse = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       
-      setParticipants([
-        { _id: '1', teamName: 'Team Alpha', leader: 'Player1', members: 4, ready: true },
-        { _id: '2', teamName: 'Team Beta', leader: 'Player2', members: 4, ready: false },
-        { _id: '3', teamName: 'Team Gamma', leader: 'Player3', members: 3, ready: true },
-      ]);
+      if (!tournamentResponse.ok) {
+        throw new Error('Failed to fetch tournament details');
+      }
       
-      setRoomDetails({
-        roomId: 'ROOM123456',
-        password: 'PASS789',
-        server: 'Asia',
-        perspective: 'TPP',
+      const tournamentData = await tournamentResponse.json();
+      setTournament(tournamentData.tournament);
+      
+      // Fetch room slot data
+      const roomResponse = await fetch(`http://localhost:5000/api/room-slots/tournament/${tournamentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+      
+      if (roomResponse.ok) {
+        const roomData = await roomResponse.json();
+        
+        // Extract participants from room slot data
+        const allParticipants = [];
+        if (roomData.data.roomSlot && roomData.data.roomSlot.teams) {
+          roomData.data.roomSlot.teams.forEach(team => {
+            const teamMembers = team.slots.filter(slot => slot.player).map(slot => slot.player);
+            if (teamMembers.length > 0) {
+              allParticipants.push({
+                _id: team._id,
+                teamName: `Team ${team.teamNumber}`,
+                leader: team.captain?.username || teamMembers[0]?.username || 'Unknown',
+                members: teamMembers.length,
+                ready: team.isReady || false,
+                players: teamMembers
+              });
+            }
+          });
+        }
+        setParticipants(allParticipants);
+        
+        // Set room details if available
+        if (tournamentData.tournament.roomDetails) {
+          setRoomDetails({
+            roomId: tournamentData.tournament.roomDetails.roomId,
+            password: tournamentData.tournament.roomDetails.password,
+            server: 'Asia',
+            perspective: 'TPP',
+          });
+        }
+      } else {
+        // Fallback to tournament participants if room slots not available
+        const tournamentParticipants = tournamentData.tournament.participants || [];
+        const participantGroups = [];
+        
+        for (let i = 0; i < tournamentParticipants.length; i += 4) {
+          const group = tournamentParticipants.slice(i, i + 4);
+          participantGroups.push({
+            _id: `team_${i / 4 + 1}`,
+            teamName: `Team ${i / 4 + 1}`,
+            leader: group[0]?.user?.username || 'Unknown',
+            members: group.length,
+            ready: false,
+            players: group.map(p => p.user)
+          });
+        }
+        setParticipants(participantGroups);
+      }
       
     } catch (error) {
+      console.error('Error loading room data:', error);
       Alert.alert('Error', 'Failed to load room data');
       navigation.goBack();
     } finally {

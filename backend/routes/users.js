@@ -1,5 +1,42 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const User = require('../models/User');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads/profiles');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Check file type
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // Get leaderboard
 router.get('/leaderboard', async (req, res) => {
@@ -189,23 +226,53 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-// Upload profile picture
-router.post('/:id/avatar', async (req, res) => {
+// Upload profile photo
+router.post('/upload-photo', authenticateToken, upload.single('profilePhoto'), async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Handle file upload (would use multer middleware)
-    // const avatarUrl = await uploadAvatar(req.file);
-    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const userId = req.user.userId;
+    const photoUrl = `/uploads/profiles/${req.file.filename}`;
+
+    // Update user's avatar in database
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { avatar: photoUrl },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      // Delete uploaded file if user not found
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     res.json({
       success: true,
-      message: 'Profile picture uploaded successfully',
-      data: { avatarUrl: '/uploads/avatars/user_' + id + '.jpg' }
+      message: 'Profile photo updated successfully',
+      user: user
     });
   } catch (err) {
+    // Delete uploaded file on error
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (deleteErr) {
+        console.error('Error deleting file:', deleteErr);
+      }
+    }
+    
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to upload profile picture', 
+      message: 'Failed to upload profile photo', 
       error: err.message 
     });
   }

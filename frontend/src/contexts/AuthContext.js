@@ -43,7 +43,25 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
+    // Listen for token expiration events
+    const handleTokenExpired = (event) => {
+      console.log('AuthContext: Token expired event received');
+      logout();
+      
+      // Show user-friendly notification
+      if (event.detail?.message) {
+        // You can integrate with your notification system here
+        console.log('Session expired:', event.detail.message);
+      }
+    };
+
+    window.addEventListener('tokenExpired', handleTokenExpired);
     initializeAuth();
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('tokenExpired', handleTokenExpired);
+    };
   }, []);
 
   // Fetch wallet balance
