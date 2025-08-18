@@ -131,7 +131,10 @@ app.use(cors({
         // Allow specific production domains
         const allowedOrigins = [
           'https://gameon-platform.vercel.app',
-          // Add your frontend domain here when deployed
+          'https://gameon-frontend.vercel.app',
+          'https://gameon-admin.vercel.app',
+          'https://gameon-admin-panel.vercel.app',
+          // Add your custom domains here
         ];
         
         if (allowedOrigins.includes(origin)) {

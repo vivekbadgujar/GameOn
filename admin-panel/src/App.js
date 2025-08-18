@@ -10,6 +10,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 import { theme } from './theme/theme';
 import AdminLogin from './components/Auth/AdminLogin';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AdminLayout from './components/Layout/AdminLayout';
 import Dashboard from './components/Dashboard/Dashboard';
 import TournamentList from './components/Tournaments/TournamentList';
@@ -46,56 +47,230 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { isAuthenticated, loading } = useAuth();
-
-  // Show loading while checking authentication
-  if (loading) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh' 
-      }}>
-        <LinearProgress sx={{ width: '50%' }} />
-      </Box>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <AdminLogin />;
-  }
-
   return (
-    <AdminLayout>
-      <ErrorBoundary>
-        <Routes future={{ v7_relativeSplatPath: true }}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tournaments" element={<TournamentList />} />
-          <Route path="/tournaments/new" element={<TournamentForm />} />
-          <Route path="/tournaments/create" element={<TournamentForm />} />
-          <Route path="/tournaments/:id" element={<TournamentDetails />} />
-          <Route path="/tournaments/:id/edit" element={<TournamentForm />} />
-          <Route path="/tournaments/:id/results" element={<TournamentResults />} />
-          <Route path="/notifications" element={<NotificationManager />} />
-          <Route path="/tournament-videos" element={<TournamentVideoManager />} />
-          <Route path="/analytics" element={<AnalyticsDashboard />} />
-          <Route path="/ai-reports" element={<SuspiciousLogs />} />
-          <Route path="/broadcast" element={<BroadcastMessage />} />
-          <Route path="/payouts" element={<PrizePayouts />} />
-          <Route path="/media" element={<MediaUpload />} />
-          <Route path="/users" element={<UserManagement />} />
-          <Route path="/user-reports" element={<UserReports />} />
-          <Route path="/scheduling" element={<ScheduleManager />} />
-          <Route path="/ai-suggestions" element={<SuggestionsPanel />} />
-          <Route path="/search" element={<SearchFilter />} />
-          <Route path="/export" element={<ExportData />} />
-          <Route path="/debug" element={<DataTest />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </ErrorBoundary>
-    </AdminLayout>
+    <Routes future={{ v7_relativeSplatPath: true }}>
+      {/* Public routes */}
+      <Route path="/login" element={<AdminLogin />} />
+      
+      {/* Protected routes */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Navigate to="/dashboard" replace />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <Dashboard />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentList />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments/new" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentForm />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments/create" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentForm />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments/:id" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentDetails />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments/:id/edit" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentForm />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournaments/:id/results" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentResults />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <NotificationManager />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/tournament-videos" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <TournamentVideoManager />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/analytics" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <AnalyticsDashboard />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/ai-reports" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <SuspiciousLogs />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/broadcast" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <BroadcastMessage />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/payouts" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <PrizePayouts />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/media" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <MediaUpload />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/users" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <UserManagement />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/user-reports" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <UserReports />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/scheduling" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <ScheduleManager />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/ai-suggestions" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <SuggestionsPanel />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/search" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <SearchFilter />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/export" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <ExportData />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/debug" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <DataTest />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }
 

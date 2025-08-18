@@ -5,7 +5,7 @@
 
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: __DEV__ ? 'http://10.217.86.8:5000' : 'https://your-production-api.com',
+  BASE_URL: __DEV__ ? 'http://10.217.86.8:5000' : 'https://gameon-backend.onrender.com',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
 };
