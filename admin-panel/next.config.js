@@ -1,147 +1,74 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable React strict mode for better development experience
+  // Enable React strict mode
   reactStrictMode: true,
   
-  // Optimize images
+  // Static export to avoid serverless functions
+  output: 'export',
+  trailingSlash: true,
+  
+  // Image optimization disabled for static export
   images: {
-    domains: [
-      'gameonesport.xyz',
-      'admin.gameonesport.xyz',
-      'api.gameonesport.xyz',
-      'res.cloudinary.com', // If using Cloudinary for images
-      'images.unsplash.com', // If using Unsplash images
-    ],
-    formats: ['image/webp', 'image/avif'],
+    unoptimized: true,
   },
 
-  // Environment variables that should be available on the client side
+  // Disable API routes to prevent serverless functions
+  experimental: {
+    appDir: false, // Use pages directory instead of app directory
+  },
+
+  // Environment variables for client-side
   env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api',
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz',
+    NEXT_PUBLIC_FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz',
+    NEXT_PUBLIC_ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz',
   },
 
-  // Base path for admin panel (optional, if you want to serve from /admin)
-  // basePath: '/admin',
-
-  // Webpack configuration for better performance
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Optimize bundle size
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        },
-      },
-    };
-
+  // Webpack configuration for client-side only
+  webpack: (config, { isServer }) => {
+    // Ensure we're only building for client-side
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
     return config;
   },
 
-  // Experimental features for better performance
+  // Disable server-side rendering features
   experimental: {
-    // Enable modern JavaScript features
-    esmExternals: true,
-    // Optimize CSS
-    optimizeCss: true,
+    esmExternals: false,
   },
 
   // Compiler options
   compiler: {
-    // Remove console logs in production
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Headers for security and performance
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          {
-            key: 'X-Robots-Tag',
-            value: 'noindex, nofollow', // Prevent admin panel from being indexed
-          },
-        ],
-      },
-      {
-        source: '/static/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-    ];
+  // Static export configuration for admin routes
+  exportPathMap: async function (
+    defaultPathMap,
+    { dev, dir, outDir, distDir, buildId }
+  ) {
+    return {
+      '/': { page: '/' },
+      '/login': { page: '/login' },
+      '/dashboard': { page: '/dashboard' },
+      '/tournaments': { page: '/tournaments' },
+      '/users': { page: '/users' },
+      '/analytics': { page: '/analytics' },
+      '/settings': { page: '/settings' },
+    };
   },
 
-  // Redirects for admin panel
-  async redirects() {
-    return [
-      {
-        source: '/dashboard',
-        destination: '/',
-        permanent: false,
-      },
-      {
-        source: '/admin',
-        destination: '/',
-        permanent: false,
-      },
-    ];
-  },
-
-  // Rewrites for API calls
-  async rewrites() {
-    return [
-      // API rewrites to backend
-      {
-        source: '/api/:path*',
-        destination: 'https://api.gameonesport.xyz/api/:path*',
-      },
-      // WebSocket proxy for development (production uses direct connection)
-      ...(process.env.NODE_ENV === 'development' ? [
-        {
-          source: '/socket.io/:path*',
-          destination: 'https://api.gameonesport.xyz/socket.io/:path*',
-        },
-      ] : []),
-    ];
-  },
-
-  // Clean URLs
-  trailingSlash: false,
-
-  // Output configuration for static export if needed
-  output: 'standalone',
-
-  // PoweredByHeader
+  // Disable features that require server-side rendering
   poweredByHeader: false,
-
-  // Compression
-  compress: true,
-
-  // Generate ETags for better caching
-  generateEtags: true,
+  generateEtags: false,
+  compress: false, // Let Vercel handle compression
 };
 
 module.exports = nextConfig;

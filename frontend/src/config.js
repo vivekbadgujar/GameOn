@@ -1,11 +1,11 @@
 const config = {
-  // API Configuration
-  API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api',
-  WS_URL: process.env.REACT_APP_WS_URL || 'http://localhost:5000',
+  // API Configuration - Direct to Render backend (no Vercel functions)
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api',
+  WS_URL: process.env.NEXT_PUBLIC_WS_URL || process.env.REACT_APP_WS_URL || 'wss://api.gameonesport.xyz',
 
   // Cashfree Configuration
-  CASHFREE_APP_ID: process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',
-  CASHFREE_ENVIRONMENT: process.env.REACT_APP_CASHFREE_ENVIRONMENT || 'sandbox',
+  CASHFREE_APP_ID: process.env.NEXT_PUBLIC_CASHFREE_APP_ID || process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',
+  CASHFREE_ENVIRONMENT: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT || process.env.REACT_APP_CASHFREE_ENVIRONMENT || 'production',
 
   // App Configuration
   APP_NAME: 'GameOn',

@@ -30,9 +30,10 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "export": "next export",
+    "export": "next build && next export",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "vercel-build": "next build"
   },
   "proxy": "http://localhost:5000",
   "browserslist": {
