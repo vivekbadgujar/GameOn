@@ -1,1 +1,126 @@
-node_modules
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage/
+*.lcov
+.nyc_output
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary folders
+tmp/
+temp/
+
+# Package manager files
+yarn.lock
+pnpm-lock.yaml
+
+# Vercel
+.vercel
+
+# Testing
+.nyc_output/
+
+# Mobile specific
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+*.keystore
+!debug.keystore
+
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcuserdata
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Sentry
+.sentryclirc
+
+# Local Netlify folder
+.netlify
+
+# Supabase
+.supabase/
+
+# Turbo
+.turbo
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
