@@ -100,7 +100,7 @@ const PrivacyPolicy = () => {
                 <div className="space-y-3 text-white/80">
                   <div className="flex items-start">
                     <Lock className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Payment details are processed securely by <span className="font-semibold text-green-400">Razorpay/UPI</span></p>
+                    <p>Payment details are processed securely by <span className="font-semibold text-green-400">Cashfree/UPI</span></p>
                   </div>
                   <div className="flex items-start">
                     <Lock className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />

@@ -1,6 +1,6 @@
 /**
  * Cashfree Payment Service for Frontend
- * Handles Cashfree Checkout integration
+ * Handles Cashfree Checkout integration with SSR safety
  */
 
 import config from '../config';
@@ -10,19 +10,60 @@ class CashfreeService {
     this.appId = config.CASHFREE_APP_ID;
     this.environment = config.CASHFREE_ENVIRONMENT;
     this.isProduction = this.environment === 'production';
+    this.sdkLoaded = false;
+    this.sdkPromise = null;
     
-    // Load Cashfree SDK
-    this.loadCashfreeSDK();
+    // Only initialize on client side
+    if (typeof window !== 'undefined') {
+      this.initializeSDK();
+    }
   }
 
   /**
-   * Load Cashfree SDK dynamically
+   * Initialize SDK only on client side
+   */
+  initializeSDK() {
+    if (typeof window === 'undefined') {
+      console.warn('Cashfree SDK can only be loaded on client side');
+      return Promise.reject(new Error('Window is not defined'));
+    }
+    
+    if (!this.sdkPromise) {
+      this.sdkPromise = this.loadCashfreeSDK();
+    }
+    
+    return this.sdkPromise;
+  }
+
+  /**
+   * Load Cashfree SDK dynamically with SSR safety
    */
   loadCashfreeSDK() {
     return new Promise((resolve, reject) => {
+      // SSR safety check
+      if (typeof window === 'undefined') {
+        reject(new Error('Window is not defined - SSR environment'));
+        return;
+      }
+
       // Check if SDK is already loaded
-      if (window.Cashfree) {
+      if (window.Cashfree && this.sdkLoaded) {
         resolve(window.Cashfree);
+        return;
+      }
+
+      // Check if script is already being loaded
+      const existingScript = document.querySelector('script[src*="cashfree"]');
+      if (existingScript) {
+        // Wait for existing script to load
+        existingScript.onload = () => {
+          if (window.Cashfree) {
+            this.sdkLoaded = true;
+            resolve(window.Cashfree);
+          } else {
+            reject(new Error('Cashfree SDK failed to load'));
+          }
+        };
         return;
       }
 
@@ -32,8 +73,12 @@ class CashfreeService {
         ? 'https://sdk.cashfree.com/js/v3/cashfree.js'
         : 'https://sdk.cashfree.com/js/v3/cashfree.sandbox.js';
       
+      script.async = true;
+      script.defer = true;
+      
       script.onload = () => {
         if (window.Cashfree) {
+          this.sdkLoaded = true;
           resolve(window.Cashfree);
         } else {
           reject(new Error('Cashfree SDK failed to load'));
@@ -49,13 +94,18 @@ class CashfreeService {
   }
 
   /**
-   * Initialize Cashfree checkout
+   * Initialize Cashfree checkout with SSR safety
    * @param {Object} paymentData - Payment configuration
    * @returns {Promise} - Cashfree checkout instance
    */
   async initializeCheckout(paymentData) {
     try {
-      await this.loadCashfreeSDK();
+      // SSR safety check
+      if (typeof window === 'undefined') {
+        throw new Error('Checkout can only be initialized on client side');
+      }
+
+      await this.initializeSDK();
       
       const {
         paymentSessionId,
