@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { loadScript } from '../../utils/razorpay';
+import { initiateCashfreePayment } from '../../utils/cashfree';
 
 const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
   const { user } = useAuth();
@@ -125,102 +125,66 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
     try {
       setLoading(true);
 
-      // Load Razorpay script
-      const razorpayLoaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-      if (!razorpayLoaded) {
-        throw new Error('Failed to load payment gateway');
-      }
-
-      // Create payment order
-      const token = localStorage.getItem('token');
-      const orderResponse = await fetch('/api/payments/create-tournament-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          tournamentId: tournament._id,
-          joinType,
-          squadMembers: joinType === 'squad' ? squadMembers.filter(m => m.trim()) : undefined
-        })
-      });
-
-      if (!orderResponse.ok) {
-        const error = await orderResponse.json();
-        throw new Error(error.message || 'Failed to create payment order');
-      }
-
-      const orderData = await orderResponse.json();
-
-      // Configure Razorpay options
-      const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-        amount: orderData.data.amount,
-        currency: orderData.data.currency,
-        name: 'GameOn Tournament',
-        description: `${tournament.title} - Entry Fee`,
-        order_id: orderData.data.orderId,
-        handler: async (response) => {
-          try {
-            // Verify payment
-            const verifyResponse = await fetch('/api/payments/verify-tournament', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                tournamentId: tournament._id,
-                joinType,
-                squadMembers: joinType === 'squad' ? squadMembers.filter(m => m.trim()) : undefined,
-                gameProfile
-              })
-            });
-
-            if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
-            }
-
-            const verifyData = await verifyResponse.json();
-            setPaymentData(verifyData.data);
-            setActiveStep(activeStep + 1);
-            showSuccess('Payment successful! You have been added to the tournament.');
-            
-            // Check if backend provided redirect URL for room lobby
-            if (verifyData.data.redirectTo) {
-              setTimeout(() => {
-                window.location.href = verifyData.data.redirectTo;
-              }, 2000);
-            }
-
-          } catch (error) {
-            showError(error.message || 'Payment verification failed');
-          }
-        },
-        prefill: {
-          name: user?.username || '',
-          email: user?.email || '',
-          contact: user?.phone || ''
-        },
-        theme: {
-          color: '#1976d2'
-        },
-        modal: {
-          ondismiss: () => {
-            showInfo('Payment cancelled');
-          }
-        }
+      // Prepare tournament payment data
+      const tournamentData = {
+        tournamentId: tournament._id,
+        joinType,
+        squadMembers: joinType === 'squad' ? squadMembers.filter(m => m.trim()) : undefined,
+        gameProfile
       };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+      // Initiate Cashfree payment
+      const paymentResult = await initiateCashfreePayment(tournamentData);
+
+      if (paymentResult.success) {
+        setPaymentData(paymentResult.data);
+        setActiveStep(activeStep + 1);
+        showSuccess('Payment successful! You have been added to the tournament.');
+        
+        // Check if backend provided redirect URL for room lobby
+        if (paymentResult.data.redirectTo) {
+          setTimeout(() => {
+            window.location.href = paymentResult.data.redirectTo;
+          }, 2000);
+        }
+      } else {
+        throw new Error(paymentResult.message || 'Payment failed');
+      }
 
     } catch (error) {
-      showError(error.message || 'Failed to initiate payment');
+      console.error('Payment error:', error);
+      
+      // Enhanced error handling for different failure scenarios
+      let errorMessage = 'Payment failed. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('insufficient')) {
+          errorMessage = 'Insufficient balance. Please add funds to your wallet.';
+        } else if (error.message.includes('cancelled') || error.message.includes('abort')) {
+          errorMessage = 'Payment was cancelled by user.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Payment timed out. Please try again.';
+        } else if (error.message.includes('verification')) {
+          errorMessage = 'Payment verification failed. If amount was deducted, it will be refunded within 24 hours.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showError(errorMessage);
+      
+      // Log error for debugging (production-ready logging)
+      if (process.env.NODE_ENV === 'production') {
+        // In production, you might want to send this to a logging service
+        console.error('Tournament payment error:', {
+          error: error.message,
+          tournamentId: tournament._id,
+          userId: user?.id,
+          timestamp: new Date().toISOString()
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -450,8 +414,15 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
             </Paper>
 
             <Alert severity="info" sx={{ mt: 2 }}>
-              Click "Proceed to Payment" to open the secure payment gateway. 
+              Click "Proceed to Payment" to open the secure Cashfree payment gateway. 
               Your tournament slot will be confirmed immediately after successful payment.
+            </Alert>
+
+            <Alert severity="success" sx={{ mt: 1 }}>
+              <Typography variant="body2">
+                <strong>Secure Payment:</strong> All payments are processed through Cashfree's secure gateway. 
+                We support UPI, Net Banking, Credit/Debit Cards, and Digital Wallets.
+              </Typography>
             </Alert>
           </Box>
         );
@@ -473,20 +444,25 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
                   Tournament Details:
                 </Typography>
                 <Typography variant="body2">
-                  Slot Number: #{paymentData.slotNumber}
+                  Slot Number: #{paymentData.slotNumber || 'Assigned'}
                 </Typography>
                 <Typography variant="body2">
                   Status: Confirmed
                 </Typography>
                 <Typography variant="body2">
-                  Payment ID: {paymentData.paymentId}
+                  Payment ID: {paymentData.paymentId || paymentData.orderId}
                 </Typography>
+                {paymentData.transactionId && (
+                  <Typography variant="body2">
+                    Transaction ID: {paymentData.transactionId}
+                  </Typography>
+                )}
               </Paper>
             )}
 
             <Alert severity="success" sx={{ mt: 2 }}>
-              You will be redirected to the waiting room where you can see other players 
-              and change your slot position if needed.
+              You will be redirected to the tournament room lobby where you can see other players 
+              and change your slot position if needed. The tournament details have been sent to your registered email.
             </Alert>
           </Box>
         );
