@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": "out",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   
   "env": {
     "NEXT_PUBLIC_API_BASE_URL": "https://api.gameonesport.xyz/api",

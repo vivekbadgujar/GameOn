@@ -55,10 +55,11 @@ Write-Host ""
 Write-Host "🌐 Deploying Frontend to Vercel (Free Plan)..." -ForegroundColor Cyan
 Set-Location "frontend"
 
-Write-Host "Installing frontend dependencies..." -ForegroundColor Yellow
-npm install
+Write-Host "Installing frontend dependencies with legacy peer deps..." -ForegroundColor Yellow
+npm install --legacy-peer-deps
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Frontend dependency installation failed" -ForegroundColor Red
+    Write-Host "💡 Try running: .\fix-dependencies.ps1" -ForegroundColor Yellow
     exit 1
 }
 
@@ -90,10 +91,11 @@ Write-Host ""
 Write-Host "🔧 Deploying Admin Panel to Vercel (Free Plan)..." -ForegroundColor Cyan
 Set-Location "admin-panel"
 
-Write-Host "Installing admin panel dependencies..." -ForegroundColor Yellow
-npm install
+Write-Host "Installing admin panel dependencies with legacy peer deps..." -ForegroundColor Yellow
+npm install --legacy-peer-deps
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Admin panel dependency installation failed" -ForegroundColor Red
+    Write-Host "💡 Try running: .\fix-dependencies.ps1" -ForegroundColor Yellow
     exit 1
 }
 
