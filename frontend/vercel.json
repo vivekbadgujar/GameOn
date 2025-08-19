@@ -15,7 +15,24 @@
       "src": "/static/(.*)",
       "headers": {
         "cache-control": "s-maxage=31536000,immutable"
-      }
+      },
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/logo192.png",
+      "dest": "/logo192.png"
+    },
+    {
+      "src": "/logo512.png",
+      "dest": "/logo512.png"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
     },
     {
       "src": "/(.*)",
@@ -23,11 +40,29 @@
     }
   ],
   "env": {
-    "REACT_APP_API_BASE_URL": "https://gameon-backend.onrender.com/api",
-    "REACT_APP_WS_URL": "wss://gameon-backend.onrender.com",
-    "REACT_APP_APP_NAME": "GameOn",
-    "REACT_APP_APP_VERSION": "1.0.0",
-    "REACT_APP_LOGO_URL": "/logo.png",
-    "REACT_APP_ENV": "production"
-  }
+    "REACT_APP_API_BASE_URL": "https://api.gameonesport.xyz/api",
+    "REACT_APP_WS_URL": "wss://api.gameonesport.xyz",
+    "REACT_APP_CASHFREE_ENVIRONMENT": "production",
+    "REACT_APP_FRONTEND_URL": "https://gameonesport.xyz",
+    "REACT_APP_ADMIN_URL": "https://admin.gameonesport.xyz"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
 }

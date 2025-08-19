@@ -61,13 +61,27 @@ const TransactionSchema = new mongoose.Schema({
   paymentGateway: {
     provider: {
       type: String,
-      enum: ['razorpay', 'paytm', 'upi', 'wallet'],
-      default: 'razorpay'
+      enum: ['cashfree', 'razorpay', 'paytm', 'upi', 'wallet'],
+      default: 'cashfree'
     },
     gatewayTransactionId: String,
     gatewayOrderId: String,
     gatewayResponse: Object
   },
+
+  // Cashfree specific fields
+  cashfreeOrderId: {
+    type: String,
+    index: true
+  },
+  cashfreePaymentId: String,
+  
+  // Legacy Razorpay fields (for backward compatibility)
+  razorpayOrderId: {
+    type: String,
+    index: true
+  },
+  razorpayPaymentId: String,
   
   // Wallet balance before and after transaction
   walletBalance: {

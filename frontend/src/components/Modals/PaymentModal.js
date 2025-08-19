@@ -12,19 +12,20 @@ import {
   Shield,
   Lock
 } from 'lucide-react';
-import { createPaymentOrder, acceptPolicies } from '../../services/api';
+import { acceptPolicies } from '../../services/api';
+import cashfreeService from '../../services/cashfreeService';
 import toast from 'react-hot-toast';
 
 const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) => {
-  const [selectedMethod, setSelectedMethod] = useState('razorpay');
+  const [selectedMethod, setSelectedMethod] = useState('cashfree');
   const [processing, setProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState('method'); // method, processing, success
   const [agreeToPolicies, setAgreeToPolicies] = useState(false);
 
   const paymentMethods = [
     {
-      id: 'razorpay',
-      name: 'Razorpay',
+      id: 'cashfree',
+      name: 'Cashfree Payments',
       description: 'Credit/Debit Card, UPI, Net Banking',
       icon: CreditCard,
       color: 'blue'
@@ -55,21 +56,12 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
       setProcessing(true);
       setPaymentStep('processing');
 
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      if (selectedMethod === 'razorpay') {
-        // Initialize Razorpay
-        const orderResponse = await createPaymentOrder(amount);
-        
-        const options = {
-          key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-          amount: amount * 100, // Amount in paise
-          currency: 'INR',
-          name: 'GameOn Platform',
-          description: `Entry fee for ${tournamentName}`,
-          order_id: orderResponse.data.orderId,
-          handler: async function (response) {
+      if (selectedMethod === 'cashfree') {
+        // Use Cashfree service for wallet top-up
+        await cashfreeService.processWalletTopup(
+          amount,
+          async (result) => {
+            // Payment success
             setPaymentStep('success');
             
             // Save policy acceptance for the user
@@ -84,32 +76,43 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
             
             setTimeout(() => {
               onSuccess({
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                signature: response.razorpay_signature,
+                paymentId: result.paymentDetails?.referenceId || `cf_${Date.now()}`,
+                orderId: result.paymentDetails?.orderId,
                 method: selectedMethod,
-                amount: amount
+                amount: amount,
+                cashfreeData: result
               });
             }, 1500);
           },
-          prefill: {
-            name: 'Player',
-            email: 'player@gameon.com',
-            contact: '9999999999'
-          },
-          theme: {
-            color: '#3B82F6'
-          },
-          modal: {
-            ondismiss: function() {
-              setProcessing(false);
-              setPaymentStep('method');
-            }
+          (error) => {
+            // Payment failure
+            console.error('Cashfree payment error:', error);
+            toast.error('Payment failed. Please try again.');
+            setProcessing(false);
+            setPaymentStep('method');
           }
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        );
+      } else if (selectedMethod === 'wallet') {
+        // Handle wallet payment
+        setPaymentStep('success');
+        
+        // Save policy acceptance for the user
+        try {
+          const user = JSON.parse(localStorage.getItem('user'));
+          if (user && user._id) {
+            await acceptPolicies(user._id, '1.0');
+          }
+        } catch (error) {
+          console.error('Error saving policy acceptance:', error);
+        }
+        
+        setTimeout(() => {
+          onSuccess({
+            paymentId: `wallet_${Date.now()}`,
+            method: selectedMethod,
+            amount: amount
+          });
+        }, 1500);
       } else {
         // Mock payment success for other methods
         setPaymentStep('success');

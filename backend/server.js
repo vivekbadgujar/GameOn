@@ -25,11 +25,8 @@ const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
       ? [
-          'https://gameon-platform.vercel.app',
-          'https://gameon-frontend.vercel.app', 
-          'https://game-on-topaz.vercel.app',
-          'https://gameon-admin.vercel.app',
-          'https://gameon-admin-panel.vercel.app'
+          'https://gameonesport.xyz',
+          'https://admin.gameonesport.xyz'
         ]
       : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
     credentials: true,
@@ -136,12 +133,8 @@ app.use(cors({
         
         // Allow specific production domains
         const allowedOrigins = [
-          'https://gameon-platform.vercel.app',
-          'https://gameon-frontend.vercel.app',
-          'https://gameon-admin.vercel.app',
-          'https://gameon-admin-panel.vercel.app',
-          'https://game-on-topaz.vercel.app', // Your actual admin panel domain
-          // Add your custom domains here
+          'https://gameonesport.xyz',
+          'https://admin.gameonesport.xyz'
         ];
         
         if (allowedOrigins.includes(origin)) {
@@ -237,7 +230,7 @@ app.set('pushNotificationService', pushNotificationService);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tournaments', require('./routes/tournaments'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/payments', require('./routes/payments'));
+app.use('/api/payments', require('./routes/payments-cashfree'));
 app.use('/api', require('./routes/notifications'));
 app.use('/api/media', require('./routes/media'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));

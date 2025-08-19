@@ -3,8 +3,9 @@ const config = {
   API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api',
   WS_URL: process.env.REACT_APP_WS_URL || 'http://localhost:5000',
 
-  // Razorpay Configuration
-  RAZORPAY_KEY_ID: process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_your_key_id',
+  // Cashfree Configuration
+  CASHFREE_APP_ID: process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',
+  CASHFREE_ENVIRONMENT: process.env.REACT_APP_CASHFREE_ENVIRONMENT || 'sandbox',
 
   // App Configuration
   APP_NAME: 'GameOn',
