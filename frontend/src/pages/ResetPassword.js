@@ -259,7 +259,7 @@ const ResetPassword = () => {
         {/* Back to Login */}
         <div className="mt-6 text-center">
           <Link
-            to="/login"
+            href="/login"
             className="inline-flex items-center space-x-2 text-gray-400 hover:text-white transition-colors duration-300"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -270,5 +270,12 @@ const ResetPassword = () => {
     </div>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default ResetPassword;

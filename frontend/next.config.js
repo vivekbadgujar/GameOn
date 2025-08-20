@@ -16,6 +16,11 @@ const nextConfig = {
   // Disable static generation for all pages
   trailingSlash: false,
   
+  // Force server-side rendering for all pages
+  async generateBuildId() {
+    return 'build-' + Date.now()
+  },
+  
   // Image optimization
   images: {
     domains: ['gameonesport.xyz', 'api.gameonesport.xyz'],

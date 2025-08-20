@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, Lock, Eye, Database, UserCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 const PrivacyPolicy = () => {
   return (
@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
           className="mb-8"
         >
           <Link 
-            to="/dashboard" 
+            href="/dashboard" 
             className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors duration-300 mb-6"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
@@ -291,19 +291,19 @@ const PrivacyPolicy = () => {
           className="mt-8 flex flex-wrap gap-4 justify-center"
         >
           <Link 
-            to="/terms" 
+            href="/terms" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Terms & Conditions
           </Link>
           <Link 
-            to="/refund" 
+            href="/refund" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Refund Policy
           </Link>
           <Link 
-            to="/fairplay" 
+            href="/fairplay" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Fair Play Policy
@@ -313,5 +313,12 @@ const PrivacyPolicy = () => {
     </div>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default PrivacyPolicy;
