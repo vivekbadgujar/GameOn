@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { resetPassword, verifyResetToken } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { token } = router.query;
   
   const [formData, setFormData] = useState({
     newPassword: '',
@@ -86,7 +87,7 @@ const ResetPassword = () => {
         setSuccess(true);
         // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login');
+          router.push('/login');
         }, 3000);
       }
     } catch (error) {

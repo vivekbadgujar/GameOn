@@ -12,6 +12,9 @@ const nextConfig = {
     scrollRestoration: true,
     forceSwcTransforms: true,
   },
+
+  // Disable static generation for all pages
+  trailingSlash: false,
   
   // Image optimization
   images: {

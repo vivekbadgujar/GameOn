@@ -5,13 +5,20 @@ const api = axios.create({
   baseURL: config.API_BASE_URL,
   withCredentials: true,
   timeout: 30000, // 30 second timeout
+  // Add default headers for build time
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Check if we're in browser environment
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
@@ -30,26 +37,28 @@ api.interceptors.response.use(
       if (errorMessage === 'Token has expired' || errorMessage === 'Invalid token') {
         console.log('Token expired, clearing auth data');
         
-        // Clear auth data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        // Clear axios headers
-        delete api.defaults.headers.common['Authorization'];
-        
-        // Only redirect to login if not already on login/register pages
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
-          // Show a user-friendly message
-          const event = new CustomEvent('tokenExpired', {
-            detail: { message: 'Your session has expired. Please login again.' }
-          });
-          window.dispatchEvent(event);
+        // Clear auth data (only in browser)
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
           
-          // Redirect to login after a short delay
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 1000);
+          // Clear axios headers
+          delete api.defaults.headers.common['Authorization'];
+          
+          // Only redirect to login if not already on login/register pages
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+            // Show a user-friendly message
+            const event = new CustomEvent('tokenExpired', {
+              detail: { message: 'Your session has expired. Please login again.' }
+            });
+            window.dispatchEvent(event);
+            
+            // Redirect to login after a short delay
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 1000);
+          }
         }
       }
     }
@@ -183,6 +192,15 @@ export const getUserStats = async () => {
 // Tournament endpoints
 export const getTournaments = async (params = {}) => {
   try {
+    // Skip API calls during build time
+    if (typeof window === 'undefined') {
+      return {
+        success: true,
+        tournaments: [],
+        message: 'Build time - no tournaments loaded'
+      };
+    }
+
     // Handle different parameter formats
     let queryParams = {};
     
@@ -318,6 +336,11 @@ export const createPaymentOrder = (amount) => api.post('/payments/create-order',
 // YouTube API
 export const getYouTubeVideos = async (searchTerm = '') => {
   try {
+    // Skip API calls during build time
+    if (typeof window === 'undefined') {
+      return { success: true, videos: [], message: 'Build time - no videos loaded' };
+    }
+
     const response = await api.get(`/youtube/videos${searchTerm ? `?search=${searchTerm}` : ''}`);
     return response.data;
   } catch (error) {
@@ -400,10 +423,20 @@ export const getRecentWinners = async () => {
 };
 
 export const getLeaderboard = async (type = 'overall', timeFilter = 'all', limit = 50) => {
-  const response = await api.get('/stats/leaderboard', {
-    params: { type, timeFilter, limit }
-  });
-  return response.data;
+  try {
+    // Skip API calls during build time
+    if (typeof window === 'undefined') {
+      return { success: true, players: [], message: 'Build time - no leaderboard loaded' };
+    }
+
+    const response = await api.get('/stats/leaderboard', {
+      params: { type, timeFilter, limit }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    return { success: false, players: [], error: error.message };
+  }
 };
 
 // Notifications API

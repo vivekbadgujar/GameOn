@@ -1,7 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import dynamic from 'next/dynamic';
 
 // Context Providers
 import { AuthProvider } from '../contexts/AuthContext';
@@ -20,12 +18,6 @@ import ModernBackground from '../components/UI/ModernBackground';
 
 // Import styles
 import '../styles/globals.css';
-
-// Dynamically import components that use window/document
-const DynamicRouter = dynamic(
-  () => import('react-router-dom').then((mod) => mod.BrowserRouter),
-  { ssr: false }
-);
 
 function MyApp({ Component, pageProps }) {
   return (

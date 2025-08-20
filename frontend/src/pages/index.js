@@ -52,3 +52,10 @@ export default function Home() {
     </>
   );
 }
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
