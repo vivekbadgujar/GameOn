@@ -395,4 +395,11 @@ const Dashboard = () => {
   );
 };
 
+// Disable SSR for React Router compatibility
+export async function getServerSideProps() {
+  return {
+    props: {},
+  };
+}
+
 export default Dashboard;

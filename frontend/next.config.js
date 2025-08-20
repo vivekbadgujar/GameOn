@@ -3,13 +3,20 @@ const nextConfig = {
   // Enable React strict mode
   reactStrictMode: true,
   
-  // Use standard build for Vercel (not static export)
-  // output: 'export', // Removed for better Vercel integration
+  // Use standard build for Vercel deployment
+  // output: 'export', // Disabled for SSR compatibility
+  
+  // Disable static optimization completely
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
+    forceSwcTransforms: true,
+  },
   
   // Image optimization
   images: {
     domains: ['gameonesport.xyz', 'api.gameonesport.xyz'],
-    unoptimized: false,
+    unoptimized: true,
   },
 
   // Environment variables for client-side
@@ -102,11 +109,9 @@ const nextConfig = {
   generateEtags: false,
   compress: true,
 
-  // Experimental features for better performance
-  experimental: {
-    optimizeCss: true,
-    scrollRestoration: true,
-  },
+
+
+
 };
 
 module.exports = nextConfig;
