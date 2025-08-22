@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { initiateCashfreePayment } from '../../utils/cashfree';
+import { initiateCashfreePayment, loadScript } from '../../utils/cashfree';
 
 const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
   const { user } = useAuth();
@@ -52,8 +52,27 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
   });
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [paymentData, setPaymentData] = useState(null);
+  const [cashfreeReady, setCashfreeReady] = useState(false);
 
   const steps = ['Join Type', 'Game Profile', 'Payment', 'Confirmation'];
+
+  // Initialize Cashfree SDK on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined' && open) {
+      loadScript()
+        .then((loaded) => {
+          setCashfreeReady(loaded);
+          if (!loaded) {
+            showError('Failed to load payment system. Please refresh and try again.');
+          }
+        })
+        .catch((error) => {
+          console.error('Cashfree initialization error:', error);
+          setCashfreeReady(false);
+          showError('Payment system initialization failed. Please refresh and try again.');
+        });
+    }
+  }, [open, showError]);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -125,6 +144,16 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
     try {
       setLoading(true);
 
+      // Check if Cashfree is ready
+      if (!cashfreeReady) {
+        throw new Error('Payment system is not ready. Please wait a moment and try again.');
+      }
+
+      // SSR safety check
+      if (typeof window === 'undefined') {
+        throw new Error('Payment can only be processed on client side');
+      }
+
       // Prepare tournament payment data
       const tournamentData = {
         tournamentId: tournament._id,
@@ -142,7 +171,7 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
         showSuccess('Payment successful! You have been added to the tournament.');
         
         // Check if backend provided redirect URL for room lobby
-        if (paymentResult.data.redirectTo) {
+        if (paymentResult.data.redirectTo && typeof window !== 'undefined') {
           setTimeout(() => {
             window.location.href = paymentResult.data.redirectTo;
           }, 2000);
@@ -197,9 +226,11 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
     showSuccess('Successfully joined tournament! Redirecting to room lobby...');
     
     // Redirect to room lobby
-    setTimeout(() => {
-      window.location.href = `/tournament/${tournament._id}/room-lobby`;
-    }, 1500);
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.location.href = `/tournament/${tournament._id}/room-lobby`;
+      }, 1500);
+    }
   };
 
   // Calculate total entry fee
@@ -513,13 +544,17 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
         <Button
           onClick={handleNext}
           variant="contained"
-          disabled={loading || (activeStep === 0 && getAvailableSlots() < (joinType === 'squad' ? 4 : 1))}
+          disabled={
+            loading || 
+            (activeStep === 0 && getAvailableSlots() < (joinType === 'squad' ? 4 : 1)) ||
+            (activeStep === 2 && !cashfreeReady)
+          }
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
           {activeStep === steps.length - 1 
             ? 'Join Tournament' 
             : activeStep === 2 
-              ? 'Proceed to Payment' 
+              ? (cashfreeReady ? 'Proceed to Payment' : 'Loading Payment System...') 
               : 'Next'
           }
         </Button>

@@ -35,7 +35,7 @@ import {
   Star,
   TrendingUp
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -44,8 +44,8 @@ import BGMIWaitingRoom from '../components/Tournament/BGMIWaitingRoom';
 import dayjs from 'dayjs';
 
 const TournamentPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { id } = router.query;
   const { user, isAuthenticated } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
 
@@ -222,7 +222,7 @@ const TournamentPage = () => {
                   <Button
                     variant="contained"
                     size="large"
-                    onClick={() => navigate('/login')}
+                    onClick={() => router.push('/login')}
                     sx={{ mb: 1 }}
                   >
                     Login to Join
@@ -486,5 +486,12 @@ const TournamentPage = () => {
     </Container>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default TournamentPage;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -33,7 +34,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   
-  const navigate = useNavigate();
+  const router = useRouter();
   const { login } = useAuth();
 
   const handleInputChange = (e) => {
@@ -130,7 +131,7 @@ const Register = () => {
         
         // Redirect to dashboard after a short delay
         setTimeout(() => {
-          navigate('/dashboard');
+          router.push('/dashboard');
         }, 2000);
       } else {
         setError(data.message || 'Registration failed. Please try again.');
@@ -409,19 +410,19 @@ const Register = () => {
                     />
                     <label className="text-white/80 text-sm leading-relaxed">
                       I have read and agree to GameOn's{' '}
-                      <Link to="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                      <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                         Terms & Conditions
                       </Link>
                       ,{' '}
-                      <Link to="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                      <Link href="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                         Refund Policy
                       </Link>
                       ,{' '}
-                      <Link to="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                      <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                         Privacy Policy
                       </Link>
                       , and{' '}
-                      <Link to="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                      <Link href="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                         Fair Play Policy
                       </Link>
                       .
@@ -448,7 +449,7 @@ const Register = () => {
                   <p className="text-white/60">
                     Already have an account?{' '}
                     <Link 
-                      to="/login" 
+                      href="/login" 
                       className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-300"
                     >
                       Sign in
@@ -463,5 +464,12 @@ const Register = () => {
     </div>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default Register;

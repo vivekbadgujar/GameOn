@@ -1,17 +1,23 @@
 /**
  * Cashfree Payment Utilities
- * Simplified wrapper functions for Cashfree integration
+ * Simplified wrapper functions for Cashfree integration with SSR safety
  */
 
 import cashfreeService from '../services/cashfreeService';
 
 /**
- * Load Cashfree SDK script
+ * Load Cashfree SDK script with SSR safety
  * @returns {Promise<boolean>} - True if loaded successfully
  */
 export const loadScript = async (src) => {
   try {
-    await cashfreeService.loadCashfreeSDK();
+    // SSR safety check
+    if (typeof window === 'undefined') {
+      console.warn('Cannot load Cashfree SDK during SSR');
+      return false;
+    }
+
+    await cashfreeService.initializeSDK();
     return true;
   } catch (error) {
     console.error('Failed to load Cashfree SDK:', error);
@@ -20,12 +26,18 @@ export const loadScript = async (src) => {
 };
 
 /**
- * Initiate Cashfree payment for tournament
+ * Initiate Cashfree payment for tournament with SSR safety
  * @param {Object} paymentData - Payment configuration
  * @returns {Promise<Object>} - Payment result
  */
 export const initiateCashfreePayment = async (paymentData) => {
   return new Promise((resolve, reject) => {
+    // SSR safety check
+    if (typeof window === 'undefined') {
+      reject(new Error('Payment can only be initiated on client side'));
+      return;
+    }
+
     cashfreeService.processTournamentPayment(
       paymentData,
       (result) => resolve(result),

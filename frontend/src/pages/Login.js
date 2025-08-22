@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { 
   Mail, 
@@ -25,15 +26,15 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   
-  const navigate = useNavigate();
+  const router = useRouter();
   const { login, isAuthenticated } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+      router.push('/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -59,7 +60,7 @@ const Login = () => {
         // Login the user
         login(response.user, response.token);
         // Navigate to dashboard after successful login
-        navigate('/dashboard', { replace: true });
+        router.push('/dashboard');
       } else {
         setError(response.message || 'Invalid email or password');
       }
@@ -257,7 +258,7 @@ const Login = () => {
               <p className="text-white/60">
                 Don't have an account?{' '}
                 <Link 
-                  to="/register" 
+                  href="/register" 
                   className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-300"
                 >
                   Sign up
@@ -284,5 +285,12 @@ const Login = () => {
     </div>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default Login;

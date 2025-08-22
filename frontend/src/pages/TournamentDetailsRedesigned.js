@@ -65,27 +65,17 @@ const TournamentDetailsRedesigned = () => {
       setLoading(true);
       setError(''); // Clear any previous errors
       console.log('🔍 Fetching tournament details for ID:', id);
-      console.log('🔍 Current URL:', window.location.href);
-      console.log('🔍 API Base URL:', 'http://localhost:5000/api');
       
-      // Test direct fetch first
-      try {
-        console.log('🔍 Testing direct fetch...');
-        const directResponse = await fetch(`http://localhost:5000/api/tournaments/${id}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include'
-        });
-        console.log('🔍 Direct fetch status:', directResponse.status);
-        const directData = await directResponse.json();
-        console.log('🔍 Direct fetch data:', directData);
-      } catch (directError) {
-        console.error('🔍 Direct fetch failed:', directError);
+      // SSR-safe URL logging
+      if (typeof window !== 'undefined') {
+        console.log('🔍 Current URL:', window.location.href);
       }
       
-      // Now try with our API service
+      // Use production API URL
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz/api';
+      console.log('🔍 API Base URL:', apiBaseUrl);
+      
+      // Use our API service directly (no direct fetch testing in production)
       console.log('🔍 Using API service...');
       const data = await getTournamentById(id);
       console.log('🔍 Tournament data received:', data);
@@ -108,26 +98,27 @@ const TournamentDetailsRedesigned = () => {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        stack: error.stack
+        url: error.config?.url
       });
       
-      // Set more specific error messages
-      if (error.response?.status === 401) {
-        const errorMessage = error.response?.data?.message;
-        if (errorMessage === 'Token has expired') {
-          setError('Your session has expired. Please login again to view this tournament.');
-        } else {
-          setError('Authentication required. Please login to view this tournament.');
-        }
-      } else if (error.response?.status === 404) {
-        setError('Tournament not found - The tournament ID may be invalid or the tournament may have been removed.');
-      } else if (error.response?.status >= 500) {
-        setError('Server error. Please try again later or contact support.');
-      } else if (error.name === 'NetworkError' || error.message.includes('fetch')) {
-        setError('Network error. Please check your internet connection and try again.');
+      let errorMessage = 'Failed to load tournament details. ';
+      
+      if (error.response?.status === 404) {
+        errorMessage = 'Tournament not found. It may have been deleted or the URL is incorrect.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error.message?.includes('Network Error') || error.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (error.message) {
+        errorMessage += error.message;
       } else {
-        setError(`Failed to load tournament details: ${error.message}`);
+        errorMessage += 'Please try refreshing the page.';
       }
+      
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -135,237 +126,175 @@ const TournamentDetailsRedesigned = () => {
 
   const handleJoinTournament = async () => {
     if (!user) {
+      showError('Please login to join tournaments');
       navigate('/login');
       return;
     }
 
-    // Check if user has sufficient wallet balance
-    if (tournament.entryFee > 0) {
-      if (!hasSufficientBalance(tournament.entryFee)) {
-        showWarning(
-          `Insufficient wallet balance. You need ₹${tournament.entryFee} but have ₹${balance}. Please add money to your wallet.`,
-          'Insufficient Balance'
-        );
-        return;
-      }
-      
-      // Show confirmation for wallet payment
-      if (window.confirm(`Pay ₹${tournament.entryFee} from your wallet to join this tournament?`)) {
-        await processJoinWithWallet();
-      }
-    } else {
-      await processJoin();
+    if (!tournament) {
+      showError('Tournament data not available');
+      return;
     }
-  };
 
-  const processJoinWithWallet = async () => {
+    // Check if tournament is full
+    if (tournament.currentParticipants >= tournament.maxParticipants) {
+      showError('Tournament is full');
+      return;
+    }
+
+    // Check if user is already joined
+    const isAlreadyJoined = tournament.participants?.some(p => 
+      p._id === user._id || p.userId === user._id
+    );
+    
+    if (isAlreadyJoined) {
+      showWarning('You are already registered for this tournament');
+      return;
+    }
+
+    // Check wallet balance
+    if (!hasSufficientBalance(tournament.entryFee)) {
+      showError(`Insufficient balance. Required: ₹${tournament.entryFee}`);
+      return;
+    }
+
     try {
       setJoining(true);
-      setError('');
       
-      // Deduct from wallet first
-      await deductFromWallet(
-        tournament.entryFee, 
-        `Tournament entry fee - ${tournament.title}`,
-        tournament._id
-      );
-      
-      // Then join tournament
-      await processJoin({ paymentMethod: 'wallet', amount: tournament.entryFee });
-      
-    } catch (error) {
-      console.error('Error processing wallet payment:', error);
-      showError(error.message || 'Failed to process wallet payment');
-      setJoining(false);
-    }
-  };
+      // Create payment order
+      const orderResponse = await createPaymentOrder({
+        amount: tournament.entryFee,
+        tournamentId: tournament._id,
+        currency: 'INR'
+      });
 
-  const processJoin = async (paymentData = null) => {
-    try {
-      setJoining(true);
-      setError('');
-      
-      console.log('Attempting to join tournament:', id);
-      console.log('Payment data:', paymentData);
-      
-      const response = await joinTournament(id, paymentData);
-      console.log('Join tournament response:', response);
-      
-      if (response.data?.success) {
-        // Generate slot number
-        const slotNumber = tournament.participants?.length + 1 || 1;
-        setUserSlot(slotNumber);
-        
-        // Refresh tournament data
-        await fetchTournamentDetails();
-        
-        showSuccess(`Successfully joined! Your slot: #${slotNumber}`, 'Tournament Joined');
-        setShowPaymentModal(false);
-        
-        // Automatically open the Slot Edit Modal after successful join
-        setTimeout(() => {
-          setShowSlotEditModal(true);
-        }, 1000); // Small delay to let the success message show
-      } else {
-        throw new Error(response.data?.error || 'Failed to join tournament');
+      if (!orderResponse.success) {
+        throw new Error(orderResponse.message || 'Failed to create payment order');
       }
+
+      // Show payment modal with Cashfree integration
+      setShowPaymentModal(true);
+      
     } catch (error) {
-      console.error('Error joining tournament:', error);
-      
-      // Handle different types of errors
-      if (error.response?.status === 401) {
-        const errorMessage = error.response?.data?.message;
-        if (errorMessage === 'Token has expired') {
-          showError('Your session has expired. Please login again.');
-          setTimeout(() => navigate('/login'), 2000);
-        } else {
-          showError('Authentication required. Please login again.');
-          setTimeout(() => navigate('/login'), 2000);
-        }
-      } else if (error.response?.status === 404) {
-        showError('Tournament not found or has been removed.');
-      } else if (error.response?.status === 400) {
-        const errorMessage = error.response?.data?.message || error.response?.data?.error;
-        showError(errorMessage || 'Unable to join tournament. Please try again.');
-      } else {
-        const errorMessage = error.response?.data?.error || 
-                            error.response?.data?.message || 
-                            error.message || 
-                            'Failed to join tournament. Please try again.';
-        setError(errorMessage);
-        showError(errorMessage);
-      }
+      console.error('Join tournament error:', error);
+      showError(error.message || 'Failed to join tournament');
     } finally {
       setJoining(false);
     }
   };
 
-  const handlePaymentSuccess = (paymentData) => {
-    processJoin(paymentData);
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      // Join tournament after successful payment
+      const joinResponse = await joinTournament(tournament._id, {
+        paymentId: paymentData.paymentId,
+        orderId: paymentData.orderId
+      });
+
+      if (joinResponse.success) {
+        showSuccess('Successfully joined tournament!');
+        setShowPaymentModal(false);
+        
+        // Refresh tournament data
+        await fetchTournamentDetails();
+        
+        // Deduct from wallet
+        deductFromWallet(tournament.entryFee);
+        
+        // Redirect to room lobby if available
+        if (typeof window !== 'undefined') {
+          setTimeout(() => {
+            navigate(`/tournament/${tournament._id}/room-lobby`);
+          }, 2000);
+        }
+      } else {
+        throw new Error(joinResponse.message || 'Failed to join tournament');
+      }
+    } catch (error) {
+      console.error('Payment success handling error:', error);
+      showError(error.message || 'Failed to complete tournament registration');
+    }
+  };
+
+  const handlePaymentFailure = (error) => {
+    console.error('Payment failed:', error);
+    showError(error.message || 'Payment failed. Please try again.');
+    setShowPaymentModal(false);
   };
 
   const copyToClipboard = async (text, type) => {
-    try {
+    if (typeof window === 'undefined' || !navigator.clipboard) {
+      // Fallback for older browsers or SSR
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    } else {
       await navigator.clipboard.writeText(text);
-      setCredentialsCopied(prev => ({ ...prev, [type]: true }));
-      showSuccess(`${type === 'id' ? 'Room ID' : 'Password'} copied!`);
-      setTimeout(() => {
-        setCredentialsCopied(prev => ({ ...prev, [type]: false }));
-      }, 2000);
-    } catch (err) {
-      showError('Failed to copy');
     }
+    
+    setCredentialsCopied({ ...credentialsCopied, [type]: true });
+    toast.success(`${type === 'id' ? 'Room ID' : 'Password'} copied to clipboard!`);
+    
+    setTimeout(() => {
+      setCredentialsCopied({ ...credentialsCopied, [type]: false });
+    }, 2000);
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'live':
-      case 'ongoing':
-        return 'bg-red-500 text-white animate-pulse';
-      case 'upcoming':
-      case 'registration':
-        return 'bg-yellow-500 text-black';
-      case 'completed':
-      case 'finished':
-        return 'bg-green-500 text-white';
+  const shareToSocial = (platform) => {
+    if (typeof window === 'undefined') return;
+    
+    const url = window.location.href;
+    const text = `Check out this amazing BGMI tournament: ${tournament?.title}`;
+    
+    let shareUrl = '';
+    
+    switch (platform) {
+      case 'whatsapp':
+        shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+        break;
+      case 'telegram':
+        shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+        break;
       default:
-        return 'bg-gray-500 text-white';
+        return;
     }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'live':
-      case 'ongoing':
-        return <Play className="w-4 h-4" />;
-      case 'upcoming':
-      case 'registration':
-        return <Clock className="w-4 h-4" />;
-      case 'completed':
-      case 'finished':
-        return <CheckCircle className="w-4 h-4" />;
-      default:
-        return <AlertCircle className="w-4 h-4" />;
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'TBD';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getGameLogo = (game) => {
-    const gameLogos = {
-      'bgmi': '🔫',
-      'valorant': '⚡',
-      'chess': '♟️',
-      'freefire': '🔥',
-      'codm': '💥',
-      'cod mobile': '💥'
-    };
-    return gameLogos[game?.toLowerCase()] || '🎮';
-  };
-
-  const isUserJoined = () => {
-    return tournament?.participants?.some(p => p._id === user?._id || p.userId === user?._id);
-  };
-
-  const canJoinTournament = () => {
-    if (!tournament) return false;
-    if (isUserJoined()) return false;
-    if (tournament.status === 'completed' || tournament.status === 'finished') return false;
-    if (tournament.participants?.length >= tournament.maxParticipants) return false;
-    return true;
-  };
-
-  const shouldShowCredentials = () => {
-    if (!tournament || !isUserJoined()) return false;
-    const startTime = new Date(tournament.startTime || tournament.scheduledAt);
-    const now = new Date();
-    const timeDiff = startTime.getTime() - now.getTime();
-    return timeDiff <= 30 * 60 * 1000; // 30 minutes before start
-  };
-
-  const getTimeUntilCredentials = () => {
-    if (!tournament) return null;
-    const startTime = new Date(tournament.startTime || tournament.scheduledAt);
-    const now = new Date();
-    const timeDiff = startTime.getTime() - now.getTime();
-    const credentialsTime = timeDiff - (30 * 60 * 1000); // 30 minutes before
-    return credentialsTime > 0 ? credentialsTime : 0;
+    
+    window.open(shareUrl, '_blank', 'width=600,height=400');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  if (error || !tournament) {
+  if (error) {
     return (
-      <div className="min-h-screen pt-20 pb-8">
-        <div className="container-custom">
-          <div className="glass-card p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-4">Tournament Not Found</h2>
-            <p className="text-white/60 mb-6">
-              The tournament you're looking for doesn't exist or has been removed.
-            </p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Error Loading Tournament</h2>
+          <p className="text-red-300 mb-6">{error}</p>
+          <div className="space-y-3">
+            <button
+              onClick={fetchTournamentDetails}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
             <button
               onClick={() => navigate('/tournaments')}
-              className="btn-primary"
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              Browse Tournaments
+              Back to Tournaments
             </button>
           </div>
         </div>
@@ -373,614 +302,303 @@ const TournamentDetailsRedesigned = () => {
     );
   }
 
+  if (!tournament) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Tournament Not Found</h2>
+          <p className="text-gray-300 mb-6">The tournament you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => navigate('/tournaments')}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Browse Tournaments
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isUserJoined = tournament.participants?.some(p => 
+    p._id === user?._id || p.userId === user?._id
+  );
+
+  const canJoin = !isUserJoined && 
+                  tournament.currentParticipants < tournament.maxParticipants &&
+                  tournament.status === 'upcoming';
+
   return (
-    <div className="min-h-screen pt-20 pb-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
-      <div className="container-custom">
-        {/* Back Button */}
-        <motion.button
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-white/60 hover:text-white mb-6 transition-colors duration-300"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-medium">Back to Tournaments</span>
-        </motion.button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Tournament Header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigate('/tournaments')}
+              className="flex items-center text-gray-300 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Tournaments
+            </button>
+            
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => shareToSocial('whatsapp')}
+                className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                title="Share on WhatsApp"
+              >
+                <Share2 className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={() => shareToSocial('telegram')}
+                className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                title="Share on Telegram"
+              >
+                <Share2 className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
 
-        {/* Tournament Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="glass-card p-8 mb-8 relative overflow-hidden"
-        >
-          {/* Background Gradient */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent rounded-full -translate-y-48 translate-x-48" />
-          
-          <div className="relative z-10">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-8">
-              <div className="flex-1">
-                {/* Game Logo & Status */}
-                <div className="flex items-center space-x-6 mb-6">
-                  <div className="text-6xl">{getGameLogo(tournament.game)}</div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Tournament Info */}
+            <div className="lg:col-span-2">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+                <div className="flex items-start justify-between mb-6">
                   <div>
-                    <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-bold ${getStatusColor(tournament.status)}`}>
-                      {getStatusIcon(tournament.status)}
-                      <span className="capitalize">{tournament.status || 'Unknown'}</span>
-                    </div>
-                    <p className="text-white/60 text-sm mt-2 capitalize font-medium">
-                      {tournament.game || 'Unknown Game'}
-                    </p>
+                    <h1 className="text-4xl font-bold text-white mb-2">{tournament.title}</h1>
+                    <p className="text-gray-300 text-lg">{tournament.description}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Trophy className="w-8 h-8 text-yellow-400" />
+                    <span className="text-2xl font-bold text-yellow-400">₹{tournament.prizePool}</span>
                   </div>
                 </div>
-                
-                {/* Tournament Title */}
-                <h1 className="text-5xl font-bold text-white mb-4 leading-tight">
-                  {tournament.title || tournament.name || 'Unnamed Tournament'}
-                </h1>
-                
-                {/* Key Info Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="glass-card p-4 text-center">
-                    <Clock className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                    <div className="text-sm text-white/60">Date</div>
-                    <div className="font-bold text-white">
-                      {new Date(tournament.startTime || tournament.scheduledAt).toLocaleDateString()}
-                    </div>
+
+                {/* Tournament Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                  <div className="bg-purple-500/20 rounded-lg p-4 text-center">
+                    <Users className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">{tournament.currentParticipants}</div>
+                    <div className="text-sm text-gray-300">/ {tournament.maxParticipants}</div>
                   </div>
-                  <div className="glass-card p-4 text-center">
-                    <Clock className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                    <div className="text-sm text-white/60">Start Time</div>
-                    <div className="font-bold text-white">
-                      {new Date(tournament.startTime || tournament.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                  </div>
-                  <div className="glass-card p-4 text-center">
+                  
+                  <div className="bg-green-500/20 rounded-lg p-4 text-center">
                     <CreditCard className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                    <div className="text-sm text-white/60">Entry Fee</div>
-                    <div className="font-bold text-green-400">
-                      ₹{(tournament.entryFee || 0).toLocaleString('en-IN')}
+                    <div className="text-2xl font-bold text-white">₹{tournament.entryFee}</div>
+                    <div className="text-sm text-gray-300">Entry Fee</div>
+                  </div>
+                  
+                  <div className="bg-blue-500/20 rounded-lg p-4 text-center">
+                    <Clock className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+                    <div className="text-lg font-bold text-white">
+                      {new Date(tournament.startTime).toLocaleDateString()}
+                    </div>
+                    <div className="text-sm text-gray-300">
+                      {new Date(tournament.startTime).toLocaleTimeString()}
                     </div>
                   </div>
-                  <div className="glass-card p-4 text-center">
-                    <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                    <div className="text-sm text-white/60">Prize Pool</div>
-                    <div className="font-bold text-yellow-400">
-                      ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
-                    </div>
+                  
+                  <div className="bg-yellow-500/20 rounded-lg p-4 text-center">
+                    <Target className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
+                    <div className="text-lg font-bold text-white">{tournament.gameMode}</div>
+                    <div className="text-sm text-gray-300">Mode</div>
                   </div>
                 </div>
 
-                {/* Registration Progress */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-sm text-white/60 mb-2">
-                    <span>Registration Progress</span>
-                    <span>
-                      {tournament.participants?.length || 0}/{tournament.maxParticipants || 'N/A'} Players
-                    </span>
+                {/* Countdown Timer */}
+                {tournament.status === 'upcoming' && (
+                  <div className="mb-8">
+                    <CountdownTimer targetDate={tournament.startTime} />
                   </div>
-                  <div className="w-full bg-white/10 rounded-full h-3">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ 
-                        width: `${((tournament.participants?.length || 0) / (tournament.maxParticipants || 1)) * 100}%` 
-                      }}
-                      transition={{ duration: 1, delay: 0.5 }}
-                      className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full"
-                    />
-                  </div>
-                </div>
-              </div>
+                )}
 
-              {/* Action Section */}
-              <div className="flex flex-col space-y-4 mt-6 lg:mt-0 lg:ml-8 min-w-[280px]">
-                {/* Join Button or Status */}
-                {canJoinTournament() ? (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleJoinTournament}
-                    disabled={joining}
-                    className="btn-primary flex items-center justify-center space-x-3 py-4 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {joining ? (
-                      <LoadingSpinner size="sm" color="white" />
-                    ) : (
-                      <>
-                        <Trophy className="w-5 h-5" />
-                        <span>Join Tournament</span>
-                      </>
+                {/* Room Credentials (if user is joined) */}
+                {isUserJoined && tournament.roomId && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6 mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-green-400">Room Credentials</h3>
+                      <button
+                        onClick={() => setShowCredentials(!showCredentials)}
+                        className="text-green-400 hover:text-green-300"
+                      >
+                        {showCredentials ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    
+                    {showCredentials && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between bg-black/20 rounded-lg p-4">
+                          <div>
+                            <div className="text-sm text-gray-300">Room ID</div>
+                            <div className="text-lg font-mono text-white">{tournament.roomId}</div>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(tournament.roomId, 'id')}
+                            className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                          >
+                            {credentialsCopied.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        
+                        {tournament.roomPassword && (
+                          <div className="flex items-center justify-between bg-black/20 rounded-lg p-4">
+                            <div>
+                              <div className="text-sm text-gray-300">Password</div>
+                              <div className="text-lg font-mono text-white">{tournament.roomPassword}</div>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(tournament.roomPassword, 'password')}
+                              className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                            >
+                              {credentialsCopied.password ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </motion.button>
-                ) : isUserJoined() ? (
-                  <div className="glass-card p-4 bg-green-500/20 border-green-500/30">
-                    <div className="flex items-center justify-center space-x-3 text-green-400 font-bold">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>Successfully Joined</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Panel */}
+            <div className="space-y-6">
+              {/* Join Tournament Card */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <h3 className="text-xl font-bold text-white mb-4">Tournament Status</h3>
+                
+                {isUserJoined ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center text-green-400">
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      <span className="font-semibold">You're registered!</span>
                     </div>
+                    
                     {userSlot && (
-                      <div className="text-center mt-2">
-                        <span className="text-white/80">Your Slot: </span>
-                        <span className="text-white font-bold text-xl">#{userSlot}</span>
+                      <div className="bg-green-500/20 rounded-lg p-4">
+                        <div className="text-sm text-gray-300">Your Slot</div>
+                        <div className="text-2xl font-bold text-green-400">#{userSlot}</div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => setShowSlotEditModal(true)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                    >
+                      Manage Slot
+                    </button>
+                  </div>
+                ) : canJoin ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-white mb-2">₹{tournament.entryFee}</div>
+                      <div className="text-gray-300">Entry Fee</div>
+                    </div>
+                    
+                    <button
+                      onClick={handleJoinTournament}
+                      disabled={joining}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      {joining ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Joining...
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <Play className="w-5 h-5 mr-2" />
+                          Join Tournament
+                        </div>
+                      )}
+                    </button>
+                    
+                    {user && balance < tournament.entryFee && (
+                      <div className="text-center text-red-400 text-sm">
+                        Insufficient balance. Add ₹{tournament.entryFee - balance} to your wallet.
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="glass-card p-4 bg-red-500/20 border-red-500/30">
-                    <div className="text-center text-red-400 font-bold">
-                      Registration Closed
+                  <div className="text-center">
+                    <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                    <div className="text-yellow-400 font-semibold">
+                      {tournament.currentParticipants >= tournament.maxParticipants 
+                        ? 'Tournament Full' 
+                        : tournament.status === 'live' 
+                          ? 'Tournament Started' 
+                          : 'Registration Closed'
+                      }
                     </div>
                   </div>
                 )}
+              </div>
 
-                {/* Social Actions */}
-                <div className="flex space-x-3">
-                  <button className="btn-ghost flex-1 p-3 flex items-center justify-center space-x-2">
-                    <Share2 className="w-4 h-4" />
-                    <span>Share</span>
-                  </button>
-                  <button className="btn-ghost flex-1 p-3 flex items-center justify-center space-x-2">
-                    <Heart className="w-4 h-4" />
-                    <span>Save</span>
-                  </button>
+              {/* Prize Distribution */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <h3 className="text-xl font-bold text-white mb-4">Prize Distribution</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Crown className="w-5 h-5 text-yellow-400 mr-2" />
+                      <span className="text-gray-300">1st Place</span>
+                    </div>
+                    <span className="text-yellow-400 font-bold">₹{Math.floor(tournament.prizePool * 0.5)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Medal className="w-5 h-5 text-gray-400 mr-2" />
+                      <span className="text-gray-300">2nd Place</span>
+                    </div>
+                    <span className="text-gray-400 font-bold">₹{Math.floor(tournament.prizePool * 0.3)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Award className="w-5 h-5 text-orange-400 mr-2" />
+                      <span className="text-gray-300">3rd Place</span>
+                    </div>
+                    <span className="text-orange-400 font-bold">₹{Math.floor(tournament.prizePool * 0.2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Info Tabs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="glass-card p-6"
-            >
-              {/* Tab Navigation */}
-              <div className="flex space-x-1 mb-6 bg-white/5 rounded-xl p-1">
-                {[
-                  { id: 'overview', label: 'Overview', icon: Target },
-                  { id: 'rules', label: 'Rules', icon: Shield },
-                  { id: 'rewards', label: 'Rewards', icon: Gift }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                      activeTab === tab.id
-                        ? 'bg-blue-500 text-white shadow-lg'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <tab.icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Content */}
-              <AnimatePresence mode="wait">
-                {activeTab === 'overview' && (
-                  <motion.div
-                    key="overview"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-6"
-                  >
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-4">Tournament Overview</h3>
-                      <p className="text-white/80 leading-relaxed mb-6">
-                        {tournament.description || 'Join this exciting tournament and compete with players from around the world. Show your skills and climb to the top of the leaderboard!'}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-3">
-                          <Target className="w-5 h-5 text-blue-400" />
-                          <div>
-                            <p className="text-white font-semibold">Match Format</p>
-                            <p className="text-white/60 text-sm">{tournament.format || tournament.teamType || 'Squad'}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <MapPin className="w-5 h-5 text-green-400" />
-                          <div>
-                            <p className="text-white font-semibold">Map</p>
-                            <p className="text-white/60 text-sm">{tournament.map || 'Erangel'}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <Users className="w-5 h-5 text-purple-400" />
-                          <div>
-                            <p className="text-white font-semibold">Max Players</p>
-                            <p className="text-white/60 text-sm">{tournament.maxParticipants || 100}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-3">
-                          <Award className="w-5 h-5 text-yellow-400" />
-                          <div>
-                            <p className="text-white font-semibold">Skill Level</p>
-                            <p className="text-white/60 text-sm">{tournament.skillLevel || 'All Levels'}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <Zap className="w-5 h-5 text-cyan-400" />
-                          <div>
-                            <p className="text-white font-semibold">Region</p>
-                            <p className="text-white/60 text-sm">{tournament.region || 'Global'}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-3">
-                          <Clock className="w-5 h-5 text-red-400" />
-                          <div>
-                            <p className="text-white font-semibold">Duration</p>
-                            <p className="text-white/60 text-sm">{tournament.duration || '30-45 minutes'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Allowed Devices */}
-                    <div className="glass-card p-4 bg-blue-500/10 border-blue-500/20">
-                      <h4 className="font-semibold text-white mb-2">Allowed Devices</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {['Mobile', 'Tablet', 'Emulator (Allowed)'].map((device) => (
-                          <span key={device} className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">
-                            {device}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {activeTab === 'rules' && (
-                  <motion.div
-                    key="rules"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-4">Rules & Regulations</h3>
-                    
-                    <div className="space-y-4 max-h-96 overflow-y-auto">
-                      {tournament.rules && tournament.rules.length > 0 ? (
-                        Array.isArray(tournament.rules) ? tournament.rules.map((rule, index) => (
-                          <div key={index} className="flex items-start space-x-3">
-                            <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-blue-400 text-sm font-bold">{index + 1}</span>
-                            </div>
-                            <p className="text-white/80">{rule}</p>
-                          </div>
-                        )) : tournament.rules.split('\n').map((rule, index) => (
-                          <div key={index} className="flex items-start space-x-3">
-                            <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-blue-400 text-sm font-bold">{index + 1}</span>
-                            </div>
-                            <p className="text-white/80">{rule}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="space-y-3">
-                          {[
-                            'All participants must follow fair play guidelines',
-                            'No cheating, hacking, or use of unauthorized software',
-                            'Participants must join the tournament lobby 15 minutes before start time',
-                            'Screenshots of final results must be submitted within 5 minutes of match end',
-                            'Disputes will be resolved by tournament moderators',
-                            'Inappropriate behavior will result in immediate disqualification',
-                            'Entry fees are non-refundable once the tournament begins'
-                          ].map((rule, index) => (
-                            <div key={index} className="flex items-start space-x-3">
-                              <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span className="text-blue-400 text-sm font-bold">{index + 1}</span>
-                              </div>
-                              <p className="text-white/80">{rule}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {activeTab === 'rewards' && (
-                  <motion.div
-                    key="rewards"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4"
-                  >
-                    <h3 className="text-xl font-bold text-white mb-4">Prize Distribution</h3>
-                    
-                    <div className="space-y-3">
-                      {tournament.prizeDistribution && tournament.prizeDistribution.length > 0 ? (
-                        tournament.prizeDistribution.map((prize, index) => (
-                          <div key={index} className="flex items-center justify-between p-4 glass-card bg-gradient-to-r from-yellow-500/10 to-transparent border-yellow-500/20">
-                            <div className="flex items-center space-x-4">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-                                index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
-                                index === 2 ? 'bg-gradient-to-r from-amber-600 to-amber-800' :
-                                'bg-gradient-to-r from-blue-500 to-blue-600'
-                              }`}>
-                                {index === 0 ? <Crown className="w-6 h-6 text-black" /> :
-                                 index === 1 ? <Medal className="w-6 h-6 text-black" /> :
-                                 index === 2 ? <Award className="w-6 h-6 text-white" /> :
-                                 <Star className="w-6 h-6 text-white" />}
-                              </div>
-                              <div>
-                                <span className="text-white font-bold text-lg">
-                                  {index === 0 ? '🥇 1st Place' :
-                                   index === 1 ? '🥈 2nd Place' :
-                                   index === 2 ? '🥉 3rd Place' :
-                                   `#${index + 1} Place`}
-                                </span>
-                                <p className="text-white/60 text-sm">Winner</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-green-400 font-bold text-2xl">
-                                ₹{prize.amount?.toLocaleString('en-IN') || '0'}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="space-y-3">
-                          {[
-                            { place: '🥇 1st Place', amount: Math.floor((tournament.prizePool || 0) * 0.5), gradient: 'from-yellow-400 to-yellow-600' },
-                            { place: '🥈 2nd Place', amount: Math.floor((tournament.prizePool || 0) * 0.3), gradient: 'from-gray-300 to-gray-500' },
-                            { place: '🥉 3rd Place', amount: Math.floor((tournament.prizePool || 0) * 0.2), gradient: 'from-amber-600 to-amber-800' }
-                          ].map((prize, index) => (
-                            <div key={index} className="flex items-center justify-between p-4 glass-card bg-gradient-to-r from-yellow-500/10 to-transparent border-yellow-500/20">
-                              <div className="flex items-center space-x-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-r ${prize.gradient}`}>
-                                  {index === 0 ? <Crown className="w-6 h-6 text-black" /> :
-                                   index === 1 ? <Medal className="w-6 h-6 text-black" /> :
-                                   <Award className="w-6 h-6 text-white" />}
-                                </div>
-                                <div>
-                                  <span className="text-white font-bold text-lg">{prize.place}</span>
-                                  <p className="text-white/60 text-sm">Winner</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-green-400 font-bold text-2xl">
-                                  ₹{prize.amount.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Total Prize Pool */}
-                    <div className="glass-card p-4 bg-gradient-to-r from-green-500/20 to-transparent border-green-500/30 mt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Trophy className="w-6 h-6 text-green-400" />
-                          <span className="text-white font-bold text-lg">Total Prize Pool</span>
-                        </div>
-                        <span className="text-green-400 font-bold text-3xl">
-                          ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* Match Credentials Section */}
-            {isUserJoined() && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="glass-card p-6"
-              >
-                <div className="flex items-center space-x-3 mb-6">
-                  <Shield className="w-6 h-6 text-blue-400" />
-                  <h3 className="text-xl font-bold text-white">Match Credentials</h3>
-                </div>
-
-                {shouldShowCredentials() ? (
-                  <div className="space-y-4">
-                    <div className="glass-card p-4 bg-green-500/10 border-green-500/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-white font-semibold">Room ID</span>
-                        <button
-                          onClick={() => copyToClipboard(tournament.roomDetails?.roomId || 'ROOM123', 'id')}
-                          className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          {credentialsCopied.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          <span className="text-sm">Copy</span>
-                        </button>
-                      </div>
-                      <div className="font-mono text-lg text-green-400 bg-black/20 p-3 rounded-lg">
-                        {tournament.roomDetails?.roomId || 'ROOM123'}
-                      </div>
-                    </div>
-
-                    <div className="glass-card p-4 bg-green-500/10 border-green-500/20">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-white font-semibold">Password</span>
-                        <button
-                          onClick={() => copyToClipboard(tournament.roomDetails?.password || 'PASS456', 'password')}
-                          className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          {credentialsCopied.password ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          <span className="text-sm">Copy</span>
-                        </button>
-                      </div>
-                      <div className="font-mono text-lg text-green-400 bg-black/20 p-3 rounded-lg">
-                        {tournament.roomDetails?.password || 'PASS456'}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2 text-green-400 text-sm">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Room credentials are now available</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Timer className="w-12 h-12 text-white/40 mx-auto mb-4" />
-                    <p className="text-white/60 mb-2">Room credentials will be available</p>
-                    <p className="text-white font-semibold">30 minutes before match start</p>
-                    {getTimeUntilCredentials() > 0 && (
-                      <div className="mt-4">
-                        <CountdownTimer 
-                          targetDate={new Date(Date.now() + getTimeUntilCredentials())}
-                          onComplete={() => setShowCredentials(true)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Participants */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="glass-card p-6"
-            >
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center space-x-2">
-                <Users className="w-5 h-5" />
-                <span>Participants ({tournament.participants?.length || 0})</span>
-              </h3>
-              
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {tournament.participants && tournament.participants.length > 0 ? (
-                  tournament.participants.map((participant, index) => (
-                    <div key={participant._id || index} className="flex items-center space-x-3 p-3 glass-card hover:bg-white/10 transition-colors">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">
-                          {participant.username?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-medium">
-                          {participant.username || `Player ${index + 1}`}
-                        </p>
-                        <p className="text-white/60 text-xs">
-                          Slot #{index + 1}
-                        </p>
-                      </div>
-                      {participant._id === user?._id && (
-                        <div className="text-green-400 text-xs font-semibold bg-green-500/20 px-2 py-1 rounded-full">
-                          You
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-white/40 mx-auto mb-4" />
-                    <p className="text-white/60">No participants yet</p>
-                    <p className="text-white/40 text-sm">Be the first to join!</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Tournament Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="glass-card p-6"
-            >
-              <h3 className="text-xl font-bold text-white mb-6">Tournament Stats</h3>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60">Created</span>
-                  <span className="text-white font-medium">
-                    {new Date(tournament.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60">Organizer</span>
-                  <span className="text-white font-medium">GameOn</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60">Tournament ID</span>
-                  <span className="text-white font-mono text-sm">#{tournament._id?.slice(-6).toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-white/60">Status</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(tournament.status)}`}>
-                    {tournament.status}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-red-500/20 border border-red-500/30 rounded-xl p-4"
-          >
-            <p className="text-red-400 text-center">{error}</p>
-          </motion.div>
-        )}
       </div>
 
       {/* Payment Modal */}
-      <AnimatePresence>
-        {showPaymentModal && (
-          <PaymentModal
-            isOpen={showPaymentModal}
-            onClose={() => setShowPaymentModal(false)}
-            amount={tournament.entryFee}
-            onSuccess={handlePaymentSuccess}
-            tournamentName={tournament.title || tournament.name}
-          />
-        )}
-      </AnimatePresence>
+      {showPaymentModal && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          amount={tournament.entryFee}
+          tournamentId={tournament._id}
+          onSuccess={handlePaymentSuccess}
+          onFailure={handlePaymentFailure}
+        />
+      )}
 
       {/* Slot Edit Modal */}
-      <SlotEditModal
-        open={showSlotEditModal}
-        onClose={() => setShowSlotEditModal(false)}
-        tournamentId={id}
-        user={user}
-        showSuccess={showSuccess}
-        showError={showError}
-        showInfo={showWarning}
-      />
+      {showSlotEditModal && (
+        <SlotEditModal
+          isOpen={showSlotEditModal}
+          onClose={() => setShowSlotEditModal(false)}
+          tournamentId={tournament._id}
+          currentSlot={userSlot}
+          onSlotUpdate={(newSlot) => setUserSlot(newSlot)}
+        />
+      )}
     </div>
   );
 };
 
 export default TournamentDetailsRedesigned;
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}

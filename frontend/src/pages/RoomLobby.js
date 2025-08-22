@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import {
   Box,
   Container,
@@ -55,8 +55,8 @@ import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
 
 const RoomLobby = () => {
-  const { tournamentId } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { tournamentId } = router.query;
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
   
@@ -135,7 +135,7 @@ const RoomLobby = () => {
       if (!response.ok) {
         if (response.status === 403) {
           showError('You are not a participant in this tournament');
-          navigate('/tournaments');
+          router.push('/tournaments');
           return;
         }
         throw new Error('Failed to fetch room data');
@@ -672,7 +672,7 @@ const RoomLobby = () => {
           <Button
             variant="outlined"
             startIcon={<GamepadOutlined />}
-            onClick={() => navigate(`/tournament/${tournamentId}`)}
+            onClick={() => router.push(`/tournament/${tournamentId}`)}
             size="large"
           >
             Tournament Details
@@ -703,7 +703,7 @@ const RoomLobby = () => {
               onClick={() => {
                 // Handle leave tournament logic here
                 setLeaveDialog(false);
-                navigate('/tournaments');
+                router.push('/tournaments');
               }} 
               color="error" 
               variant="contained"
@@ -741,3 +741,10 @@ const RoomLobby = () => {
 };
 
 export default RoomLobby;
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}

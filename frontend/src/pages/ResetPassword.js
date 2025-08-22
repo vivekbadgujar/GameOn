@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { resetPassword, verifyResetToken } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { token } = router.query;
   
   const [formData, setFormData] = useState({
     newPassword: '',
@@ -86,7 +87,7 @@ const ResetPassword = () => {
         setSuccess(true);
         // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login');
+          router.push('/login');
         }, 3000);
       }
     } catch (error) {
@@ -258,7 +259,7 @@ const ResetPassword = () => {
         {/* Back to Login */}
         <div className="mt-6 text-center">
           <Link
-            to="/login"
+            href="/login"
             className="inline-flex items-center space-x-2 text-gray-400 hover:text-white transition-colors duration-300"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -269,5 +270,12 @@ const ResetPassword = () => {
     </div>
   );
 };
+
+// Prevent static generation - force server-side rendering
+export async function getServerSideProps() {
+  return {
+    props: {}, // Will be passed to the page component as props
+  };
+}
 
 export default ResetPassword;

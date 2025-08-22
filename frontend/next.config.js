@@ -6,7 +6,6 @@ const nextConfig = {
   // Use standard build for Vercel deployment (not static export)
   // output: 'export', // Disabled for SSR compatibility and API rewrites
   trailingSlash: false,
-  
   // Image optimization
   images: {
     domains: ['gameonesport.xyz', 'api.gameonesport.xyz'],
