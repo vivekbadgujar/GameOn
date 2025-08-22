@@ -11,15 +11,23 @@ class CashfreeService {
     this.environment = config.CASHFREE_ENVIRONMENT;
     this.isProduction = this.environment === 'production';
     
-    // Load Cashfree SDK
-    this.loadCashfreeSDK();
+    // Don't load SDK during SSR - it will be loaded when needed
+    if (typeof window !== 'undefined') {
+      this.loadCashfreeSDK();
+    }
   }
 
   /**
-   * Load Cashfree SDK dynamically
+   * Load Cashfree SDK dynamically (SSR-safe)
    */
   loadCashfreeSDK() {
     return new Promise((resolve, reject) => {
+      // Check if we're in browser environment
+      if (typeof window === 'undefined') {
+        reject(new Error('Cashfree SDK can only be loaded in browser environment'));
+        return;
+      }
+
       // Check if SDK is already loaded
       if (window.Cashfree) {
         resolve(window.Cashfree);

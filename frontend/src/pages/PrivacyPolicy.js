@@ -54,7 +54,7 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">Data We Collect</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-blue-400 mb-4">Personal Information</h3>
@@ -93,14 +93,14 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">Payment Security</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-green-400 mb-4">Secure Payment Processing</h3>
                 <div className="space-y-3 text-white/80">
                   <div className="flex items-start">
                     <Lock className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Payment details are processed securely by <span className="font-semibold text-green-400">Razorpay/UPI</span></p>
+                    <p>Payment details are processed securely by <span className="font-semibold text-green-400">Cashfree/UPI</span></p>
                   </div>
                   <div className="flex items-start">
                     <Lock className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
@@ -123,7 +123,7 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">How We Use Your Data</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-purple-400 mb-4">Data Usage Purposes</h3>
@@ -171,7 +171,7 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">Data Protection & Privacy</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-red-400 mb-4">Our Commitments</h3>
@@ -205,7 +205,7 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">Your Rights</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-yellow-400 mb-4">Data Rights</h3>
@@ -251,7 +251,7 @@ const PrivacyPolicy = () => {
               </div>
               <h2 className="text-3xl font-bold text-white">Cookies & Tracking</h2>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-indigo-400 mb-4">Cookie Usage</h3>
@@ -290,19 +290,19 @@ const PrivacyPolicy = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-8 flex flex-wrap gap-4 justify-center"
         >
-          <Link 
-            to="/terms" 
+          <Link
+            to="/terms"
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Terms & Conditions
           </Link>
-          <Link 
-            to="/refund" 
+          <Link
+            to="/refund"
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Refund Policy
           </Link>
-          <Link 
+          <Link
             to="/fairplay" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
