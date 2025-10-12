@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm ci && npm run build",
+  "buildCommand": "npm run install-frontend && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "npm install --prefix frontend",
+  "installCommand": "npm ci",
   "routes": [
     {
       "src": "/(.*)",
