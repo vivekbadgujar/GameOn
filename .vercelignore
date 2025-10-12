@@ -1,0 +1,65 @@
+# Exclude unnecessary files and folders from Vercel deployment
+
+# Development files
+*.md
+!DEPLOYMENT_GUIDE.md
+docs/
+.vscode/
+.gitignore
+
+# Backend (deployed separately)
+backend/
+admin-panel/
+mobile/
+client/
+
+# Development scripts
+*.bat
+*.ps1
+*.sh
+create-admin-user.js
+debug-*.js
+test-*.js
+check-*.js
+setup-*.js
+quick-*.js
+
+# Environment files (except production)
+.env
+.env.local
+.env.development
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+*/node_modules/
+
+# Build outputs (except frontend build)
+*/build/
+!frontend/build/
+*/dist/
+
+# IDE files
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+.tmp/
+.cache/

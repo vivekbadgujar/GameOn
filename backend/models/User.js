@@ -12,7 +12,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    index: true,
     match: /^[6-9]\d{9}$/ // Indian mobile number validation
   },
   email: {

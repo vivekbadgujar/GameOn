@@ -1,10 +1,353 @@
-# GameOn: AI-Powered BGMI Tournament Platform
+# 🎮 GameOn: AI-Powered BGMI Tournament Platform
 
-Welcome to the GameOn project! This document serves as the master plan for building an AI-powered BGMI tournament app and website for Indian college gamers and casual players.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2014.0.0-brightgreen)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18.x-blue)](https://reactjs.org/)
+[![React Native](https://img.shields.io/badge/React%20Native-Latest-purple)](https://reactnative.dev/)
+
+Welcome to **GameOn** - A comprehensive, AI-powered BGMI tournament platform designed for Indian college gamers and casual players. This platform provides seamless tournament management, secure payment integration, and advanced AI-based anti-cheat systems.
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js (v14.0.0 or higher)
+- npm or yarn
+- MongoDB (for backend)
+- Git
+
+### One-Click Setup
+```bash
+# Clone the repository
+git clone <repository-url>
+cd GameOn
+
+# Quick start script
+./quick-start.sh
+```
+
+### Manual Setup
+```bash
+# Install root dependencies
+npm install
+
+# Setup backend
+cd backend && npm install
+cp .env.example .env
+# Configure your environment variables
+
+# Setup frontend
+cd ../frontend && npm install
+
+# Setup mobile app
+cd ../mobile && npm install
+
+# Setup admin panel
+cd ../admin-panel && npm install
+```
+
+### Start Development Servers
+```bash
+# Start all services (recommended)
+npm run dev
+
+# Or start individually:
+npm run start:backend    # Backend API server
+npm run start:frontend   # React web app
+npm run start:mobile     # React Native app
+npm run start:admin      # Admin panel
+```
+
+## 📱 Applications
+
+| Application | Technology | Port | Description |
+|-------------|------------|------|-------------|
+| **Backend API** | Node.js + Express | 5000 | Core API server with MongoDB |
+| **Web Frontend** | React.js + Tailwind | 3000 | Tournament platform web interface |
+| **Mobile App** | React Native + Expo | - | Mobile application for tournaments |
+| **Admin Panel** | React.js | 3001 | Administrative dashboard |
+
+## 🌟 Key Features
+
+### For Players
+- 📱 **Cross-Platform**: Web and mobile applications
+- 🎯 **Tournament Participation**: Join solo, duo, or squad tournaments
+- 💰 **Secure Payments**: Razorpay integration for entry fees
+- 🏆 **Real-time Leaderboards**: Track rankings and statistics
+- 🎮 **Gamification**: XP points, badges, and achievements
+- 📷 **AI Screenshot Verification**: Automated result validation
+- 💬 **In-game Chat**: Moderated communication system
+- 👥 **Room Lobby System**: Pre-tournament gathering spaces
+
+### For Admins
+- 📊 **Tournament Management**: Create, edit, and monitor tournaments
+- 👨‍💼 **User Management**: Player profiles, bans, and statistics
+- 💸 **Payment Tracking**: Transaction monitoring and payouts
+- 🤖 **AI Flag Review**: Review AI-detected suspicious activities
+- 📈 **Analytics Dashboard**: Comprehensive platform insights
+- 📤 **Data Export**: User and tournament data export features
+
+### AI-Powered Anti-Cheat
+- 🔍 **Screenshot Analysis**: Google Vision API text extraction
+- 🌐 **IP Conflict Detection**: Multi-account detection
+- 🤖 **Chat Moderation**: OpenAI-powered message filtering
+- ⚡ **Real-time Monitoring**: Automated flag generation
+
+## 🛠️ Tech Stack
+
+### Backend
+- **Runtime**: Node.js + Express.js
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: JWT + OTP verification
+- **Payments**: Razorpay integration
+- **File Storage**: Cloudinary for media storage
+- **Real-time**: Socket.io for live updates
+
+### Frontend
+- **Web**: React.js with Tailwind CSS
+- **Mobile**: React Native with Expo
+- **State Management**: Context API + React Query
+- **UI Components**: Headless UI + Heroicons
+- **Animations**: Framer Motion
+
+### AI & External Services
+- **Computer Vision**: Google Vision API
+- **Chat Moderation**: OpenAI API
+- **SMS**: OTP service integration
+- **Analytics**: Custom analytics dashboard
+
+## 📁 Project Structure
+
+```
+GameOn/
+├── 📁 backend/                 # Node.js API server
+│   ├── 📁 config/             # Database and service configurations
+│   ├── 📁 middleware/         # Auth, validation, and security middleware
+│   ├── 📁 models/             # MongoDB schemas and models
+│   ├── 📁 routes/             # API endpoints and route handlers
+│   ├── 📁 services/           # Business logic and external services
+│   ├── 📁 utils/              # Helper functions and utilities
+│   └── 📄 server.js           # Main server entry point
+│
+├── 📁 frontend/               # React.js web application
+│   ├── 📁 public/             # Static assets and HTML template
+│   ├── 📁 src/
+│   │   ├── 📁 components/     # Reusable UI components
+│   │   ├── 📁 pages/          # Page-level components
+│   │   ├── 📁 services/       # API service functions
+│   │   ├── 📁 contexts/       # React context providers
+│   │   └── 📁 utils/          # Frontend utility functions
+│   └── 📄 package.json
+│
+├── 📁 mobile/                 # React Native mobile app
+│   ├── 📁 src/
+│   │   ├── 📁 components/     # Mobile-specific components
+│   │   ├── 📁 screens/        # App screens/pages
+│   │   ├── 📁 navigation/     # Navigation configuration
+│   │   ├── 📁 providers/      # State management providers
+│   │   └── 📁 utils/          # Mobile utility functions
+│   └── 📄 app.json
+│
+├── 📁 admin-panel/            # Admin dashboard application
+│   ├── 📁 src/
+│   │   ├── 📁 components/     # Admin-specific components
+│   │   └── 📁 services/       # Admin API services
+│   └── 📄 package.json
+│
+├── 📁 shared/                 # Shared code between platforms
+│   └── 📁 services/           # Common API service layer
+│
+└── 📁 docs/                   # Documentation files
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Backend (.env)
+```env
+NODE_ENV=development
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/gameon
+JWT_SECRET=your_jwt_secret_key
+RAZORPAY_KEY_ID=your_razorpay_key
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
+GOOGLE_VISION_API_KEY=your_google_vision_key
+OPENAI_API_KEY=your_openai_key
+```
+
+#### Frontend (.env)
+```env
+REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_RAZORPAY_KEY_ID=your_razorpay_key
+REACT_APP_SOCKET_URL=http://localhost:5000
+```
+
+#### Mobile (app.json)
+```json
+{
+  "expo": {
+    "extra": {
+      "apiUrl": "http://localhost:5000/api",
+      "socketUrl": "http://localhost:5000"
+    }
+  }
+}
+```
+
+## 📚 API Documentation
+
+### Authentication Endpoints
+```
+POST /api/auth/send-otp          # Send OTP to mobile number
+POST /api/auth/verify-otp        # Verify OTP and login
+POST /api/admin/login            # Admin login with credentials
+```
+
+### Tournament Endpoints
+```
+GET    /api/tournaments          # List all tournaments
+GET    /api/tournaments/:id      # Get tournament details
+POST   /api/tournaments/:id/join # Join a tournament
+POST   /api/tournaments/:id/upload-screenshot # Upload result screenshot
+```
+
+### User Management
+```
+GET    /api/users/profile        # Get user profile
+PUT    /api/users/profile        # Update user profile
+GET    /api/users/wallet         # Get wallet balance
+GET    /api/users/leaderboard    # Get leaderboard rankings
+```
+
+### Admin Operations
+```
+GET    /api/admin/tournaments    # List all tournaments (admin)
+POST   /api/admin/tournaments    # Create new tournament
+PUT    /api/admin/tournaments/:id # Update tournament
+DELETE /api/admin/tournaments/:id # Delete tournament
+GET    /api/admin/users          # List all users
+POST   /api/admin/users/:id/ban  # Ban a user
+GET    /api/admin/flags          # Get AI-flagged activities
+```
+
+## 🧪 Testing
+
+### Running Tests
+```bash
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
+
+# Mobile tests
+cd mobile && npm test
+
+# Run all tests
+npm run test:all
+```
+
+### Test Coverage
+- Unit tests for API endpoints
+- Integration tests for payment flows
+- E2E tests for critical user journeys
+- AI service mocking for reliable testing
+
+## 🚀 Deployment
+
+### Production Deployment
+```bash
+# Build all applications
+npm run build:all
+
+# Deploy backend (PM2)
+pm2 start backend/ecosystem.config.js
+
+# Deploy frontend (Nginx)
+npm run deploy:frontend
+
+# Deploy mobile app
+cd mobile && expo publish
+```
+
+### Docker Deployment
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Scale services
+docker-compose up -d --scale backend=3
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow ESLint and Prettier configurations
+- Write unit tests for new features
+- Update documentation for API changes
+- Use conventional commits for commit messages
+
+## 📖 Documentation
+
+### Additional Resources
+- [API Specification](./docs/api-spec.md)
+- [Deployment Guide](./DEPLOYMENT.md)
+- [Mobile Testing Guide](./mobile/testing/DeviceTestingGuide.md)
+- [Admin Panel Setup](./ADMIN_PANEL_STATUS.md)
+- [Tournament Flow](./TOURNAMENT_FLOW_README.md)
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Backend won't start
+```bash
+# Check if MongoDB is running
+brew services list | grep mongodb
+
+# Check port availability
+lsof -i :5000
+
+# Clear node modules and reinstall
+rm -rf node_modules package-lock.json && npm install
+```
+
+#### Mobile app build fails
+```bash
+# Clear Expo cache
+expo start -c
+
+# Reset Metro cache
+npx react-native start --reset-cache
+```
+
+#### Payment integration issues
+- Verify Razorpay credentials in environment variables
+- Check webhook URL configuration in Razorpay dashboard
+- Ensure SSL certificate is valid for production
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- BGMI gaming community for feedback and testing
+- Contributors and maintainers
+- Open source libraries and frameworks used
 
 ---
 
-## 🎨 UI/UX Design
+## 🎨 Design Documentation
 
 The platform's design will be clean, modern, and imbued with a gaming aesthetic to resonate with the target audience.
 
