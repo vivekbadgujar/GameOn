@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, 
@@ -34,8 +35,7 @@ const Header = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const { socket } = useSocket();
   const { balance, formatBalance } = useWallet();
@@ -132,7 +132,7 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    router.push('/login');
     setIsProfileOpen(false);
   };
 
@@ -151,7 +151,7 @@ const Header = () => {
   };
 
   // Don't show header on auth pages
-  if (location.pathname === '/login' || location.pathname === '/register') {
+  if (router.pathname === '/login' || router.pathname === '/register') {
     return null;
   }
 
@@ -164,7 +164,7 @@ const Header = () => {
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/dashboard" className="flex items-center">
+          <Link href="/dashboard" className="flex items-center">
             <Logo size="md" showText={true} />
           </Link>
 
@@ -172,12 +172,12 @@ const Header = () => {
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = router.pathname === item.path;
               
               return (
                 <Link
                   key={item.path}
-                  to={item.path}
+                  href={item.path}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all duration-300 ${
                     isActive 
                       ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-400/30' 
@@ -291,7 +291,7 @@ const Header = () => {
                       </div>
                       
                       <Link
-                        to="/profile"
+                        href="/profile"
                         onClick={() => setIsProfileOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors duration-300"
                       >
@@ -300,7 +300,7 @@ const Header = () => {
                       </Link>
                       
                       <Link
-                        to="/wallet"
+                        href="/wallet"
                         onClick={() => setIsProfileOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors duration-300"
                       >
@@ -434,12 +434,12 @@ const Header = () => {
             <nav className="space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = router.pathname === item.path;
                 
                 return (
                   <Link
                     key={item.path}
-                    to={item.path}
+                    href={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                       isActive 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -90,7 +90,7 @@ const Footer = () => {
               {quickLinks.map((link, index) => (
                 <li key={index}>
                   <Link
-                    to={link.to}
+                    href={link.to}
                     className="text-white/60 hover:text-white transition-colors duration-300 text-sm"
                   >
                     {link.label}
@@ -113,7 +113,7 @@ const Footer = () => {
               {policyLinks.map((policy, index) => (
                 <li key={index}>
                   <Link
-                    to={policy.to}
+                    href={policy.to}
                     className="flex items-center space-x-2 text-white/60 hover:text-white transition-colors duration-300 text-sm group"
                   >
                     <policy.icon className="w-4 h-4 group-hover:text-blue-400 transition-colors duration-300" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
@@ -38,8 +38,8 @@ import CountdownTimer from '../components/UI/CountdownTimer';
 import toast from 'react-hot-toast';
 
 const TournamentDetailsRedesigned = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { id } = router.query;
   const { user } = useAuth();
   const { balance, hasSufficientBalance, deductFromWallet } = useWallet();
   const { showSuccess, showError, showWarning } = useNotification();
@@ -204,7 +204,7 @@ const TournamentDetailsRedesigned = () => {
         // Redirect to room lobby if available
         if (typeof window !== 'undefined') {
           setTimeout(() => {
-            navigate(`/tournament/${tournament._id}/room-lobby`);
+            router.push(`/tournament/${tournament._id}/room-lobby`);
           }, 2000);
         }
       } else {
@@ -310,7 +310,7 @@ const TournamentDetailsRedesigned = () => {
           <h2 className="text-2xl font-bold text-white mb-4">Tournament Not Found</h2>
           <p className="text-gray-300 mb-6">The tournament you're looking for doesn't exist or has been removed.</p>
           <button
-            onClick={() => navigate('/tournaments')}
+            onClick={() => router.push('/tournaments')}
             className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
             Browse Tournaments
@@ -336,7 +336,7 @@ const TournamentDetailsRedesigned = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between mb-6">
             <button
-              onClick={() => navigate('/tournaments')}
+              onClick={() => router.push('/tournaments')}
               className="flex items-center text-gray-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5 mr-2" />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { X, Mail, Lock, User, Eye, EyeOff, ArrowRight, Gamepad2, HelpCircle, Image } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { login as apiLogin, register as apiRegister, validateBgmiId as apiValidateBgmiId } from '../../services/api';
@@ -9,7 +9,7 @@ import ForgotPasswordModal from './ForgotPasswordModal';
 
 const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -155,7 +155,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           setTimeout(() => {
             onClose();
             setSuccess(false);
-            navigate('/dashboard');
+            router.push('/dashboard');
           }, 500);
         } else {
           throw new Error('Failed to initialize login state');
@@ -313,7 +313,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           setTimeout(() => {
             onClose();
             setSuccess(false);
-            navigate('/dashboard');
+            router.push('/dashboard');
           }, 500);
         } else {
           // Just close modal and switch to login tab

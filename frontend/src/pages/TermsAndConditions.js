@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, FileText, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 const TermsAndConditions = () => {
   return (
@@ -15,7 +15,7 @@ const TermsAndConditions = () => {
           className="mb-8"
         >
           <Link 
-            to="/dashboard" 
+            href="/dashboard" 
             className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors duration-300 mb-6"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />

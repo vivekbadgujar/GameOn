@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -28,8 +28,8 @@ import SlotEditModal from '../components/Tournament/SlotEditModal';
 import TournamentChat from '../components/Chat/TournamentChat';
 
 const TournamentDetails = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const { id } = router.query;
   const { user } = useAuth();
   const { lastMessage } = useSocket();
   const [tournament, setTournament] = useState(null);

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Bell, User, Home, Trophy, Video, Users, Menu, LogOut, Settings } from 'lucide-react';
 import { useSocket } from '../../contexts/SocketContext';
 import Logo from '../UI/Logo';
@@ -51,12 +51,12 @@ export default function Header() {
   return (
     <header className="fixed top-0 left-0 w-full z-30 bg-glass backdrop-blur-xl border-b border-border shadow-xl">
       <div className="max-w-[1200px] mx-auto flex items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center">
+        <Link href="/" className="flex items-center">
           <Logo size="md" showText={true} textClassName="hidden sm:block" />
         </Link>
         <nav className="hidden md:flex gap-2">
           {navLinks.map(link => (
-            <Link key={link.name} to={link.to} className="flex items-center gap-2 px-3 py-2 rounded-xl text-secondary hover:text-primary hover:bg-glass transition-all font-medium">
+            <Link key={link.name} href={link.to} className="flex items-center gap-2 px-3 py-2 rounded-xl text-secondary hover:text-primary hover:bg-glass transition-all font-medium">
               {link.icon}
               <span className="text-sm">{link.name}</span>
             </Link>
@@ -96,7 +96,7 @@ export default function Header() {
                 <ul>
                   {userMenu.map(item => (
                     <li key={item.name}>
-                      <Link to={item.to} className="flex items-center gap-3 px-4 py-3 hover:bg-glass rounded-xl transition-all text-primary">
+                      <Link href={item.to} className="flex items-center gap-3 px-4 py-3 hover:bg-glass rounded-xl transition-all text-primary">
                         {item.icon}
                         <span>{item.name}</span>
                       </Link>

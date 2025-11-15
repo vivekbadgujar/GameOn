@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 
 // Context Providers
@@ -20,6 +20,12 @@ import ModernBackground from '../components/UI/ModernBackground';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
@@ -33,7 +39,7 @@ function MyApp({ Component, pageProps }) {
               
               {/* Main App Content */}
               <div className="relative z-10">
-                <Header />
+                {isClient && <Header />}
                 
                 <main className="min-h-screen">
                   <Component {...pageProps} />
@@ -43,11 +49,11 @@ function MyApp({ Component, pageProps }) {
               </div>
               
               {/* Support Chat */}
-              <SupportChat />
+              {isClient && <SupportChat />}
               
               {/* Notification Systems */}
-              <NotificationSystem />
-              <NotificationToast />
+              {isClient && <NotificationSystem />}
+              {isClient && <NotificationToast />}
               
               {/* Toast Notifications */}
               <Toaster
