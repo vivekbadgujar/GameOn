@@ -40,7 +40,11 @@ const io = new Server(server, {
 const syncService = new SyncService(io);
 const pushNotificationService = new PushNotificationService();
 
+<<<<<<< HEAD
 // Use environment PORT for deployment (Render) or default to 5000
+=======
+// Use environment PORT or default to 5000 for consistency
+>>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
 const PORT = process.env.PORT || 5000;
 
 // Debug environment variables
@@ -49,8 +53,13 @@ console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
+<<<<<<< HEAD
 // MongoDB URI from environment variables (DATABASE_URL for Render compatibility)
 const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
+=======
+// MongoDB URI from environment variables
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
+>>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
 
 console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
 
@@ -72,8 +81,11 @@ mongoose.connection.on('connected', () => {
 
 // Connect to MongoDB with enhanced options
 const connectionOptions = {
+<<<<<<< HEAD
   useNewUrlParser: true,
   useUnifiedTopology: true,
+=======
+>>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
   serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
   family: 4
@@ -745,30 +757,33 @@ app.set('emitToAdmins', emitToAdmins);
 
 
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`🚀 GameOn API server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000, localhost:3001'}`);
-  console.log(`⚡ Socket.IO enabled for real-time features`);
-  console.log(`🔄 Unified Platform Sync Service initialized`);
-  console.log(`📱 Push Notification Service initialized`);
-});
+// For local development, start server
+if (process.env.NODE_ENV !== 'production' && require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`🚀 GameOn API server running on port ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000, localhost:3001'}`);
+    console.log(`⚡ Socket.IO enabled for real-time features`);
+    console.log(`🔄 Unified Platform Sync Service initialized`);
+    console.log(`📱 Push Notification Service initialized`);
+  });
 
-// Cleanup interval for sync service
-setInterval(() => {
-  syncService.cleanup();
-}, 5 * 60 * 1000); // Every 5 minutes
+  // Cleanup interval for sync service (only in local development)
+  setInterval(() => {
+    syncService.cleanup();
+  }, 5 * 60 * 1000); // Every 5 minutes
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received');
-  if (server) {
-    server.close(() => {
-      console.log('Server closed');
-      mongoose.connection.close();
-    });
-  }
-});
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received');
+    if (server) {
+      server.close(() => {
+        console.log('Server closed');
+        mongoose.connection.close();
+      });
+    }
+  });
+}
 
-module.exports = { app, io };
+// Export app for serverless deployment
+module.exports = app;

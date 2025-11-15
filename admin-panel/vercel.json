@@ -1,5 +1,6 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "name": "gameon-admin-panel",
   "framework": "nextjs",
   "buildCommand": "npm run build",
@@ -103,5 +104,17 @@
 
   "github": {
     "silent": true
+=======
+  "buildCommand": "npm ci && npm run build",
+  "outputDirectory": "build",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+>>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
   }
 }

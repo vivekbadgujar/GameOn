@@ -11,10 +11,10 @@ const { generateToken, generateRefreshToken } = require('../../middleware/auth')
 
 const router = express.Router();
 
-// Rate limiting for admin login
+// Rate limiting for admin login (relaxed for development)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More attempts in development
   message: {
     success: false,
     message: 'Too many login attempts. Please try again later.'
@@ -25,7 +25,7 @@ const loginLimiter = rateLimit({
 
 // Admin Login
 router.post('/login', 
-  loginLimiter,
+  loginLimiter, // Re-enabled with relaxed limits for development
   [
     body('email')
       .isEmail()

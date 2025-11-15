@@ -5,11 +5,9 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 async function initAdmin() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    // Connect to MongoDB using environment variable
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
+    await mongoose.connect(MONGODB_URI);
 
     console.log('Connected to MongoDB');
 

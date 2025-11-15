@@ -1,4 +1,22 @@
 {
+  "name": "gameon-platform",
+  "version": "1.0.0",
+  "description": "GameOn - Premium Gaming Tournament Platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix frontend",
+    "install-frontend": "npm install --prefix frontend",
+    "install-backend": "npm install --prefix backend"
+  },
+  "keywords": ["gaming", "tournament", "react", "bgmi", "esports"],
+  "author": "GameOn Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
     "@fontsource/outfit": "^5.2.6",
