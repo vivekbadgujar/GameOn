@@ -463,7 +463,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                   <p className="text-gray-400">
                     {activeTab === 'login' 
                       ? 'You have been successfully logged in.' 
-                      : 'Your account has been created successfully.'
+: 'Your account has been created successfully.'
                     }
                   </p>
                 </motion.div>
@@ -533,13 +533,12 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                           <LoadingSpinner size="sm" color="white" />
                         ) : (
                           <>
-                            <span>Sign In</span>
+<span>Sign In</span>
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}
                       </button>
-
-                      {/* Forgot Password Link */}
+{/* Forgot Password Link */}
                       <div className="text-center">
                         <button
                           type="button"
@@ -763,7 +762,6 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 </>
               )}
             </div>
-            </motion.div>
 
             {/* BGMI Help Modal */}
             {showBgmiHelp && (

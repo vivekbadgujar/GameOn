@@ -1,0 +1,15 @@
+const obj = {
+  name: "GameOn", // <-- Add comma
+  version: "1.0"
+}
+
+function App() {
+  return (
+    <div>
+      <Typography>
+        Welcome to GameOn!
+      </Typography> {/* <-- Add closing tag */}
+    </div>
+  )
+}
+// <-- Remove stray bracket
