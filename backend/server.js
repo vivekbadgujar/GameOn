@@ -40,11 +40,7 @@ const io = new Server(server, {
 const syncService = new SyncService(io);
 const pushNotificationService = new PushNotificationService();
 
-<<<<<<< HEAD
-// Use environment PORT for deployment (Render) or default to 5000
-=======
-// Use environment PORT or default to 5000 for consistency
->>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
+// Use environment PORT for deployment (Render/Vercel) or default to 5000
 const PORT = process.env.PORT || 5000;
 
 // Debug environment variables
@@ -53,13 +49,8 @@ console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
-<<<<<<< HEAD
-// MongoDB URI from environment variables (DATABASE_URL for Render compatibility)
+// MongoDB URI from environment variables (DATABASE_URL for Render/Vercel compatibility)
 const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
-=======
-// MongoDB URI from environment variables
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
->>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
 
 console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
 

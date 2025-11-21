@@ -1,28 +1,16 @@
 {
   "version": 2,
-<<<<<<< HEAD
   "name": "gameon-admin-panel",
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": "out",
   "installCommand": "npm install --legacy-peer-deps",
-  
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://api.gameonesport.xyz/api",
-    "NEXT_PUBLIC_API_BASE_URL": "https://api.gameonesport.xyz",
-    "NEXT_PUBLIC_FRONTEND_URL": "https://gameonesport.xyz",
-    "NEXT_PUBLIC_ADMIN_URL": "https://admin.gameonesport.xyz",
-    "NEXT_PUBLIC_APP_NAME": "GameOn Admin",
-    "NEXT_PUBLIC_APP_VERSION": "1.0.0"
-  },
-
   "build": {
     "env": {
       "NEXT_PUBLIC_API_URL": "https://api.gameonesport.xyz/api",
       "NEXT_PUBLIC_API_BASE_URL": "https://api.gameonesport.xyz"
     }
   },
-
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -33,7 +21,6 @@
       "destination": "https://api.gameonesport.xyz/socket.io/$1"
     }
   ],
-
   "headers": [
     {
       "source": "/(.*)",
@@ -83,7 +70,6 @@
       ]
     }
   ],
-
   "redirects": [
     {
       "source": "/dashboard",
@@ -96,25 +82,6 @@
       "permanent": false
     }
   ],
-
   "cleanUrls": true,
-  "trailingSlash": false,
-
-  "regions": ["iad1"],
-
-  "github": {
-    "silent": true
-=======
-  "buildCommand": "npm ci && npm run build",
-  "outputDirectory": "build",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
->>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
-  }
+  "trailingSlash": false
 }
