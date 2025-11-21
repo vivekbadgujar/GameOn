@@ -9,9 +9,5 @@
     "start": "npm run start --prefix frontend",
     "install-frontend": "npm install --prefix frontend",
     "install-backend": "npm install --prefix backend"
-  },
-  "workspaces": [
-    "frontend",
-    "admin-panel"
-  ]
+  }
 }
