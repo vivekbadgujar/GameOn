@@ -13,7 +13,7 @@
     }
   ],
   "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm install --legacy-peer-deps --prefix frontend && npm run build --prefix frontend",
+  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "frontend/.next",
   "rootDirectory": "."
 }
