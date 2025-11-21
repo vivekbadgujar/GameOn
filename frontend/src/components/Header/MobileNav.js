@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Home, Trophy, Video, Users, X } from 'lucide-react';
 
 const navLinks = [
@@ -24,7 +24,7 @@ export default function MobileNav() {
               <X size={28} />
             </button>
             {navLinks.map(link => (
-              <Link key={link.name} to={link.to} className="flex items-center gap-3 px-4 py-3 rounded-xl text-lg text-secondary hover:text-primary hover:bg-glass font-medium transition-all" onClick={() => setOpen(false)}>
+              <Link key={link.name} href={link.to} className="flex items-center gap-3 px-4 py-3 rounded-xl text-lg text-secondary hover:text-primary hover:bg-glass font-medium transition-all" onClick={() => setOpen(false)}>
                 {link.icon}
                 <span>{link.name}</span>
               </Link>

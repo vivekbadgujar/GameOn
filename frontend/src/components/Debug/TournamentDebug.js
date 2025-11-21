@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { getTournamentById } from '../../services/api';
 
 const TournamentDebug = () => {
-  const { id } = useParams();
+  const router = useRouter();
+  const { id } = router.query;
   const [debugInfo, setDebugInfo] = useState({
     tournamentId: id,
     loading: true,

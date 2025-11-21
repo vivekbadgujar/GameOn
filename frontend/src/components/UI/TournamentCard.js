@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -219,7 +219,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
               {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
                 <div className="flex space-x-2">
                   <Link
-                    to={`/tournament/${tournament._id}/room-lobby`}
+                    href={`/tournament/${tournament._id}/room-lobby`}
                     className="flex-1 bg-blue-500/20 border border-blue-500/30 rounded-xl py-2 px-3 text-center hover:bg-blue-500/30 transition-all duration-300"
                   >
                     <div className="flex items-center justify-center space-x-2 text-blue-400 font-semibold text-sm">
@@ -228,7 +228,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
                     </div>
                   </Link>
                   <Link
-                    to={`/tournament/${tournament._id}`}
+                    href={`/tournament/${tournament._id}`}
                     className="bg-purple-500/20 border border-purple-500/30 rounded-xl py-2 px-3 hover:bg-purple-500/30 transition-all duration-300"
                     title="View Details"
                   >
@@ -239,7 +239,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
             </div>
           ) : (
             <Link
-              to={`/tournament/${tournament._id}`}
+              href={`/tournament/${tournament._id}`}
               className="w-full btn-primary flex items-center justify-center space-x-2"
             >
               {tournament.status === 'live' || tournament.status === 'ongoing' ? (
