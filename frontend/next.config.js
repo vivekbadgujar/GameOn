@@ -9,7 +9,7 @@ const nextConfig = {
   // Image optimization
   images: {
     domains: ['gameonesport.xyz', 'api.gameonesport.xyz'],
-    unoptimized: true,
+    unoptimized: false,
   },
 
   // Environment variables for client-side
@@ -78,18 +78,6 @@ const nextConfig = {
       };
     }
     return config;
-  },
-
-  // ESLint configuration
-  eslint: {
-    // Disable ESLint during builds to prevent build failures
-    ignoreDuringBuilds: true,
-  },
-
-  // TypeScript configuration
-  typescript: {
-    // Skip type checking during builds (since we're using JS)
-    ignoreBuildErrors: true,
   },
 
   // Compiler options

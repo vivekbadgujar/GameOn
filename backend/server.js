@@ -15,8 +15,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-module.exports = app;
-
 // Import unified platform services
 const SyncService = require('./services/syncService');
 const PushNotificationService = require('./services/pushNotificationService');
@@ -247,19 +245,19 @@ app.use('/api/sync', require('./routes/sync'));
 app.use('/api/admin/auth', require('./routes/admin/auth'));
 app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
 app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
-app.use('/api/admin/tournaments', require('./routes/admin/tournamentParticipants'));
+app.use('/api/admin/tournament-participants', require('./routes/admin/tournamentParticipants'));
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
 app.use('/api/admin/tournament-videos', require('./routes/admin/tournamentVideos'));
 app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/ai-verification', require('./routes/admin/ai-verification'));
 app.use('/api/admin/wallet', require('./routes/admin/wallet'));
 app.use('/api/admin/analytics', require('./routes/admin/analytics'));
-app.use('/api/admin/ai', require('./routes/admin/ai-suggestions'));
+app.use('/api/admin/ai', require('./routes/admin/ai'));
+app.use('/api/admin/ai-suggestions', require('./routes/admin/ai-suggestions'));
 app.use('/api/admin/scheduling', require('./routes/admin/scheduling'));
 app.use('/api/admin/broadcast', require('./routes/admin/broadcast'));
 app.use('/api/admin/payouts', require('./routes/admin/payouts'));
 app.use('/api/admin/media', require('./routes/admin/media'));
-app.use('/api/admin/ai', require('./routes/admin/ai'));
 app.use('/api/admin/search', require('./routes/admin/search'));
 app.use('/api/admin/export', require('./routes/admin/export'));
 app.use('/api/admin/user-monitoring', require('./routes/admin/user-monitoring'));

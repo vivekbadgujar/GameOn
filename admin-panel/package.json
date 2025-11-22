@@ -35,7 +35,6 @@
     "test:watch": "jest --watch",
     "vercel-build": "next build"
   },
-  "proxy": "http://localhost:5000",
   "browserslist": {
     "production": [
       ">0.2%",
