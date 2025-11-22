@@ -2,18 +2,39 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/next"
+      "src": "frontend/next.config.js",
+      "use": "@vercel/next",
+      "config": {
+        "distDir": "frontend/.next"
+      }
+    },
+    {
+      "src": "admin-panel/next.config.js",
+      "use": "@vercel/next",
+      "config": {
+        "distDir": "admin-panel/.next"
+      }
+    },
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/backend/server.js"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/admin(.*)",
+      "dest": "/admin-panel/admin$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }
-  ],
-  "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "cd frontend && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "frontend/.next",
-  "rootDirectory": "."
+  ]
 }

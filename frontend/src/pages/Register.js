@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import { register as apiRegister } from '../services/api';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -105,24 +106,17 @@ const Register = () => {
     setError('');
 
     try {
-      // Try to register with the backend API
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          gameProfile: {
-            bgmiName: formData.bgmiName,
-            bgmiId: formData.bgmiId
-          }
-        }),
-      });
+      const registrationData = {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        gameProfile: {
+          bgmiName: formData.bgmiName,
+          bgmiId: formData.bgmiId
+        }
+      };
 
-      const data = await response.json();
+      const data = await apiRegister(registrationData);
 
       if (data.success) {
         // Login the user
@@ -138,7 +132,7 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Registration failed. Please try again.');
+      setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -465,11 +459,5 @@ const Register = () => {
   );
 };
 
-// Prevent static generation - force server-side rendering
-export async function getServerSideProps() {
-  return {
-    props: {}, // Will be passed to the page component as props
-  };
-}
 
 export default Register;

@@ -20,12 +20,6 @@ import ModernBackground from '../components/UI/ModernBackground';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
   return (
     <AuthProvider>
       <NotificationProvider>
@@ -39,7 +33,7 @@ function MyApp({ Component, pageProps }) {
               
               {/* Main App Content */}
               <div className="relative z-10">
-                {isClient && <Header />}
+                <Header />
                 
                 <main className="min-h-screen">
                   <Component {...pageProps} />
@@ -49,11 +43,11 @@ function MyApp({ Component, pageProps }) {
               </div>
               
               {/* Support Chat */}
-              {isClient && <SupportChat />}
+              <SupportChat />
               
               {/* Notification Systems */}
-              {isClient && <NotificationSystem />}
-              {isClient && <NotificationToast />}
+              <NotificationSystem />
+              <NotificationToast />
               
               {/* Toast Notifications */}
               <Toaster

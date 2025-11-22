@@ -15,6 +15,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+module.exports = app;
+
 // Import unified platform services
 const SyncService = require('./services/syncService');
 const PushNotificationService = require('./services/pushNotificationService');

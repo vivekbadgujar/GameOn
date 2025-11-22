@@ -1,3 +1,19 @@
+// ... existing code ...
+                          <input
+                            type="text"
+                            name="bgmiId"
+                            value={registerData.bgmiId}
+                            onChange={handleRegisterChange}
+                            placeholder="Enter your 10-12 digit BGMI Player ID"
+                            className={`w-full pl-10 pr-12 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${bgmiIdValid === true 
+                                ? 'border-green-500 focus:ring-green-500' 
+                                : bgmiIdValid === false 
+                                ? 'border-red-500 focus:ring-red-500'
+                                : 'border-gray-700 focus:ring-blue-500'
+                            }`}
+                            required
+                          />
+// ... existing code ...
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/router';
@@ -627,8 +643,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                             value={registerData.bgmiId}
                             onChange={handleRegisterChange}
                             placeholder="Enter your 10-12 digit BGMI Player ID"
-                            className={`w-full pl-10 pr-12 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                              bgmiIdValid === true 
+                            className={`w-full pl-10 pr-12 py-3 bg-gray-800/50 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${bgmiIdValid === true 
                                 ? 'border-green-500 focus:ring-green-500' 
                                 : bgmiIdValid === false 
                                 ? 'border-red-500 focus:ring-red-500'
@@ -835,6 +850,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 </motion.div>
               </motion.div>
             )}
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
