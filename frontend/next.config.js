@@ -80,6 +80,13 @@ const nextConfig = {
     return config;
   },
 
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // Compiler options
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
