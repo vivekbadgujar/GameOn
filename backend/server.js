@@ -74,11 +74,6 @@ mongoose.connection.on('connected', () => {
 
 // Connect to MongoDB with enhanced options
 const connectionOptions = {
-<<<<<<< HEAD
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-=======
->>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
   serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
   family: 4

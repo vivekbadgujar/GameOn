@@ -134,7 +134,7 @@ export const login = async (email, password) => {
   }
 };
 
-export const register = async (userData) => {
+export const register = async (userData = {}) => {
   try {
     const response = await api.post('/auth/register', userData);
     return response.data;
