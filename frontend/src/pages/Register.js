@@ -17,9 +17,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import dynamic from 'next/dynamic';
 import { register as apiRegister } from '../services/api';
 
-const Register = () => {
+const RegisterComponent = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -118,21 +119,18 @@ const Register = () => {
 
       const data = await apiRegister(registrationData);
 
-      if (data.success) {
-        // Login the user
+      if (data && data.success) {
         login(data.user, data.token);
         setSuccess(true);
-        
-        // Redirect to dashboard after a short delay
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
       } else {
-        setError(data.message || 'Registration failed. Please try again.');
+        setError(data?.message || 'Registration failed. Please try again.');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error.message || 'Registration failed. Please try again.');
+      setError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -460,4 +458,4 @@ const Register = () => {
 };
 
 
-export default Register;
+export default dynamic(() => Promise.resolve(RegisterComponent), { ssr: false });

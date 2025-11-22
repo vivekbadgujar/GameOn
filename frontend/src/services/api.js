@@ -139,7 +139,7 @@ export const register = async (userData = {}) => {
     const response = await api.post('/auth/register', userData);
     return response.data;
   } catch (error) {
-    console.error('Register API Error:', error);
+    console.error('Registration API error:', error.response || error.message);
     throw error;
   }
 };
