@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -17,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import dynamic from 'next/dynamic';
 import { register as apiRegister } from '../services/api';
 
 const RegisterComponent = () => {
@@ -459,4 +460,4 @@ const RegisterComponent = () => {
 
 
 
-export default dynamic(() => Promise.resolve(RegisterComponent), { ssr: false });
+export default RegisterComponent;
