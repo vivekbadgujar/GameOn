@@ -10,7 +10,7 @@ import {
   alpha,
 } from '@mui/material';
 import { Person, PersonAdd, Lock, LockOpen } from '@mui/icons-material';
-import { Droppable, Draggable } from 'react-beautiful-dnd';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 
 const SlotContent = ({ slot, user, showLockControls, onToggleLock }) => {
   const theme = useTheme();

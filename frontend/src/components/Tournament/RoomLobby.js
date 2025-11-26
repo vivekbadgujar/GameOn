@@ -22,7 +22,7 @@ import {
   Info,
   Warning,
 } from '@mui/icons-material';
-import { DragDropContext } from 'react-beautiful-dnd';
+import { DragDropContext } from '@hello-pangea/dnd';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
