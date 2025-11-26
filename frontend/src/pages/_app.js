@@ -15,6 +15,7 @@ import NotificationSystem from '../components/UI/NotificationSystem';
 import NotificationToast from '../components/UI/NotificationToast';
 import GlobalNotifications from '../components/UI/GlobalNotifications';
 import ModernBackground from '../components/UI/ModernBackground';
+import ClientOnly from '../components/ClientOnly';
 
 // Import styles
 import '../styles/globals.css';
@@ -33,10 +34,14 @@ function MyApp({ Component, pageProps }) {
               
               {/* Main App Content */}
               <div className="relative z-10">
-                <Header />
+                <ClientOnly>
+                  <Header />
+                </ClientOnly>
                 
                 <main className="min-h-screen">
-                  <Component {...pageProps} />
+                  <ClientOnly>
+                    <Component {...pageProps} />
+                  </ClientOnly>
                 </main>
                 
                 <Footer />

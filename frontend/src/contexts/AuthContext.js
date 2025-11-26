@@ -29,24 +29,26 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('user');
-        const storedToken = localStorage.getItem('token');
+        if (typeof window !== 'undefined') {
+          const storedUser = localStorage.getItem('user');
+          const storedToken = localStorage.getItem('token');
         
-        if (storedUser && storedToken) {
-          try {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-            setToken(storedToken);
-            
-            // Set API headers
-            api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-            
-            // Fetch wallet balance
-            await fetchWalletBalance(storedToken);
-          } catch (error) {
-            console.error('Error parsing stored user data:', error);
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
+          if (storedUser && storedToken) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              setUser(parsedUser);
+              setToken(storedToken);
+              
+              // Set API headers
+              api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+              
+              // Fetch wallet balance
+              await fetchWalletBalance(storedToken);
+            } catch (error) {
+              console.error('Error parsing stored user data:', error);
+              localStorage.removeItem('user');
+              localStorage.removeItem('token');
+            }
           }
         }
       } catch (error) {
