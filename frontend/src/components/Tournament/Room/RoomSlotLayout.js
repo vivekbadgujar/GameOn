@@ -18,10 +18,10 @@ import {
   LockOpen, 
   TouchApp,
   DragIndicator,
-  Star
+  Star,
+  SwapHoriz
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Person, PersonAdd, SwapHoriz } from "@mui/icons-material";
 
 const SlotContent = ({ slot, user, showLockControls, onToggleLock, isMobile, isMySlot, isCaptain }) => {
   const theme = useTheme();
