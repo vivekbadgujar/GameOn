@@ -304,6 +304,11 @@ const RoomLobby = () => {
     <DragDropContext onDragEnd={onDragEnd}>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         {/* Header Card */}
+// Incorrect - missing initializer
+const { myVariable };
+
+// Correct - with initializer
+const { myVariable } = someObject;
         <Fade in timeout={800}>
           <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
             <CardContent>

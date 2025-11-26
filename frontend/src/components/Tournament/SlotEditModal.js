@@ -24,7 +24,7 @@ import {
   Lock,
   Info
 } from '@mui/icons-material';
-import { DragDropContext } from 'react-beautiful-dnd';
+import { DragDropContext } from '@hello-pangea/dnd';
 import { RoomSlotLayout } from './Room';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
