@@ -1,7 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext({
+  user: null,
+  token: null,
+  loading: true,
+  walletBalance: 0,
+  login: () => {},
+  logout: () => {},
+  updateUser: () => {},
+  fetchWalletBalance: async () => {},
+  updateWalletBalance: () => {},
+  deductFromWallet: () => {},
+  addToWallet: () => {},
+  isAuthenticated: false,
+});
 
 export const useAuth = () => {
   return useContext(AuthContext);
