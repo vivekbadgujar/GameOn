@@ -21,6 +21,8 @@ import {
   Star
 } from '@mui/icons-material';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { Person, PersonAdd, SwapHoriz } from "@mui/icons-material";
 
 const SlotContent = ({ slot, user, showLockControls, onToggleLock, isMobile, isMySlot, isCaptain }) => {
   const theme = useTheme();
