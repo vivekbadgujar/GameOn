@@ -24,7 +24,6 @@ import {
   Timer,
   BugReport,
 } from '@mui/icons-material';
-import { DragDropContext } from 'react-beautiful-dnd';
 import dayjs from 'dayjs';
 import RoomSlotLayout from './RoomSlotLayout';
 
