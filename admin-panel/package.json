@@ -1,27 +1,17 @@
 {
   "name": "admin-panel",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {
-    "eslint": "latest",
-    "eslint-config-next": "latest"
-  }
-}
-{
-  "name": "admin-panel",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "export": "next build && next export",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "vercel-build": "next build"
+  },
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
@@ -36,24 +26,18 @@
     "dayjs": "^1.11.10",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
+    "next": "14.2.3",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "next": "^14.0.0",
     "recharts": "^2.8.0",
     "socket.io-client": "^4.8.1",
     "xlsx": "^0.18.5"
   },
-  "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "start": "next start -p 3001",
-    "lint": "next lint",
-    "export": "next build && next export",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "vercel-build": "next build"
+  "devDependencies": {
+    "eslint": "latest",
+    "eslint-config-next": "latest"
   },
   "browserslist": {
     "production": [

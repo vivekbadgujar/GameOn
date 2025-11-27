@@ -8,7 +8,6 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "seed": "node scripts/seedDatabase.js",
-    "build": "echo 'No build step required for Node.js backend'",
     "prepare": "husky install"
   },
   "lint-staged": {
