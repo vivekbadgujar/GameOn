@@ -23,7 +23,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/server"
+      "destination": "/backend/server.js"
     },
     {
       "source": "/admin/(.*)",
