@@ -3,17 +3,11 @@
   "builds": [
     {
       "src": "frontend/next.config.js",
-      "use": "@vercel/next",
-      "config": {
-        "distDir": ".next"
-      }
+      "use": "@vercel/next"
     },
     {
       "src": "admin-panel/next.config.js",
-      "use": "@vercel/next",
-      "config": {
-        "distDir": ".next"
-      }
+      "use": "@vercel/next"
     },
     {
       "src": "backend/server.js",
@@ -26,12 +20,12 @@
       "destination": "/backend/server.js"
     },
     {
-      "source": "/admin/(.*)",
-      "destination": "/admin-panel/$1"
-    },
-    {
       "source": "/admin",
       "destination": "/admin-panel"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/admin-panel/$1"
     },
     {
       "source": "/(.*)",
