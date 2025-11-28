@@ -20,6 +20,26 @@
       "destination": "/backend/server.js"
     },
     {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "gameonesportbackend.xyz"
+        }
+      ],
+      "destination": "/backend/server.js"
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "gameonesportadmin.xyz"
+        }
+      ],
+      "destination": "/admin-panel/$1"
+    },
+    {
       "source": "/admin",
       "destination": "/admin-panel"
     },
