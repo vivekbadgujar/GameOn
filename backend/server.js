@@ -27,8 +27,8 @@ const io = new Server(server, {
       ? [
           'https://gameonesport.xyz',
           'https://www.gameonesport.xyz',
-          'https://admin.gameonesports.xyz',
-          'https://api.gameonesports.xyz'
+          'https://admin.gameonesport.xyz',
+          'https://api.gameonesport.xyz'
         ]
       : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
     credentials: true,
@@ -141,8 +141,8 @@ app.use(cors({
         const allowedOrigins = [
           'https://gameonesport.xyz',
           'https://www.gameonesport.xyz',
-          'https://admin.gameonesports.xyz',
-          'https://api.gameonesports.xyz'
+          'https://admin.gameonesport.xyz',
+          'https://api.gameonesport.xyz'
         ];
         
         if (allowedOrigins.includes(origin)) {

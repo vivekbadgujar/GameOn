@@ -140,7 +140,7 @@ const Profile = () => {
       const formData = new FormData();
       formData.append('profilePhoto', file);
 
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
       const response = await fetch(`${apiUrl}/users/upload-photo`, {
         method: 'POST',
         headers: {
@@ -204,7 +204,7 @@ const Profile = () => {
                 <div className="w-24 h-24 bg-gradient-to-r from-green-500 to-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
                   {user.avatar ? (
                     <img 
-                      src={user.avatar?.startsWith('http') ? user.avatar : `${process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz'}${user.avatar}`} 
+                      src={user.avatar?.startsWith('http') ? user.avatar : `${process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz'}${user.avatar}`} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                     />

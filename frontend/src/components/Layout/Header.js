@@ -108,7 +108,7 @@ const Header = () => {
         return;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
       const response = await fetch(`${apiUrl}/user/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`,

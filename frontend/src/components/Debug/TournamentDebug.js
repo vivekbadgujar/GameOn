@@ -22,7 +22,7 @@ const TournamentDebug = () => {
         console.log('🔍 Debug: Starting tournament fetch for ID:', id);
         
         // Test direct API call
-        const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+        const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
         const response = await fetch(`${apiUrl}/tournaments/${id}`, {
           method: 'GET',
           headers: {
@@ -89,7 +89,7 @@ const TournamentDebug = () => {
         <p><strong>Tournament ID:</strong> {debugInfo.tournamentId}</p>
         <p><strong>Loading:</strong> {debugInfo.loading ? 'Yes' : 'No'}</p>
         <p><strong>Current URL:</strong> {window.location.href}</p>
-        <p><strong>API Base URL:</strong> {process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api'}</p>
+        <p><strong>API Base URL:</strong> {process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api'}</p>
       </div>
 
       {debugInfo.loading && (

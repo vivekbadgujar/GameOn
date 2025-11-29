@@ -112,7 +112,7 @@ const SlotEditModal = ({
         return;
       }
 
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
       const url = `${apiUrl}/tournaments/${tournamentId}/room-layout`;
       console.log('Making request to:', url);
       
@@ -223,7 +223,7 @@ const SlotEditModal = ({
     try {
       setSlotChangeLoading(true);
       
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
       const response = await fetch(`${apiUrl}/tournaments/${tournamentId}/move-slot`, {
         method: 'POST',
         headers: {
