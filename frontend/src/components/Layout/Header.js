@@ -108,7 +108,8 @@ const Header = () => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/user/notifications`, {
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const response = await fetch(`${apiUrl}/user/notifications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -139,7 +140,8 @@ const Header = () => {
   const markNotificationsAsRead = () => {
     setUnreadCount(0);
     // API call to mark as read
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/notifications/mark-read`, {
+    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+    fetch(`${apiUrl}/notifications/mark-read`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,

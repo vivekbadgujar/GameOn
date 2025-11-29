@@ -1,7 +1,7 @@
 const config = {
-  // API Configuration - Direct to Render backend (no Vercel functions)
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://gameonesportbackend.xyz/api',
-  WS_URL: process.env.NEXT_PUBLIC_WS_URL || process.env.REACT_APP_WS_URL || 'wss://gameonesportbackend.xyz',
+  // API Configuration - Production API endpoint
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'https://api.gameonesports.xyz/api',
+  WS_URL: process.env.NEXT_PUBLIC_WS_URL || process.env.REACT_APP_WS_URL || 'wss://api.gameonesports.xyz',
 
   // Cashfree Configuration
   CASHFREE_APP_ID: process.env.NEXT_PUBLIC_CASHFREE_APP_ID || process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',

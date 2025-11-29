@@ -26,7 +26,9 @@ const io = new Server(server, {
     origin: process.env.NODE_ENV === 'production' 
       ? [
           'https://gameonesport.xyz',
-          'https://gameonesportadmin.xyz'
+          'https://www.gameonesport.xyz',
+          'https://admin.gameonesports.xyz',
+          'https://api.gameonesports.xyz'
         ]
       : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
     credentials: true,
@@ -50,7 +52,13 @@ console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
 // MongoDB URI from environment variables (DATABASE_URL for Render/Vercel compatibility)
-const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
+// IMPORTANT: MONGODB_URI must be set in environment variables - no localhost fallback in production
+const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
+if (!MONGODB_URI) {
+  console.error('❌ ERROR: MONGODB_URI or DATABASE_URL environment variable is not set!');
+  console.error('Please set MONGODB_URI in your .env file or environment variables.');
+  process.exit(1);
+}
 
 console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
 
@@ -132,7 +140,9 @@ app.use(cors({
         // Allow specific production domains
         const allowedOrigins = [
           'https://gameonesport.xyz',
-          'https://admin.gameonesport.xyz'
+          'https://www.gameonesport.xyz',
+          'https://admin.gameonesports.xyz',
+          'https://api.gameonesports.xyz'
         ];
         
         if (allowedOrigins.includes(origin)) {

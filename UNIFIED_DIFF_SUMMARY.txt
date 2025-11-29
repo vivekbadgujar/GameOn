@@ -1,0 +1,220 @@
+================================================================================
+UNIFIED DIFF SUMMARY - API and MongoDB Configuration Fix
+================================================================================
+
+Branch: fix/api-and-mongo-config
+Commit: Fix: Update MongoDB connection and frontend API URLs
+
+================================================================================
+FILE: backend/server.js
+================================================================================
+--- a/backend/server.js
++++ b/backend/server.js
+@@ -52,8 +52,13 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
+ 
+ // MongoDB URI from environment variables (DATABASE_URL for Render/Vercel compatibility)
+-const MONGODB_URI = process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/gameon';
++// IMPORTANT: MONGODB_URI must be set in environment variables - no localhost fallback in production
++const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
++if (!MONGODB_URI) {
++  console.error('❌ ERROR: MONGODB_URI or DATABASE_URL environment variable is not set!');
++  console.error('Please set MONGODB_URI in your .env file or environment variables.');
++  process.exit(1);
++}
+ 
+ console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
+ 
+@@ -26,7 +26,8 @@ const io = new Server(server, {
+     origin: process.env.NODE_ENV === 'production' 
+       ? [
+           'https://gameonesport.xyz',
+-          'https://gameonesportadmin.xyz'
++          'https://www.gameonesport.xyz',
++          'https://admin.gameonesports.xyz',
++          'https://api.gameonesports.xyz'
+         ]
+       : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+ 
+@@ -133,7 +134,8 @@ app.use(cors({
+         // Allow specific production domains
+         const allowedOrigins = [
+           'https://gameonesport.xyz',
+-          'https://admin.gameonesport.xyz'
++          'https://www.gameonesport.xyz',
++          'https://admin.gameonesports.xyz',
++          'https://api.gameonesports.xyz'
+         ];
+
+================================================================================
+FILE: backend/.env.example
+================================================================================
+--- a/backend/.env.example
++++ b/backend/.env.example
+@@ -4,8 +4,9 @@
+ # Database Connection - MongoDB Atlas
+-MONGODB_URI=mongodb+srv://your-username:your-password@your-cluster.mongodb.net/gameon?retryWrites=true&w=majority
++# IMPORTANT: Use MONGODB_URI for production MongoDB connection
++MONGODB_URI=mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/?appName=Cluster0
+ 
+ # Alternative environment variable name (Render uses this)
+-DATABASE_URL=mongodb+srv://your-username:your-password@your-cluster.mongodb.net/gameon?retryWrites=true&w=majority
++# DATABASE_URL can be used as fallback, but MONGODB_URI takes precedence
++DATABASE_URL=mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/?appName=Cluster0
+
+================================================================================
+FILE: backend/.env.production
+================================================================================
+--- a/backend/.env.production
++++ b/backend/.env.production
+@@ -1,6 +1,8 @@
+ # Production Backend Environment Variables
+ NODE_ENV=production
+-PORT=3000
++PORT=5000
+ 
+ # Database - Replace with your MongoDB Atlas URL
+-MONGODB_URI=mongodb+srv://vivekbadgujar:Vivek@321@cluster0.squjxrk.mongodb.net/?appName=Cluster0
++# IMPORTANT: This is the production MongoDB connection string
++MONGODB_URI=mongodb+srv://gameon:Gameon321@cluster0.g2bfczw.mongodb.net/?appName=Cluster0
+ 
+@@ -16,3 +18,3 @@ ADMIN_PASSWORD=SecureAdminPassword123!
+ # CORS Configuration - Replace with your actual frontend URLs
+-CORS_ORIGIN=https://your-frontend-domain.vercel.app,https://your-admin-domain.vercel.app
++CORS_ORIGIN=https://gameonesport.xyz,https://www.gameonesport.xyz,https://admin.gameonesports.xyz,https://api.gameonesports.xyz
+
+================================================================================
+FILE: frontend/src/config.js
+================================================================================
+--- a/frontend/src/config.js
++++ b/frontend/src/config.js
+@@ -1,6 +1,6 @@
+ const config = {
+-  // API Configuration - Direct to Render backend (no Vercel functions)
+-  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://gameonesportbackend.xyz/api',
+-  WS_URL: process.env.NEXT_PUBLIC_WS_URL || process.env.REACT_APP_WS_URL || 'wss://gameonesportbackend.xyz',
++  // API Configuration - Production API endpoint
++  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'https://api.gameonesports.xyz/api',
++  WS_URL: process.env.NEXT_PUBLIC_WS_URL || process.env.REACT_APP_WS_URL || 'wss://api.gameonesports.xyz',
+
+================================================================================
+FILE: frontend/.env.production
+================================================================================
+--- a/frontend/.env.production
++++ b/frontend/.env.production
+@@ -1,35 +1,15 @@
+-<<<<<<< HEAD
+-# API Configuration (Production)
+-NEXT_PUBLIC_API_BASE_URL=https://api.gameonesport.xyz/api
+-NEXT_PUBLIC_WS_URL=wss://api.gameonesport.xyz
+-
+-# App Configuration
+-NEXT_PUBLIC_APP_NAME=GameOn
+-NEXT_PUBLIC_APP_VERSION=1.0.0
+-NEXT_PUBLIC_LOGO_URL=https://gameonesport.xyz/logo.png
+-
+-# Cashfree Configuration (Production)
+-NEXT_PUBLIC_CASHFREE_APP_ID=your_production_cashfree_app_id_here
+-NEXT_PUBLIC_CASHFREE_ENVIRONMENT=production
+-
+-# Frontend URL
+-NEXT_PUBLIC_FRONTEND_URL=https://gameonesport.xyz
+-NEXT_PUBLIC_ADMIN_URL=https://admin.gameonesport.xyz
+-
+-# Build Configuration
+-NODE_ENV=production
+-NEXT_TELEMETRY_DISABLED=1
+-=======
+ # Production API Configuration
+-# Replace 'your-domain' with your actual Vercel domain after deployment
+-REACT_APP_API_BASE_URL=https://your-backend-domain.vercel.app/api
+-REACT_APP_WS_URL=wss://your-backend-domain.vercel.app
++# Frontend environment variables for production build
++
++# API Configuration (Production)
++REACT_APP_API_URL=https://api.gameonesports.xyz/api
++REACT_APP_API_BASE_URL=https://api.gameonesports.xyz/api
++REACT_APP_WS_URL=wss://api.gameonesports.xyz
+ 
+ # App Configuration
+ REACT_APP_APP_NAME=GameOn
+ REACT_APP_APP_VERSION=1.0.0
+ REACT_APP_LOGO_URL=https://gameonesport.xyz/logo.png
+ 
+-# Razorpay Configuration (Production)
+-REACT_APP_RAZORPAY_KEY_ID=rzp_live_your_production_key
+->>>>>>> bc135b18b315320c036c874aea47e8bbb6dffc63
++# Frontend URL
++REACT_APP_FRONTEND_URL=https://gameonesport.xyz
++REACT_APP_ADMIN_URL=https://admin.gameonesports.xyz
++
++# Build Configuration
++NODE_ENV=production
+
+================================================================================
+FILES WITH HARDCODED localhost:5000 REPLACED:
+================================================================================
+
+1. frontend/src/pages/Profile.js
+   - Line 143: 'http://localhost:5000/api/users/upload-photo' → env variable
+   - Line 206: 'http://localhost:5000${user.avatar}' → env variable
+
+2. frontend/src/components/Dashboard/SlotEditModal.js
+   - Line 115: 'http://localhost:5000/api/tournaments/${tournamentId}/room-layout' → env variable
+   - Line 225: 'http://localhost:5000/api/tournaments/${tournamentId}/move-slot' → env variable
+
+3. frontend/src/pages/RoomLobby.js
+   - Line 78: 'http://localhost:5000' → env variable
+
+4. frontend/src/components/Tournament/BGMIWaitingRoom.js
+   - Line 61: 'http://localhost:5000' → env variable
+
+5. frontend/src/components/Layout/Header.js
+   - Line 111: 'http://localhost:5000/api' → env variable
+   - Line 142: 'http://localhost:5000/api' → env variable
+
+6. frontend/src/contexts/WalletContext.js
+   - Line 39: 'http://localhost:5000' → env variable
+
+7. frontend/src/components/Tournament/BGMIRoomLobby.js
+   - Line 51: 'http://localhost:5000' → env variable
+
+8. frontend/src/components/Debug/TournamentDebug.js
+   - Line 25: 'http://localhost:5000/api/tournaments/${id}' → env variable
+   - Line 91: 'http://localhost:5000/api' → env variable
+
+9. frontend/src/pages/TournamentDetailsRedesigned.js
+   - Line 75: 'https://api.gameonesport.xyz/api' → 'https://api.gameonesports.xyz/api'
+
+================================================================================
+NEW FILE: backend/test-mongo-connection.js
+================================================================================
++/**
++ * Test MongoDB connection with production URI
++ */
++const mongoose = require('mongoose');
++
++const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
++
++if (!MONGODB_URI) {
++  console.error('❌ ERROR: MONGODB_URI or DATABASE_URL environment variable is not set!');
++  process.exit(1);
++}
++
++// ... (test script code)
+
+================================================================================
+SUMMARY
+================================================================================
+Total files changed: 15
+- Backend files: 4
+- Frontend files: 11
+- New files: 1
+
+Key improvements:
+1. MongoDB connection now requires MONGODB_URI env variable (no localhost fallback)
+2. All frontend hardcoded URLs replaced with environment variables
+3. CORS updated to allow all production domains
+4. Production API URL set to https://api.gameonesports.xyz/api
+5. All environment files updated with correct values
+
+================================================================================

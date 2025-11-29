@@ -112,7 +112,8 @@ const SlotEditModal = ({
         return;
       }
 
-      const url = `http://localhost:5000/api/tournaments/${tournamentId}/room-layout`;
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const url = `${apiUrl}/tournaments/${tournamentId}/room-layout`;
       console.log('Making request to:', url);
       
       const response = await fetch(url, {
@@ -222,7 +223,8 @@ const SlotEditModal = ({
     try {
       setSlotChangeLoading(true);
       
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/move-slot`, {
+      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
+      const response = await fetch(`${apiUrl}/tournaments/${tournamentId}/move-slot`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

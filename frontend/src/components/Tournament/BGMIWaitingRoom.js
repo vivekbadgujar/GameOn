@@ -58,7 +58,8 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
+    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesports.xyz';
+    const newSocket = io(apiUrl);
     
     newSocket.on('connect', () => {
       setIsConnected(true);

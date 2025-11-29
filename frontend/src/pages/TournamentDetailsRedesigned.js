@@ -72,7 +72,7 @@ const TournamentDetailsRedesigned = () => {
       }
       
       // Use production API URL
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz/api';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'https://api.gameonesports.xyz/api';
       console.log('🔍 API Base URL:', apiBaseUrl);
       
       // Use our API service directly (no direct fetch testing in production)
