@@ -9,9 +9,12 @@ const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('adminToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Check if we're in browser environment before accessing localStorage
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
   return config;
@@ -26,8 +29,11 @@ api.interceptors.response.use(
   (error) => {
     console.error(`API Error: ${error.response?.status || 'Network Error'} ${error.config?.url}`);
     if (error.response?.status === 401) {
-      localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login';
+      // Check if we're in browser environment before accessing browser APIs
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/login';
+      }
     }
     return Promise.reject(error);
   }

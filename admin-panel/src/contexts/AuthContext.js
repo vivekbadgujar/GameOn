@@ -23,6 +23,11 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     console.log('Checking auth status...');
     try {
+      // Check if we're in browser environment
+      if (typeof window === 'undefined') {
+        setLoading(false);
+        return;
+      }
       const token = localStorage.getItem('adminToken');
       console.log('Token found:', !!token);
       if (token) {
@@ -39,7 +44,9 @@ export const AuthProvider = ({ children }) => {
           setAdmin(response.data.admin);
         } else {
           console.log('Auth check failed - invalid response');
-          localStorage.removeItem('adminToken');
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('adminToken');
+          }
           setIsAuthenticated(false);
           setAdmin(null);
         }
@@ -51,7 +58,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('adminToken');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+      }
       setIsAuthenticated(false);
       setAdmin(null);
     } finally {
@@ -69,7 +78,9 @@ export const AuthProvider = ({ children }) => {
       console.log('AuthContext: Login response:', response.data);
       
       if (response.data.success) {
-        localStorage.setItem('adminToken', response.data.token);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('adminToken', response.data.token);
+        }
         setIsAuthenticated(true);
         setAdmin(response.data.admin);
         console.log('AuthContext: Login successful, token stored');
@@ -96,7 +107,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('adminToken');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+      }
       setIsAuthenticated(false);
       setAdmin(null);
     }
