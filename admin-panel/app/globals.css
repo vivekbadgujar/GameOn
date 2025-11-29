@@ -1,4 +1,7 @@
-/* Base styles - merged from src/index.css (no imports to avoid build errors) */
+/* Base styles - merged from src/index.css (no imports to avoid build errors)
+ * Fixed: Removed @import statement to resolve Vercel build module resolution error
+ * Updated: 2024 - All styles merged directly into globals.css for Vercel compatibility
+ */
 * {
   box-sizing: border-box;
   margin: 0;
