@@ -12,22 +12,55 @@ export default function HomePage() {
   const sliderRef = useRef();
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      getTournaments(),
-      getYouTubeVideos(),
-      getLeaderboard('overall', 'month', 10)
-    ])
-      .then(([tData, vData, pData]) => {
-        setTournaments(tData.slice(0, 3));
-        setVideos(vData?.videos?.slice(0, 3) || []);
-        setPlayers(pData?.players || []);
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch data with individual error handling
+        const [tData, vData, pData] = await Promise.allSettled([
+          getTournaments().catch(err => {
+            console.error('Error fetching tournaments:', err);
+            return { success: false, tournaments: [] };
+          }),
+          getYouTubeVideos().catch(err => {
+            console.error('Error fetching videos:', err);
+            return { success: false, videos: [] };
+          }),
+          getLeaderboard('overall', 'month', 10).catch(err => {
+            console.error('Error fetching leaderboard:', err);
+            return { success: false, players: [] };
+          })
+        ]);
+
+        // Extract data from settled promises
+        const tournaments = tData.status === 'fulfilled' 
+          ? (Array.isArray(tData.value) ? tData.value : tData.value?.tournaments || [])
+          : [];
+        const videos = vData.status === 'fulfilled' 
+          ? (vData.value?.videos || [])
+          : [];
+        const players = pData.status === 'fulfilled' 
+          ? (pData.value?.players || [])
+          : [];
+
+        setTournaments(tournaments.slice(0, 3));
+        setVideos(videos.slice(0, 3));
+        setPlayers(players);
+        
+        // Only show error if all requests failed
+        if (tournaments.length === 0 && videos.length === 0 && players.length === 0) {
+          setError('Unable to connect to server. Please check your connection and try again.');
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('Failed to load data. Please refresh the page.');
+      } finally {
         setLoading(false);
-      })
-      .catch(() => {
-        setError('Failed to load data');
-        setLoading(false);
-      });
+      }
+    };
+
+    fetchData();
   }, []);
 
   // Auto-scroll leaderboard slider

@@ -233,11 +233,23 @@ export const getTournaments = async (params = {}) => {
     };
   } catch (error) {
     console.error('API: Error fetching tournaments:', error);
-    console.error('API: Error details:', error.response?.data);
+    console.error('API: Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      url: error.config?.url,
+      baseURL: error.config?.baseURL
+    });
+    
+    // Return empty array instead of throwing to prevent page crashes
     return {
       success: false,
       tournaments: [],
-      message: 'Failed to fetch tournaments'
+      message: error.response?.status === 404 
+        ? 'Tournaments endpoint not found' 
+        : error.response?.status === 500
+        ? 'Server error'
+        : 'Failed to fetch tournaments'
     };
   }
 };
