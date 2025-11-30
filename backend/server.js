@@ -10,37 +10,65 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Import unified platform services
-const SyncService = require('./services/syncService');
-const PushNotificationService = require('./services/pushNotificationService');
+// Check if we're in a serverless environment (Vercel)
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
+if (isServerless) {
+  console.log('[Server] Running in serverless mode (Socket.IO disabled)');
+}
+
+// Create Express app first
 const app = express();
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? [
-          'https://gameonesport.xyz',
-          'https://www.gameonesport.xyz',
-          'https://admin.gameonesport.xyz',
-          'https://api.gameonesport.xyz'
-        ]
-      : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
-    credentials: true,
-    methods: ['GET', 'POST']
-  },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true
-});
 
-// Initialize unified platform services
-const syncService = new SyncService(io);
-const pushNotificationService = new PushNotificationService();
+// Import unified platform services
+let syncService, pushNotificationService;
+let server, io;
+
+// Only initialize Socket.IO and HTTP server if NOT in serverless mode
+if (!isServerless) {
+  const { createServer } = require('http');
+  const { Server } = require('socket.io');
+  const SyncServiceClass = require('./services/syncService');
+  const PushNotificationServiceClass = require('./services/pushNotificationService');
+  
+  server = createServer(app);
+  io = new Server(server, {
+    cors: {
+      origin: process.env.NODE_ENV === 'production' 
+        ? [
+            'https://gameonesport.xyz',
+            'https://www.gameonesport.xyz',
+            'https://admin.gameonesport.xyz',
+            'https://api.gameonesport.xyz'
+          ]
+        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+      credentials: true,
+      methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
+  });
+
+  // Initialize unified platform services
+  syncService = new SyncServiceClass(io);
+  pushNotificationService = new PushNotificationServiceClass();
+} else {
+  // Serverless mode: create stub services for serverless
+  syncService = {
+    syncTournamentUpdate: () => {},
+    syncUserUpdate: () => {},
+    unregisterUser: () => {},
+    updateLastSeen: () => {},
+    cleanup: () => {}
+  };
+  const PushNotificationServiceClass = require('./services/pushNotificationService');
+  pushNotificationService = new PushNotificationServiceClass();
+  io = null; // Socket.IO not available in serverless
+  server = null; // HTTP server not available in serverless
+}
 
 // Use environment PORT for deployment (Render/Vercel) or default to 5000
 const PORT = process.env.PORT || 5000;
@@ -398,7 +426,9 @@ process.on('uncaughtException', (err) => {
 
 
 // Socket.IO Configuration for Unified Platform Real-time Features
-io.on('connection', (socket) => {
+// Only set up Socket.IO handlers if Socket.IO is available (not in serverless mode)
+if (io) {
+  io.on('connection', (socket) => {
   console.log('👤 User connected:', socket.id);
 
   // User authentication and registration with data sync
@@ -807,26 +837,37 @@ io.on('connection', (socket) => {
     console.log('👤 User disconnected:', socket.id);
     syncService.unregisterUser(socket.id);
   });
-});
+  });
+}
 
-// Make socket.io instance available to routes
-app.set('io', io);
+// Make socket.io instance available to routes (if available)
+if (io) {
+  app.set('io', io);
+}
 
 // Enhanced Global Socket.IO event emitters with sync service
 const emitToAll = (event, data) => {
-  io.emit(event, data);
+  if (io) {
+    io.emit(event, data);
+  }
 };
 
 const emitToTournament = (tournamentId, event, data) => {
-  syncService.syncTournamentUpdate(tournamentId, event, data);
+  if (syncService && syncService.syncTournamentUpdate) {
+    syncService.syncTournamentUpdate(tournamentId, event, data);
+  }
 };
 
 const emitToUser = (userId, event, data) => {
-  syncService.syncUserUpdate(userId, event, data);
+  if (syncService && syncService.syncUserUpdate) {
+    syncService.syncUserUpdate(userId, event, data);
+  }
 };
 
 const emitToAdmins = (event, data) => {
-  io.emit(event, data); // All admins will receive this
+  if (io) {
+    io.emit(event, data); // All admins will receive this
+  }
 };
 
 // Export sync and notification services for use in routes
@@ -838,7 +879,7 @@ app.set('emitToAdmins', emitToAdmins);
 
 
 // For local development, start server
-if (process.env.NODE_ENV !== 'production' && require.main === module) {
+if (process.env.NODE_ENV !== 'production' && require.main === module && server) {
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -849,9 +890,11 @@ if (process.env.NODE_ENV !== 'production' && require.main === module) {
   });
 
   // Cleanup interval for sync service (only in local development)
-  setInterval(() => {
-    syncService.cleanup();
-  }, 5 * 60 * 1000); // Every 5 minutes
+  if (syncService && syncService.cleanup) {
+    setInterval(() => {
+      syncService.cleanup();
+    }, 5 * 60 * 1000); // Every 5 minutes
+  }
 
   // Graceful shutdown
   process.on('SIGTERM', () => {
