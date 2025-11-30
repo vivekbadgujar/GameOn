@@ -1,6 +1,14 @@
 import axios from 'axios';
 import config from '../config';
 
+// Log API configuration for debugging (only in development)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('API Configuration:', {
+    API_BASE_URL: config.API_BASE_URL,
+    WS_URL: config.WS_URL
+  });
+}
+
 const api = axios.create({
   baseURL: config.API_BASE_URL,
   withCredentials: true,
@@ -8,6 +16,7 @@ const api = axios.create({
   // Add default headers for build time
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   }
 });
 
