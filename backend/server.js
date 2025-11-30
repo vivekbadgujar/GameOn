@@ -363,28 +363,49 @@ app.use('/api/admin/room-slots', require('./routes/admin/roomSlots'));
 // Friends System Routes
 app.use('/api/friends', require('./routes/friends-simple'));
 
-// Health check endpoint - never crashes
+// Health check endpoint - NEVER crashes, always returns JSON
 app.get('/api/health', async (req, res) => {
   try {
-    const dbConnected = mongoose.connection.readyState === 1;
+    // Safely check MongoDB connection state
+    let dbConnected = false;
+    let mongoReady = 0;
+    try {
+      mongoReady = mongoose.connection.readyState || 0;
+      dbConnected = mongoReady === 1;
+    } catch (mongoErr) {
+      console.warn('MongoDB state check failed:', mongoErr.message);
+      dbConnected = false;
+      mongoReady = 0;
+    }
+    
     const statusCode = dbConnected ? 200 : 503;
     
+    // Always return JSON, never crash
     res.status(statusCode).json({
       success: dbConnected,
       message: dbConnected ? 'GameOn API is running!' : 'Database connection unavailable',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
+      uptime: process.uptime ? process.uptime() : 0,
       dbStatus: dbConnected ? 'connected' : 'disconnected',
-      mongoReady: mongoose.connection.readyState
+      mongoReady: mongoReady,
+      serverless: isServerless
     });
   } catch (err) {
-    console.error('Health check error:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Health check failed',
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal error'
-    });
+    // Ultimate fallback - never let health check crash
+    console.error('Health check error:', err.message || err);
+    try {
+      res.status(503).json({
+        success: false,
+        message: 'Health check failed',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal error'
+      });
+    } catch (finalErr) {
+      // If even JSON response fails, send minimal response
+      res.status(503).end('Service Unavailable');
+    }
   }
 });
 
@@ -879,7 +900,8 @@ app.set('emitToAdmins', emitToAdmins);
 
 
 // For local development, start server
-if (process.env.NODE_ENV !== 'production' && require.main === module && server) {
+// NEVER start server in serverless mode (Vercel/Lambda)
+if (!isServerless && process.env.NODE_ENV !== 'production' && require.main === module && server) {
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
