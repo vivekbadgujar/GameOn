@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { getTournaments, getYouTubeVideos, getLeaderboard } from '../services/api';
+import { testApiConnection } from '../utils/apiTest';
+import config from '../config';
 
 export default function HomePage() {
   const [tournaments, setTournaments] = useState([]);
@@ -15,6 +17,20 @@ export default function HomePage() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      
+      // First, test API connection
+      console.log('🔍 Testing API connection...');
+      console.log('API Base URL:', config.API_BASE_URL);
+      const connectionTest = await testApiConnection();
+      
+      if (!connectionTest.success) {
+        console.error('❌ API connection test failed:', connectionTest);
+        setError(connectionTest.message || 'Unable to connect to server. Please check your connection and try again.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('✅ API connection test passed');
       
       try {
         // Fetch data with individual error handling
@@ -50,7 +66,21 @@ export default function HomePage() {
         
         // Only show error if all requests failed
         if (tournaments.length === 0 && videos.length === 0 && players.length === 0) {
-          setError('Unable to connect to server. Please check your connection and try again.');
+          // Try to get more specific error information
+          const errors = [];
+          if (tData.status === 'rejected') errors.push('Tournaments');
+          if (vData.status === 'rejected') errors.push('Videos');
+          if (pData.status === 'rejected') errors.push('Leaderboard');
+          
+          const errorDetails = errors.length > 0 ? ` (${errors.join(', ')} failed)` : '';
+          setError(`Unable to connect to server${errorDetails}. Please check your connection and try again.`);
+          
+          // Log detailed error for debugging
+          console.error('All API calls failed:', {
+            tournaments: tData,
+            videos: vData,
+            leaderboard: pData
+          });
         }
       } catch (err) {
         console.error('Unexpected error:', err);

@@ -38,6 +38,31 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Enhanced error logging for debugging
+    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+      console.error('❌ Network Error - Backend not reachable:', {
+        baseURL: error.config?.baseURL,
+        url: error.config?.url,
+        fullURL: `${error.config?.baseURL}${error.config?.url}`,
+        message: error.message,
+        code: error.code
+      });
+    } else if (error.response) {
+      console.error('❌ API Error Response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        data: error.response.data
+      });
+    } else {
+      console.error('❌ API Error:', {
+        message: error.message,
+        code: error.code,
+        config: error.config
+      });
+    }
+    
     // Check if error is due to token expiration
     if (error.response?.status === 401) {
       const errorMessage = error.response?.data?.message;
