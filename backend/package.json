@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "seed": "node scripts/seedDatabase.js",
-    "prepare": "husky install"
+    "prepare": "node -e \"if (process.env.CI || process.env.VERCEL) { console.log('Skipping husky install in CI/Vercel'); process.exit(0); } try { require('husky').install(); } catch(e) { console.log('Husky not available, skipping'); process.exit(0); }\""
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
