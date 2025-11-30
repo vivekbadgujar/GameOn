@@ -54,65 +54,98 @@ console.log('NODE_ENV:', process.env.NODE_ENV);
 // MongoDB URI from environment variables (DATABASE_URL for Render/Vercel compatibility)
 // IMPORTANT: MONGODB_URI must be set in environment variables - no localhost fallback in production
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
-if (!MONGODB_URI) {
-  console.error('❌ ERROR: MONGODB_URI or DATABASE_URL environment variable is not set!');
-  console.error('Please set MONGODB_URI in your .env file or environment variables.');
-  process.exit(1);
+
+// Validate environment variables at startup (warn but don't crash)
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(key => !process.env[key] && !process.env.DATABASE_URL);
+if (missingEnvVars.length > 0) {
+  console.warn('⚠️ WARNING: Missing environment variables:', missingEnvVars);
+  console.warn('Server will respond with 503 to requests until variables are configured.');
 }
 
-console.log('Using MongoDB URI:', MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')); // Hide credentials in logs
+// MongoDB Connection - lazy initialization for serverless
+mongoose.set('debug', false);
 
-// MongoDB Connection
-mongoose.set('debug', false); // Disable debug mode for cleaner logs
+let mongoConnectPromise = null;
+let isConnecting = false;
 
 // Connection event handlers
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err);
+  console.error('MongoDB connection error:', err.message);
 });
 
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
+  mongoConnectPromise = null;
 });
 
 mongoose.connection.on('connected', () => {
-  console.log('MongoDB connected successfully');
+  console.log('✅ MongoDB connected successfully');
 });
 
-// Connect to MongoDB with enhanced options
-const connectionOptions = {
-  serverSelectionTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  family: 4
-};
-
-// Add Atlas-specific options if using cloud database
-if (MONGODB_URI.includes('mongodb+srv://')) {
-  connectionOptions.retryWrites = true;
-  connectionOptions.w = 'majority';
-}
-
-mongoose.connect(MONGODB_URI, connectionOptions).then(() => {
-  console.log('🍃 Connected to MongoDB successfully');
-  console.log('Database Name:', mongoose.connection.name);
-  console.log('Host:', mongoose.connection.host);
-  // Initialize admin user after successful connection
-  // require('./scripts/initAdmin')(); // Commented out - script not found
-}).catch((err) => {
-  console.error('MongoDB connection error details:', {
-    name: err.name,
-    message: err.message,
-    code: err.code,
-    codeName: err.codeName
-  });
-  if (err.name === 'MongoServerSelectionError') {
-    console.error('Could not connect to any MongoDB server.');
-    console.log('Please check:');
-    console.log('1. MongoDB Atlas connection string is correct');
-    console.log('2. Network connectivity is available');
-    console.log('3. IP address is whitelisted in MongoDB Atlas');
-    console.log('4. Username and password are correct');
+// Lazy MongoDB connection - triggered on first request
+async function ensureMongoConnected() {
+  // Already connected
+  if (mongoose.connection.readyState === 1) {
+    return true;
   }
-});
+
+  // Connection in progress
+  if (isConnecting && mongoConnectPromise) {
+    try {
+      await mongoConnectPromise;
+      return true;
+    } catch (err) {
+      console.error('Failed to connect to MongoDB:', err.message);
+      return false;
+    }
+  }
+
+  // No MongoDB URI configured
+  if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI not configured');
+    return false;
+  }
+
+  // Start connection attempt
+  isConnecting = true;
+  mongoConnectPromise = (async () => {
+    try {
+      const connectionOptions = {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 30000,
+        family: 4,
+        connectTimeoutMS: 5000
+      };
+
+      if (MONGODB_URI.includes('mongodb+srv://')) {
+        connectionOptions.retryWrites = true;
+        connectionOptions.w = 'majority';
+      }
+
+      await mongoose.connect(MONGODB_URI, connectionOptions);
+      console.log('🍃 Connected to MongoDB successfully');
+      isConnecting = false;
+      return true;
+    } catch (err) {
+      console.error('MongoDB connection error:', {
+        name: err.name,
+        message: err.message,
+        code: err.code
+      });
+      isConnecting = false;
+      mongoConnectPromise = null;
+      return false;
+    }
+  })();
+
+  try {
+    await mongoConnectPromise;
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
 
 // Kill existing connections on app shutdown
 process.on('SIGINT', async () => {
@@ -190,6 +223,32 @@ app.use(morgan('combined'));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Ensure MongoDB connection middleware (skip for health check)
+app.use('/api', async (req, res, next) => {
+  if (req.path === '/health') {
+    return next();
+  }
+  
+  try {
+    const connected = await ensureMongoConnected();
+    if (!connected) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database service unavailable',
+        error: 'Cannot connect to MongoDB'
+      });
+    }
+    next();
+  } catch (err) {
+    console.error('Connection middleware error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
 
 // Debug middleware for admin routes
 app.use('/api/admin', (req, res, next) => {
@@ -276,15 +335,29 @@ app.use('/api/admin/room-slots', require('./routes/admin/roomSlots'));
 // Friends System Routes
 app.use('/api/friends', require('./routes/friends-simple'));
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'GameOn API is running!',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
+// Health check endpoint - never crashes
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbConnected = mongoose.connection.readyState === 1;
+    const statusCode = dbConnected ? 200 : 503;
+    
+    res.status(statusCode).json({
+      success: dbConnected,
+      message: dbConnected ? 'GameOn API is running!' : 'Database connection unavailable',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      dbStatus: dbConnected ? 'connected' : 'disconnected',
+      mongoReady: mongoose.connection.readyState
+    });
+  } catch (err) {
+    console.error('Health check error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal error'
+    });
+  }
 });
 
 // 404 handler
@@ -297,18 +370,29 @@ app.use('*', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Global error handler:', err);
   
   // Don't leak error details in production
+  const statusCode = err.status || err.statusCode || 500;
   const message = process.env.NODE_ENV === 'production' 
-    ? 'Something went wrong!' 
+    ? 'Internal server error' 
     : err.message;
     
-  res.status(err.status || 500).json({
+  res.status(statusCode).json({
     success: false,
     message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
+});
+
+// Unhandled rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Uncaught exception handler
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
 });
 
 
