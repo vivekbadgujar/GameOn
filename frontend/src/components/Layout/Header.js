@@ -139,10 +139,10 @@ const Header = () => {
 
   const markNotificationsAsRead = () => {
     setUnreadCount(0);
-    // API call to mark as read
-    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesports.xyz/api';
-    fetch(`${apiUrl}/notifications/mark-read`, {
-      method: 'POST',
+    // API call to mark all user notifications as read
+    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
+    fetch(`${apiUrl}/user/notifications/read-all`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
