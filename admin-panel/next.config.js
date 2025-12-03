@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // Use "out" as the Next.js build directory so that Vercel
+  // finds routes-manifest.json at admin-panel/out/routes-manifest.json
+  // which matches the monorepo/root Vercel configuration.
+  distDir: 'out',
+
   images: {
     unoptimized: false,
   },

@@ -3,7 +3,7 @@
   "name": "gameon-admin-panel",
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
+  "outputDirectory": "out",
   "installCommand": "npm install --legacy-peer-deps",
   "build": {
     "env": {
