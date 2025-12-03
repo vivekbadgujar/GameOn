@@ -13,7 +13,14 @@
       "NEXT_PUBLIC_ADMIN_URL": "https://admin.gameonesport.xyz",
       "NEXT_PUBLIC_APP_NAME": "GameOn Admin",
       "NEXT_PUBLIC_APP_VERSION": "1.0.0",
-      "NODE_ENV": "production"
+      "NODE_ENV": "production",
+
+      "REACT_APP_API_URL": "https://api.gameonesport.xyz/api",
+      "REACT_APP_API_BASE_URL": "https://api.gameonesport.xyz",
+      "REACT_APP_FRONTEND_URL": "https://gameonesport.xyz",
+      "REACT_APP_ADMIN_URL": "https://admin.gameonesport.xyz",
+      "REACT_APP_APP_NAME": "GameOn Admin",
+      "REACT_APP_APP_VERSION": "1.0.0"
     }
   },
   "rewrites": [

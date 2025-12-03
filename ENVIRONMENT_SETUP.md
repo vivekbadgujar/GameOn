@@ -13,23 +13,33 @@ This guide explains how to set up environment variables for each part of your Ga
 # API Configuration
 REACT_APP_API_BASE_URL=http://localhost:5000/api
 REACT_APP_WS_URL=ws://localhost:5000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api
+NEXT_PUBLIC_WS_URL=ws://localhost:5000
 
 # App Configuration
 REACT_APP_APP_NAME=GameOn
 REACT_APP_APP_VERSION=1.0.0
 REACT_APP_LOGO_URL=http://localhost:3000/logo.png
+NEXT_PUBLIC_APP_NAME=GameOn
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_LOGO_URL=http://localhost:3000/logo.png
 ```
 
 ### Production (.env.production)
 ```env
 # API Configuration
-REACT_APP_API_BASE_URL=https://gameon-backend.onrender.com/api
-REACT_APP_WS_URL=wss://gameon-backend.onrender.com
+REACT_APP_API_BASE_URL=https://api.gameonesport.xyz/api
+REACT_APP_WS_URL=wss://api.gameonesport.xyz
+NEXT_PUBLIC_API_BASE_URL=https://api.gameonesport.xyz/api
+NEXT_PUBLIC_WS_URL=wss://api.gameonesport.xyz
 
 # App Configuration
 REACT_APP_APP_NAME=GameOn
 REACT_APP_APP_VERSION=1.0.0
 REACT_APP_LOGO_URL=/logo.png
+NEXT_PUBLIC_APP_NAME=GameOn
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_LOGO_URL=/logo.png
 
 # Environment
 REACT_APP_ENV=production
@@ -40,11 +50,16 @@ Go to your Vercel project → Settings → Environment Variables and add:
 
 | Variable | Value | Environment |
 |----------|-------|-------------|
-| `REACT_APP_API_BASE_URL` | `https://gameon-backend.onrender.com/api` | Production |
-| `REACT_APP_WS_URL` | `wss://gameon-backend.onrender.com` | Production |
+| `REACT_APP_API_BASE_URL` | `https://api.gameonesport.xyz/api` | Production |
+| `REACT_APP_WS_URL` | `wss://api.gameonesport.xyz` | Production |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.gameonesport.xyz/api` | Production |
+| `NEXT_PUBLIC_WS_URL` | `wss://api.gameonesport.xyz` | Production |
 | `REACT_APP_APP_NAME` | `GameOn` | All |
 | `REACT_APP_APP_VERSION` | `1.0.0` | All |
 | `REACT_APP_LOGO_URL` | `/logo.png` | Production |
+| `NEXT_PUBLIC_APP_NAME` | `GameOn` | All |
+| `NEXT_PUBLIC_APP_VERSION` | `1.0.0` | All |
+| `NEXT_PUBLIC_LOGO_URL` | `/logo.png` | Production |
 | `REACT_APP_ENV` | `production` | Production |
 
 ---
@@ -61,13 +76,17 @@ MONGO_URI=mongodb://localhost:27017/
 ### Production (.env.production)
 ```env
 # API Configuration
-REACT_APP_API_URL=https://gameon-backend.onrender.com/api
-REACT_APP_WS_URL=wss://gameon-backend.onrender.com
+REACT_APP_API_URL=https://api.gameonesport.xyz/api
+REACT_APP_WS_URL=wss://api.gameonesport.xyz
+NEXT_PUBLIC_API_URL=https://api.gameonesport.xyz/api
+NEXT_PUBLIC_API_BASE_URL=https://api.gameonesport.xyz
 
 # Admin Panel Configuration
 REACT_APP_APP_NAME=GameOn Admin
 REACT_APP_APP_VERSION=1.0.0
 REACT_APP_LOGO_URL=/logo.png
+NEXT_PUBLIC_APP_NAME=GameOn Admin
+NEXT_PUBLIC_APP_VERSION=1.0.0
 
 # Environment
 REACT_APP_ENV=production
@@ -81,8 +100,10 @@ Go to your admin panel Vercel project → Settings → Environment Variables and
 
 | Variable | Value | Environment |
 |----------|-------|-------------|
-| `REACT_APP_API_URL` | `https://gameon-backend.onrender.com/api` | Production |
-| `REACT_APP_WS_URL` | `wss://gameon-backend.onrender.com` | Production |
+| `REACT_APP_API_URL` | `https://api.gameonesport.xyz/api` | Production |
+| `REACT_APP_WS_URL` | `wss://api.gameonesport.xyz` | Production |
+| `NEXT_PUBLIC_API_URL` | `https://api.gameonesport.xyz/api` | Production |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.gameonesport.xyz` | Production |
 | `REACT_APP_APP_NAME` | `GameOn Admin` | All |
 | `REACT_APP_APP_VERSION` | `1.0.0` | All |
 | `REACT_APP_LOGO_URL` | `/logo.png` | Production |
@@ -100,7 +121,7 @@ Your backend is already deployed on Render. Ensure these variables are set:
 # Server Configuration
 NODE_ENV=production
 PORT=5000
-BASE_URL=https://gameon-backend.onrender.com
+BASE_URL=https://api.gameonesport.xyz
 
 # Database
 MONGODB_URI=your_mongodb_connection_string

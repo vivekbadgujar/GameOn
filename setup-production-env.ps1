@@ -93,6 +93,8 @@ CASHFREE_ENVIRONMENT=production
 "@
 
 # Frontend .env.production
+# Note: we set BOTH REACT_APP_* and NEXT_PUBLIC_* so that
+# legacy React-style code and Next.js code stay in sync.
 $frontendEnv = @"
 # API Configuration (Production)
 REACT_APP_API_BASE_URL=$apiDomain/api
@@ -110,9 +112,20 @@ REACT_APP_CASHFREE_ENVIRONMENT=production
 # Frontend URL
 REACT_APP_FRONTEND_URL=$frontendDomain
 REACT_APP_ADMIN_URL=$adminDomain
+
+# Next.js public equivalents
+NEXT_PUBLIC_API_BASE_URL=$apiDomain/api
+NEXT_PUBLIC_WS_URL=$($apiDomain -replace 'https://', 'wss://')
+NEXT_PUBLIC_APP_NAME=GameOn
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_LOGO_URL=$frontendDomain/logo.png
+NEXT_PUBLIC_FRONTEND_URL=$frontendDomain
+NEXT_PUBLIC_ADMIN_URL=$adminDomain
 "@
 
 # Admin Panel .env.production
+# Admin panel also receives BOTH REACT_APP_* and NEXT_PUBLIC_* variants
+# so that Next.js client code can safely read NEXT_PUBLIC_*.
 $adminEnv = @"
 # API Configuration (Production)
 REACT_APP_API_URL=$apiDomain/api
@@ -125,6 +138,14 @@ REACT_APP_APP_VERSION=1.0.0
 # URLs
 REACT_APP_FRONTEND_URL=$frontendDomain
 REACT_APP_ADMIN_URL=$adminDomain
+
+# Next.js public equivalents
+NEXT_PUBLIC_API_URL=$apiDomain/api
+NEXT_PUBLIC_API_BASE_URL=$apiDomain
+NEXT_PUBLIC_FRONTEND_URL=$frontendDomain
+NEXT_PUBLIC_ADMIN_URL=$adminDomain
+NEXT_PUBLIC_APP_NAME=GameOn Admin
+NEXT_PUBLIC_APP_VERSION=1.0.0
 "@
 
 # Write environment files

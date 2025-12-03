@@ -20,6 +20,8 @@ RATE_LIMIT_MAX_REQUESTS=100
 "@
 
 # Frontend environment variables
+# Note: We set BOTH legacy REACT_APP_* and Next.js-friendly NEXT_PUBLIC_* variables
+# so that all parts of the codebase receive consistent values.
 $frontendEnv = @"
 # API Configuration
 REACT_APP_API_BASE_URL=http://localhost:5000/api
@@ -29,6 +31,13 @@ REACT_APP_WS_URL=ws://localhost:5000
 REACT_APP_APP_NAME=GameOn
 REACT_APP_APP_VERSION=1.0.0
 REACT_APP_LOGO_URL=http://localhost:3000/logo.png
+
+# Next.js public variables (preferred for new code)
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000/api
+NEXT_PUBLIC_WS_URL=ws://localhost:5000
+NEXT_PUBLIC_APP_NAME=GameOn
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_LOGO_URL=http://localhost:3000/logo.png
 "@
 
 # Create backend .env file

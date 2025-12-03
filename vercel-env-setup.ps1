@@ -44,6 +44,7 @@ $frontendEnvContent = @"
 # Frontend Environment Variables for Vercel
 # Add these in your Vercel project settings under Environment Variables
 
+# Legacy React-style variables (still used in some components)
 REACT_APP_API_BASE_URL=$apiDomain/api
 REACT_APP_WS_URL=$($apiDomain -replace 'https://', 'wss://')
 REACT_APP_CASHFREE_APP_ID=$cashfreeAppId
@@ -53,6 +54,17 @@ REACT_APP_ADMIN_URL=$adminDomain
 REACT_APP_APP_NAME=GameOn
 REACT_APP_APP_VERSION=1.0.0
 REACT_APP_LOGO_URL=$frontendDomain/logo.png
+
+# Next.js public variables (preferred for new code)
+NEXT_PUBLIC_API_BASE_URL=$apiDomain/api
+NEXT_PUBLIC_WS_URL=$($apiDomain -replace 'https://', 'wss://')
+NEXT_PUBLIC_CASHFREE_APP_ID=$cashfreeAppId
+NEXT_PUBLIC_CASHFREE_ENVIRONMENT=production
+NEXT_PUBLIC_FRONTEND_URL=$frontendDomain
+NEXT_PUBLIC_ADMIN_URL=$adminDomain
+NEXT_PUBLIC_APP_NAME=GameOn
+NEXT_PUBLIC_APP_VERSION=1.0.0
+NEXT_PUBLIC_LOGO_URL=$frontendDomain/logo.png
 "@
 
 # Admin Panel Environment Variables for Vercel
@@ -66,6 +78,13 @@ REACT_APP_FRONTEND_URL=$frontendDomain
 REACT_APP_ADMIN_URL=$adminDomain
 REACT_APP_APP_NAME=GameOn Admin
 REACT_APP_APP_VERSION=1.0.0
+
+NEXT_PUBLIC_API_URL=$apiDomain/api
+NEXT_PUBLIC_API_BASE_URL=$apiDomain
+NEXT_PUBLIC_FRONTEND_URL=$frontendDomain
+NEXT_PUBLIC_ADMIN_URL=$adminDomain
+NEXT_PUBLIC_APP_NAME=GameOn Admin
+NEXT_PUBLIC_APP_VERSION=1.0.0
 "@
 
 # Vercel CLI Commands
