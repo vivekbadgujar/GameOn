@@ -2,9 +2,6 @@
   "version": 2,
   "name": "gameon-admin-panel",
   "framework": "nextjs",
-  "buildCommand": "npm ci --legacy-peer-deps && npm run build",
-  "outputDirectory": ".next",
-  "installCommand": null,
   "nodeVersion": "18.x",
   "build": {
     "env": {

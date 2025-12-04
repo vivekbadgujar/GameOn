@@ -11,9 +11,6 @@ export const metadata = {
     follow: false,
   },
   viewport: 'width=device-width, initial-scale=1.0, maximum-scale=5.0',
-  icons: {
-    icon: '/favicon.ico',
-  },
 }
 
 export const viewport = {
@@ -28,7 +25,6 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="robots" content="noindex, nofollow" />
         <meta name="googlebot" content="noindex, nofollow" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className={inter.className}>
         <div id="root" style={{ minHeight: '100vh' }}>
