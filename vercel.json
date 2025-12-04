@@ -6,6 +6,10 @@
       "use": "@vercel/next"
     },
     {
+      "src": "admin-panel/next.config.js",
+      "use": "@vercel/next"
+    },
+    {
       "src": "backend/server.js",
       "use": "@vercel/node"
     }
