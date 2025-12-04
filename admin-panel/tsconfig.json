@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -19,17 +23,48 @@
     "noImplicitReturns": false,
     "allowJs": true,
     "checkJs": false,
-    "types": ["jest", "@testing-library/jest-dom"],
+    "types": [
+      "jest",
+      "@testing-library/jest-dom"
+    ],
     "paths": {
-      "@/*": ["./*"],
-      "@components/*": ["./src/components/*"],
-      "@services/*": ["./src/services/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@contexts/*": ["./src/contexts/*"],
-      "@theme/*": ["./src/theme/*"],
-      "@assets/*": ["./src/assets/*"]
-    }
+      "@/*": [
+        "./*"
+      ],
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@services/*": [
+        "./src/services/*"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+      "@contexts/*": [
+        "./src/contexts/*"
+      ],
+      "@theme/*": [
+        "./src/theme/*"
+      ],
+      "@assets/*": [
+        "./src/assets/*"
+      ]
+    },
+    "incremental": true,
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
