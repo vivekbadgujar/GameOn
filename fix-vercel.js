@@ -1,0 +1,3 @@
+const fs = require('fs');
+const data = {version: 2, rewrites: [{source: \"/api/^(.*^)^\", destination: \"/backend/server.js^\"}, {source: \"/^(.*^)^\", has: [{type: \"host^\", value: \"gameonesportbackend.xyz^\"}], destination: \"/backend/server.js^\"}, {source: \"/^(.*^)^\", has: [{type: \"host^\", value: \"gameonesportadmin.xyz^\"}], destination: \"/admin-panel/$1^\"}, {source: \"/admin^\", destination: \"/admin-panel^\"}, {source: \"/admin/^(.*^)^\", destination: \"/admin-panel/$1^\"}, {source: \"/^(.*^)^\", destination: \"/frontend/$1^\"}]};
+fs.writeFileSync('vercel.json', JSON.stringify(data, null, 2));
