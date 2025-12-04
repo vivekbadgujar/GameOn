@@ -10,18 +10,28 @@ export const metadata = {
     index: false,
     follow: false,
   },
+  viewport: 'width=device-width, initial-scale=1.0, maximum-scale=5.0',
+  icons: {
+    icon: '/favicon.ico',
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className={inter.className}>
-        <div id="root">
+        <div id="root" style={{ minHeight: '100vh' }}>
           {children}
         </div>
         <div id="modal-root"></div>

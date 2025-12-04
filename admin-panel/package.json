@@ -9,8 +9,7 @@
     "lint": "next lint",
     "export": "next build && next export",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "vercel-build": "next build"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
@@ -50,5 +49,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=9.0.0"
   }
 }
