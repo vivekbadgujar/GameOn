@@ -3,8 +3,9 @@
   "name": "gameon-admin-panel",
   "framework": "nextjs",
   "nodeVersion": "18.x",
-  "installCommand": "node -v && npm -v && npm ci --legacy-peer-deps",
-  "buildCommand": "npm run build",
+"installCommand": "npm ci --legacy-peer-deps",
+"buildCommand": "next build",
+
   "build": {
     "env": {
       "NEXT_PUBLIC_API_URL": "@NEXT_PUBLIC_API_URL",
