@@ -3,8 +3,8 @@
   "name": "gameon-admin-panel",
   "framework": "nextjs",
   "nodeVersion": "18.x",
-"installCommand": "npm ci --legacy-peer-deps",
-"buildCommand": "next build",
+  "installCommand": "npm ci --legacy-peer-deps",
+  "buildCommand": "next build",
 
   "build": {
     "env": {
