@@ -2,39 +2,6 @@
   "version": 2,
   "name": "gameon-admin-panel",
   "framework": "nextjs",
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_API_URL": "@NEXT_PUBLIC_API_URL",
-      "NEXT_PUBLIC_API_BASE_URL": "@NEXT_PUBLIC_API_BASE_URL",
-      "NEXT_PUBLIC_FRONTEND_URL": "@NEXT_PUBLIC_FRONTEND_URL",
-      "NEXT_PUBLIC_ADMIN_URL": "@NEXT_PUBLIC_ADMIN_URL",
-      "NEXT_PUBLIC_APP_NAME": "GameOn Admin",
-      "NEXT_PUBLIC_APP_VERSION": "1.0.0",
-      "NODE_ENV": "production"
-    }
-  },
-  "env": {
-    "NEXT_PUBLIC_API_URL": {
-      "required": false,
-      "description": "API URL for admin panel",
-      "example": "https://api.gameonesport.xyz/api"
-    },
-    "NEXT_PUBLIC_API_BASE_URL": {
-      "required": false,
-      "description": "Base API URL",
-      "example": "https://api.gameonesport.xyz"
-    },
-    "NEXT_PUBLIC_FRONTEND_URL": {
-      "required": false,
-      "description": "Frontend URL",
-      "example": "https://gameonesport.xyz"
-    },
-    "NEXT_PUBLIC_ADMIN_URL": {
-      "required": false,
-      "description": "Admin panel URL",
-      "example": "https://admin.gameonesport.xyz"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
