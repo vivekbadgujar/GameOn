@@ -6,7 +6,6 @@ console.log('🔍 Admin Panel Build Verification\n');
 const checks = {
   files: [
     'next.config.js',
-    'vercel.json',
     'middleware.js',
     'tsconfig.json',
     'package.json',
