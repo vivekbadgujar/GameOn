@@ -40,9 +40,7 @@ if (!isServerless) {
       origin: process.env.NODE_ENV === 'production' 
         ? [
             'https://gameonesport.xyz',
-            'https://www.gameonesport.xyz',
-            'https://admin.gameonesport.xyz',
-            'https://api.gameonesport.xyz'
+            'https://admin.gameonesport.xyz'
           ]
         : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
       credentials: true,
@@ -198,12 +196,10 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // Allow specific production domains
+        // Allow ONLY these production domains (no www, no api subdomain)
         const allowedOrigins = [
           'https://gameonesport.xyz',
-          'https://www.gameonesport.xyz',
-          'https://admin.gameonesport.xyz',
-          'https://api.gameonesport.xyz'
+          'https://admin.gameonesport.xyz'
         ];
         
         if (allowedOrigins.includes(origin)) {

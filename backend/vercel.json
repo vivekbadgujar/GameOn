@@ -1,20 +1,17 @@
 {
   "version": 2,
+  "framework": null,
+  "buildCommand": "npm install",
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/server.js"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
-    "api/index.js": {
+    "server.js": {
       "maxDuration": 30,
       "memory": 1024
     }
-  },
-  "buildCommand": "npm ci --production",
-  "framework": "express"
+  }
 }

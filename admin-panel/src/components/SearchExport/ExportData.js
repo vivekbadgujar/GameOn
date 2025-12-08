@@ -73,7 +73,7 @@ const ExportData = () => {
     onSuccess: (data) => {
       if (data.data && data.data.downloadUrl) {
         // Download the file using the provided URL
-        window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${data.data.downloadUrl}`, '_blank');
+        window.open(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}${data.data.downloadUrl}`, '_blank');
       }
       setExportDialog(false);
     },
@@ -399,7 +399,7 @@ const ExportData = () => {
                             variant="outlined"
                             startIcon={<CloudDownload />}
                             onClick={() => {
-                              window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${exportItem.downloadUrl}`, '_blank');
+                              window.open(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}${exportItem.downloadUrl}`, '_blank');
                             }}
                           >
                             Download

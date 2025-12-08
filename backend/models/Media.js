@@ -133,15 +133,18 @@ MediaSchema.virtual('sizeFormatted').get(function() {
 });
 
 // Virtual for full URL
+// Production fallback: https://api.gameonesport.xyz (NO localhost in production)
 MediaSchema.virtual('fullUrl').get(function() {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+  const baseUrl = process.env.BASE_URL || 
+                  (process.env.NODE_ENV === 'production' ? 'https://api.gameonesport.xyz' : 'http://localhost:5000');
   return `${baseUrl}${this.url}`;
 });
 
 // Virtual for thumbnail URL (for images)
 MediaSchema.virtual('thumbnailUrl').get(function() {
   if (this.type === 'image' || this.mimeType.startsWith('image/')) {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const baseUrl = process.env.BASE_URL || 
+                    (process.env.NODE_ENV === 'production' ? 'https://api.gameonesport.xyz' : 'http://localhost:5000');
     return `${baseUrl}/uploads/thumbnails/${this.filename}`;
   }
   return null;

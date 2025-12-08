@@ -404,7 +404,9 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
 
     // Auto-assign player to room slot after successful payment
     try {
-      const roomSlotResponse = await fetch(`${process.env.API_URL || 'http://localhost:5000'}/api/room-slots/tournament/${id}/assign`, {
+      // Use internal API URL - in production this should be the same server
+      const apiBaseUrl = process.env.API_URL || process.env.BASE_URL || (process.env.NODE_ENV === 'production' ? 'https://api.gameonesport.xyz' : 'http://localhost:5000');
+      const roomSlotResponse = await fetch(`${apiBaseUrl}/api/room-slots/tournament/${id}/assign`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${req.headers.authorization?.split(' ')[1]}`,

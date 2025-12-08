@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://gameonesportbackend.xyz/api';
+// Production API URL - NO localhost fallback
+// Backend API always uses /api prefix: https://api.gameonesport.xyz/api
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+                     process.env.NEXT_PUBLIC_API_BASE_URL || 
+                     'https://api.gameonesport.xyz/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

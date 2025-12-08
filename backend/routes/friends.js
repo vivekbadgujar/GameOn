@@ -555,7 +555,7 @@ router.get('/referral', auth, async (req, res) => {
     let currentTier = tiers.find(tier => referralCount >= tier.required) || tiers[0];
     let nextTier = tiers.find(tier => referralCount < tier.required);
 
-    const referralLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?ref=${user.referral.code}`;
+    const referralLink = `${process.env.FRONTEND_URL || 'https://gameonesport.xyz'}/register?ref=${user.referral.code}`;
 
     res.json({
       success: true,

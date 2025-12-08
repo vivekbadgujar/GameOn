@@ -2,8 +2,13 @@ const config = {
   // API Configuration - Production API endpoint
   // Use NEXT_PUBLIC_* env vars for Next.js (automatically available in browser)
   // Ensure no trailing slash and correct path
-  API_BASE_URL: (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, ''),
+  // Production fallback: https://api.gameonesport.xyz/api (NO localhost fallback)
+  API_BASE_URL: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, ''),
   WS_URL: (process.env.NEXT_PUBLIC_WS_URL || 'wss://api.gameonesport.xyz').replace(/\/$/, ''),
+  
+  // Frontend and Admin URLs for production
+  FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz',
+  ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz',
 
   // Cashfree Configuration
   CASHFREE_APP_ID: process.env.NEXT_PUBLIC_CASHFREE_APP_ID || process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',
