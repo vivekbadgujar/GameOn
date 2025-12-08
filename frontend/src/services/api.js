@@ -248,6 +248,17 @@ export const getTournaments = async (params = {}) => {
     console.log('API: Fetching tournaments with params:', queryParams);
     
     const response = await api.get('/tournaments', { params: queryParams });
+    
+    // Handle 204 No Content or empty response
+    if (response.status === 204 || !response.data) {
+      console.log('API: Tournaments endpoint returned 204 or empty response');
+      return {
+        success: true,
+        tournaments: [],
+        message: 'No tournaments available'
+      };
+    }
+    
     console.log('API: Full tournament response:', response.data);
     console.log('API: Response structure:', {
       success: response.data?.success,
@@ -261,9 +272,10 @@ export const getTournaments = async (params = {}) => {
     console.log('API: Tournament titles:', tournaments.map(t => t.title));
     
     return {
-      success: response.data?.success || true,
+      success: response.data?.success !== false, // Default to true if not explicitly false
       tournaments: tournaments,
-      message: response.data?.message || 'Tournaments fetched successfully'
+      message: response.data?.message || 'Tournaments fetched successfully',
+      error: null
     };
   } catch (error) {
     console.error('API: Error fetching tournaments:', error);
@@ -272,17 +284,21 @@ export const getTournaments = async (params = {}) => {
       response: error.response?.data,
       status: error.response?.status,
       url: error.config?.url,
-      baseURL: error.config?.baseURL
+      baseURL: error.config?.baseURL,
+      hasResponse: !!error.response
     });
     
-    // Return empty array instead of throwing to prevent page crashes
+    // Return error object that preserves whether it was a network error
     return {
       success: false,
       tournaments: [],
+      error: error, // Preserve error object for proper checking
       message: error.response?.status === 404 
         ? 'Tournaments endpoint not found' 
         : error.response?.status === 500
         ? 'Server error'
+        : error.response?.status === 204
+        ? 'No tournaments available'
         : 'Failed to fetch tournaments'
     };
   }
@@ -388,10 +404,29 @@ export const getYouTubeVideos = async (searchTerm = '') => {
     }
 
     const response = await api.get(`/youtube/videos${searchTerm ? `?search=${searchTerm}` : ''}`);
-    return response.data;
+    
+    // Handle 204 No Content or empty response
+    if (response.status === 204 || !response.data) {
+      console.log('API: YouTube videos endpoint returned 204 or empty response');
+      return { success: true, videos: [], message: 'No videos available' };
+    }
+    
+    // Ensure videos array exists
+    const videos = response.data?.videos || [];
+    return {
+      success: response.data?.success !== false,
+      videos: videos,
+      message: response.data?.message || 'Videos fetched successfully',
+      error: null
+    };
   } catch (error) {
     console.error('Error fetching YouTube videos:', error);
-    return { success: false, videos: [], error: error.message };
+    return { 
+      success: false, 
+      videos: [], 
+      error: error, // Preserve error object for proper checking
+      message: error.message 
+    };
   }
 };
 
@@ -478,10 +513,37 @@ export const getLeaderboard = async (type = 'overall', timeFilter = 'all', limit
     const response = await api.get('/stats/leaderboard', {
       params: { type, timeFilter, limit }
     });
-    return response.data;
+    
+    // Handle 204 No Content or empty response
+    if (response.status === 204 || !response.data) {
+      console.log('API: Leaderboard endpoint returned 204 or empty response');
+      return { success: true, players: [], message: 'No leaderboard data available' };
+    }
+    
+    // Handle different response structures
+    let players = [];
+    if (response.data?.players) {
+      players = Array.isArray(response.data.players) ? response.data.players : [];
+    } else if (response.data?.data?.leaderboard) {
+      players = Array.isArray(response.data.data.leaderboard) ? response.data.data.leaderboard : [];
+    } else if (Array.isArray(response.data)) {
+      players = response.data;
+    }
+    
+    return {
+      success: response.data?.success !== false,
+      players: players,
+      message: response.data?.message || 'Leaderboard fetched successfully',
+      error: null
+    };
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
-    return { success: false, players: [], error: error.message };
+    return { 
+      success: false, 
+      players: [], 
+      error: error, // Preserve error object for proper checking
+      message: error.message 
+    };
   }
 };
 

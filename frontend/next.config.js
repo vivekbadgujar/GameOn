@@ -27,6 +27,17 @@ const nextConfig = {
     NEXT_PUBLIC_LOGO_URL: process.env.NEXT_PUBLIC_LOGO_URL || 'https://gameonesport.xyz/logo.png',
   },
 
+  // Redirects for route aliases
+  async redirects() {
+    return [
+      {
+        source: '/dashboard',
+        destination: '/',
+        permanent: false, // Use 307 temporary redirect to allow route change later
+      },
+    ];
+  },
+
   // API rewrites for backend integration
   async rewrites() {
     return [

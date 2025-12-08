@@ -26,7 +26,8 @@ export const testApiConnection = async () => {
     console.log('Health check response status:', response.status);
     console.log('Health check response headers:', Object.fromEntries(response.headers.entries()));
     
-    if (!response.ok) {
+    // Accept 200 (OK) or 204 (No Content) as success - both indicate server is reachable
+    if (!response.ok && response.status !== 204) {
       const text = await response.text();
       console.error('Health check failed:', {
         status: response.status,
@@ -40,7 +41,27 @@ export const testApiConnection = async () => {
       };
     }
     
-    const data = await response.json();
+    // Handle 204 No Content (empty response is valid)
+    if (response.status === 204) {
+      console.log('✅ Health check successful (204 No Content)');
+      return {
+        success: true,
+        status: 204,
+        data: null,
+        message: 'Backend is accessible'
+      };
+    }
+    
+    // Parse JSON for 200 responses
+    let data;
+    try {
+      const text = await response.text();
+      data = text ? JSON.parse(text) : null;
+    } catch (e) {
+      // If JSON parsing fails but status was ok, still treat as success
+      data = null;
+    }
+    
     console.log('✅ Health check successful:', data);
     
     return {

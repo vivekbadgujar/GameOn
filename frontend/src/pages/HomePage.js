@@ -18,73 +18,137 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
       
-      // First, test API connection
-      console.log('🔍 Testing API connection...');
-      console.log('API Base URL:', config.API_BASE_URL);
-      const connectionTest = await testApiConnection();
-      
-      if (!connectionTest.success) {
-        console.error('❌ API connection test failed:', connectionTest);
-        setError(connectionTest.message || 'Unable to connect to server. Please check your connection and try again.');
-        setLoading(false);
-        return;
-      }
-      
-      console.log('✅ API connection test passed');
-      
       try {
         // Fetch data with individual error handling
         const [tData, vData, pData] = await Promise.allSettled([
           getTournaments().catch(err => {
-            console.error('Error fetching tournaments:', err);
-            return { success: false, tournaments: [] };
+            console.error('Error fetching tournaments:', {
+              message: err.message,
+              response: err.response,
+              status: err.response?.status,
+              config: err.config
+            });
+            return { success: false, error: err, tournaments: [] };
           }),
           getYouTubeVideos().catch(err => {
-            console.error('Error fetching videos:', err);
-            return { success: false, videos: [] };
+            console.error('Error fetching videos:', {
+              message: err.message,
+              response: err.response,
+              status: err.response?.status,
+              config: err.config
+            });
+            return { success: false, error: err, videos: [] };
           }),
           getLeaderboard('overall', 'month', 10).catch(err => {
-            console.error('Error fetching leaderboard:', err);
-            return { success: false, players: [] };
+            console.error('Error fetching leaderboard:', {
+              message: err.message,
+              response: err.response,
+              status: err.response?.status,
+              config: err.config
+            });
+            return { success: false, error: err, players: [] };
           })
         ]);
 
-        // Extract data from settled promises
-        const tournaments = tData.status === 'fulfilled' 
-          ? (Array.isArray(tData.value) ? tData.value : tData.value?.tournaments || [])
-          : [];
-        const videos = vData.status === 'fulfilled' 
-          ? (vData.value?.videos || [])
-          : [];
-        const players = pData.status === 'fulfilled' 
-          ? (pData.value?.players || [])
-          : [];
+        // Extract data from settled promises, handling both fulfilled and rejected cases
+        let tournaments = [];
+        let videos = [];
+        let players = [];
+        let networkErrors = [];
+        let emptyData = [];
+
+        if (tData.status === 'fulfilled') {
+          const value = tData.value;
+          if (Array.isArray(value)) {
+            tournaments = value;
+          } else if (value?.tournaments) {
+            tournaments = Array.isArray(value.tournaments) ? value.tournaments : [];
+          }
+          if (tournaments.length === 0 && value?.error) {
+            // Check if this is a real network error or just empty data
+            if (!value.error.response) {
+              networkErrors.push('Tournaments');
+            } else {
+              emptyData.push('Tournaments');
+            }
+          }
+        } else {
+          // Rejected promise - check if it's a network error
+          const error = tData.reason;
+          if (!error.response) {
+            networkErrors.push('Tournaments');
+          }
+        }
+
+        if (vData.status === 'fulfilled') {
+          const value = vData.value;
+          if (value?.videos) {
+            videos = Array.isArray(value.videos) ? value.videos : [];
+          }
+          if (videos.length === 0 && value?.error) {
+            if (!value.error.response) {
+              networkErrors.push('Videos');
+            } else {
+              emptyData.push('Videos');
+            }
+          }
+        } else {
+          const error = vData.reason;
+          if (!error.response) {
+            networkErrors.push('Videos');
+          }
+        }
+
+        if (pData.status === 'fulfilled') {
+          const value = pData.value;
+          if (value?.players) {
+            players = Array.isArray(value.players) ? value.players : [];
+          } else if (value?.data?.leaderboard) {
+            players = Array.isArray(value.data.leaderboard) ? value.data.leaderboard : [];
+          }
+          if (players.length === 0 && value?.error) {
+            if (!value.error.response) {
+              networkErrors.push('Leaderboard');
+            } else {
+              emptyData.push('Leaderboard');
+            }
+          }
+        } else {
+          const error = pData.reason;
+          if (!error.response) {
+            networkErrors.push('Leaderboard');
+          }
+        }
 
         setTournaments(tournaments.slice(0, 3));
         setVideos(videos.slice(0, 3));
         setPlayers(players);
         
-        // Only show error if all requests failed
-        if (tournaments.length === 0 && videos.length === 0 && players.length === 0) {
-          // Try to get more specific error information
-          const errors = [];
-          if (tData.status === 'rejected') errors.push('Tournaments');
-          if (vData.status === 'rejected') errors.push('Videos');
-          if (pData.status === 'rejected') errors.push('Leaderboard');
-          
-          const errorDetails = errors.length > 0 ? ` (${errors.join(', ')} failed)` : '';
+        // Only show error for real network failures (no response from server)
+        // Empty data (204, empty arrays) is NOT an error
+        if (networkErrors.length > 0) {
+          const errorDetails = networkErrors.length > 0 ? ` (${networkErrors.join(', ')} failed to connect)` : '';
           setError(`Unable to connect to server${errorDetails}. Please check your connection and try again.`);
           
-          // Log detailed error for debugging
-          console.error('All API calls failed:', {
+          console.error('Network connection failures:', {
+            networkErrors,
             tournaments: tData,
             videos: vData,
             leaderboard: pData
           });
+        } else if (emptyData.length > 0 && tournaments.length === 0 && videos.length === 0 && players.length === 0) {
+          // All data is empty but server responded - this is not an error, just no data
+          setError('No data available right now. Please check back later.');
         }
+        // Otherwise, some data loaded successfully - no error message needed
       } catch (err) {
         console.error('Unexpected error:', err);
-        setError('Failed to load data. Please refresh the page.');
+        // Only show connection error if there's no response (network failure)
+        if (!err.response) {
+          setError('Unable to connect to server. Please check your connection and try again.');
+        } else {
+          setError('Failed to load data. Please refresh the page.');
+        }
       } finally {
         setLoading(false);
       }
