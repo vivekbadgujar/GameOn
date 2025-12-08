@@ -24,10 +24,15 @@ if (isServerless) {
 const app = express();
 
 // Canonical production origins (no localhost fallbacks anywhere)
+const canonicalFrontend = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz').replace(/\/$/, '');
+const canonicalAdmin = (process.env.ADMIN_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz').replace(/\/$/, '');
+
 const allowedOrigins = [
-  (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz').replace(/\/$/, ''),
-  (process.env.ADMIN_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz').replace(/\/$/, '')
-];
+  canonicalFrontend,
+  canonicalAdmin,
+  `https://www.${canonicalFrontend.replace(/^https?:\/\//, '')}`,
+  `https://www.${canonicalAdmin.replace(/^https?:\/\//, '')}`,
+].filter(Boolean);
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // allow server-to-server/health checks
