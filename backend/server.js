@@ -23,6 +23,17 @@ if (isServerless) {
 // Create Express app first
 const app = express();
 
+// Canonical production origins (no localhost fallbacks anywhere)
+const allowedOrigins = [
+  (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz').replace(/\/$/, ''),
+  (process.env.ADMIN_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz').replace(/\/$/, '')
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // allow server-to-server/health checks
+  return allowedOrigins.includes(origin.replace(/\/$/, ''));
+};
+
 // Import unified platform services
 let syncService, pushNotificationService;
 let server, io;
@@ -37,12 +48,12 @@ if (!isServerless) {
   server = createServer(app);
   io = new Server(server, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? [
-            'https://gameonesport.xyz',
-            'https://admin.gameonesport.xyz'
-          ]
-        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       methods: ['GET', 'POST']
     },
@@ -190,41 +201,13 @@ app.use(compression());
 
 // Security middleware
 app.use(helmet());
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Allow ONLY these production domains (no www, no api subdomain)
-        const allowedOrigins = [
-          'https://gameonesport.xyz',
-          'https://admin.gameonesport.xyz'
-        ];
-        
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        
-        return callback(new Error('Not allowed by CORS'));
-      }
-    : function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Allow any localhost origin during development
-        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-          return callback(null, true);
-        }
-        
-        // Allow specific origins
-        const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        
-        return callback(new Error('Not allowed by CORS'));
-      },
+  origin: function(origin, callback) {
+    // Allow server-to-server and health checks (no origin) while restricting browsers
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -901,7 +884,7 @@ if (!isServerless && process.env.NODE_ENV !== 'production' && require.main === m
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📱 CORS enabled for: ${process.env.NODE_ENV === 'production' ? 'production domains' : 'localhost:3000, localhost:3001'}`);
+    console.log('📱 CORS enabled for: https://gameonesport.xyz, https://admin.gameonesport.xyz');
     console.log(`⚡ Socket.IO enabled for real-time features`);
     console.log(`🔄 Unified Platform Sync Service initialized`);
     console.log(`📱 Push Notification Service initialized`);

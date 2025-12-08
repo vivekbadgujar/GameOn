@@ -18,6 +18,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Card, Button, Chip } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+
+const API_BASE_URL = (process.env.API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 import CountDown from 'react-native-countdown-component';
 
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -55,7 +57,7 @@ const RoomLobbyScreen = ({ route, navigation }) => {
       }
       
       // Fetch tournament details
-      const tournamentResponse = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`, {
+      const tournamentResponse = await fetch(`${API_BASE_URL}/api/tournaments/${tournamentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -70,7 +72,7 @@ const RoomLobbyScreen = ({ route, navigation }) => {
       setTournament(tournamentData.tournament);
       
       // Fetch room slot data
-      const roomResponse = await fetch(`http://localhost:5000/api/room-slots/tournament/${tournamentId}`, {
+      const roomResponse = await fetch(`${API_BASE_URL}/api/room-slots/tournament/${tournamentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

@@ -5,7 +5,7 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = (process.env.API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 
 // Async thunks
 export const fetchNotifications = createAsyncThunk(

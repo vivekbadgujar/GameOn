@@ -6,7 +6,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://localhost:5000'; // This should be configurable
+const API_BASE_URL = (process.env.API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 
 // Async thunks
 export const loginUser = createAsyncThunk(

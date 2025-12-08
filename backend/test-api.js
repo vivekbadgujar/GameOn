@@ -5,7 +5,7 @@
 
 const axios = require('axios');
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = (process.env.API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
 
 async function testAuthAPI() {
   console.log('🧪 Testing Authentication API Endpoints...\n');

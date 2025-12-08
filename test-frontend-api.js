@@ -4,9 +4,9 @@
 
 const axios = require('axios');
 
-// Simulate the frontend API configuration
+// Simulate the frontend API configuration against production API
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'https://api.gameonesport.xyz/api',
   withCredentials: true,
   timeout: 30000,
 });
@@ -21,8 +21,8 @@ api.interceptors.request.use((config) => {
   
   // Add headers that frontend would send
   config.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-  config.headers['Origin'] = 'http://localhost:3000';
-  config.headers['Referer'] = 'http://localhost:3000/tournaments';
+  config.headers['Origin'] = 'https://gameonesport.xyz';
+  config.headers['Referer'] = 'https://gameonesport.xyz/tournaments';
   
   console.log('Request headers:', config.headers);
   return config;
