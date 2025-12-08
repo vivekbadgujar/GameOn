@@ -1,17 +1,16 @@
 {
   "version": 2,
-  "framework": null,
   "buildCommand": "npm install",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
-    }
-  ],
   "functions": {
-    "server.js": {
-      "maxDuration": 30,
-      "memory": 1024
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 30
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.js"
+    }
+  ]
 }
