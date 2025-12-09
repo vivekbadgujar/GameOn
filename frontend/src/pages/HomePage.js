@@ -124,6 +124,58 @@ export default function HomePage() {
         setVideos(videos.slice(0, 3));
         setPlayers(players);
         
+        console.error('API ERROR DEBUG', {
+          tData: {
+            status: tData.status,
+            value: tData.status === 'fulfilled' ? {
+              success: tData.value?.success,
+              hasError: !!tData.value?.error,
+              errorHasResponse: !!tData.value?.error?.response,
+              errorStatus: tData.value?.error?.response?.status,
+              tournamentsLength: Array.isArray(tData.value?.tournaments) ? tData.value.tournaments.length : (Array.isArray(tData.value) ? tData.value.length : 0)
+            } : {
+              reason: tData.reason?.message,
+              hasResponse: !!tData.reason?.response,
+              status: tData.reason?.response?.status
+            }
+          },
+          vData: {
+            status: vData.status,
+            value: vData.status === 'fulfilled' ? {
+              success: vData.value?.success,
+              hasError: !!vData.value?.error,
+              errorHasResponse: !!vData.value?.error?.response,
+              errorStatus: vData.value?.error?.response?.status,
+              videosLength: Array.isArray(vData.value?.videos) ? vData.value.videos.length : 0
+            } : {
+              reason: vData.reason?.message,
+              hasResponse: !!vData.reason?.response,
+              status: vData.reason?.response?.status
+            }
+          },
+          pData: {
+            status: pData.status,
+            value: pData.status === 'fulfilled' ? {
+              success: pData.value?.success,
+              hasError: !!pData.value?.error,
+              errorHasResponse: !!pData.value?.error?.response,
+              errorStatus: pData.value?.error?.response?.status,
+              playersLength: Array.isArray(pData.value?.players) ? pData.value.players.length : (Array.isArray(pData.value?.data?.leaderboard) ? pData.value.data.leaderboard.length : 0)
+            } : {
+              reason: pData.reason?.message,
+              hasResponse: !!pData.reason?.response,
+              status: pData.reason?.response?.status
+            }
+          },
+          networkErrors,
+          emptyData,
+          finalData: {
+            tournamentsLength: tournaments.length,
+            videosLength: videos.length,
+            playersLength: players.length
+          }
+        });
+        
         // Only show error for real network failures (no response from server)
         // Empty data (204, empty arrays) is NOT an error
         if (networkErrors.length > 0) {
@@ -167,7 +219,7 @@ export default function HomePage() {
     }, 2500);
     return () => clearInterval(interval);
   }, [players, controls]);
-
+  
   if (loading) return <div className="text-center text-secondary py-12">Loading...</div>;
   if (error) return <div className="text-center text-accent-red py-12">{error}</div>;
 

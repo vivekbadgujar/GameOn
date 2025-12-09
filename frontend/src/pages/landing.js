@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import Head from 'next/head';
 
-// Dynamically import Dashboard component that might use window/document
-const Dashboard = dynamic(() => import('./Dashboard'), { 
+// Dynamically import HomePage component that might use window/document
+const HomePage = dynamic(() => import('./HomePage'), { 
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center">
@@ -13,7 +13,7 @@ const Dashboard = dynamic(() => import('./Dashboard'), {
   )
 });
 
-export default function Home() {
+export default function Landing() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <Dashboard />
+        <HomePage />
       </motion.div>
     </>
   );

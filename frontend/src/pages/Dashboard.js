@@ -161,7 +161,7 @@ const Dashboard = () => {
       description: 'Watch ongoing tournaments',
       icon: Play,
       color: 'from-red-500 to-pink-400',
-      link: '/videos',
+      link: '/media',
       action: 'secondary'
     },
     {
@@ -246,7 +246,7 @@ const Dashboard = () => {
               return (
                 <Link
                   key={index}
-                  to={action.link}
+                  href={action.link}
                   className="group"
                 >
                   <div
@@ -306,7 +306,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Upcoming Tournaments</h2>
             <Link
-              to="/tournaments"
+              href="/tournaments"
               className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors duration-300"
             >
               <span>View All</span>
@@ -331,7 +331,7 @@ const Dashboard = () => {
               <Calendar className="w-12 h-12 text-white/40 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No Upcoming Tournaments</h3>
               <p className="text-white/60 mb-4">Check back later for new tournaments</p>
-              <Link to="/tournaments" className="btn-primary inline-flex items-center space-x-2">
+              <Link href="/tournaments" className="btn-primary inline-flex items-center space-x-2">
                 <Trophy className="w-4 h-4" />
                 <span>Browse All Tournaments</span>
               </Link>

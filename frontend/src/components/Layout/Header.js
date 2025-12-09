@@ -52,7 +52,7 @@ const Header = () => {
 
   // Navigation items
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Home },
+    { path: '/', label: 'Dashboard', icon: Home },
     { path: '/tournaments', label: 'Tournaments', icon: Trophy },
     { path: '/friends', label: 'Friends', icon: Users },
     { path: '/media', label: 'Videos & Gallery', icon: Play },
@@ -166,7 +166,7 @@ const Header = () => {
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center">
+          <Link href="/" className="flex items-center">
             <Logo size="md" showText={true} />
           </Link>
 

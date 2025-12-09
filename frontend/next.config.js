@@ -30,10 +30,11 @@ const nextConfig = {
   // Redirects for route aliases
   async redirects() {
     return [
+      // Redirect /dashboard to / since Dashboard is now the home page
       {
         source: '/dashboard',
         destination: '/',
-        permanent: false, // Use 307 temporary redirect to allow route change later
+        permanent: false,
       },
     ];
   },
