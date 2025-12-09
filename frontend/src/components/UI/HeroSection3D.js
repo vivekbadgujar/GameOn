@@ -20,7 +20,7 @@ const HeroSection3D = ({ user, isAuthenticated }) => {
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
             Welcome back,{' '}
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              {user?.username || 'Champion'}
+              {user?.username || 'Gamer'}
             </span>
             <span className="inline-block ml-2">👋</span>
           </h1>

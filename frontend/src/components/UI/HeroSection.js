@@ -81,7 +81,7 @@ const HeroSection = ({ user, isAuthenticated }) => {
             >
               Welcome back,{' '}
               <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                {user?.username || 'Champion'}
+                {user?.username || 'Gamer'}
               </span>
               <motion.span
                 animate={{ rotate: [0, 14, -8, 14, -4, 10, 0] }}
