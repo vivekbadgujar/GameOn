@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Head from 'next/head';
 
 // Dynamically import Dashboard component that might use window/document
-const Dashboard = dynamic(() => import('./Dashboard'), { 
+const Dashboard = dynamic(() => import('./dashboard'), { 
   ssr: false,
   loading: () => (
     <div className="min-h-screen flex items-center justify-center">
