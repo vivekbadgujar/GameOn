@@ -37,11 +37,15 @@ export const AuthProvider = ({ children }) => {
           if (storedUser && storedToken) {
             try {
               const parsedUser = JSON.parse(storedUser);
-              setUser(parsedUser);
-              setToken(storedToken);
               
               // Set API headers
               api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+
+              // Verify session before trusting stored data
+              const verifiedUser = await verifySession(storedToken).catch(() => null);
+
+              setUser(verifiedUser || parsedUser);
+              setToken(storedToken);
               
               // Fetch wallet balance
               await fetchWalletBalance(storedToken);
@@ -116,6 +120,33 @@ export const AuthProvider = ({ children }) => {
     setWalletBalance(prev => prev + amount);
   };
 
+  // Validate token with backend and refresh user profile
+  const verifySession = async (authToken = token) => {
+    if (!authToken) return null;
+
+    try {
+      const response = await api.get('/users/profile', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (response?.data) {
+        const freshUser = response.data.user || response.data;
+        if (freshUser) {
+          setUser(freshUser);
+          localStorage.setItem('user', JSON.stringify(freshUser));
+        }
+        return freshUser;
+      }
+    } catch (error) {
+      console.warn('Session verification failed:', error?.message || error);
+      logout();
+      throw error;
+    }
+    return null;
+  };
+
   const login = (userData, authToken) => {
     try {
       // Validate input
@@ -133,6 +164,11 @@ export const AuthProvider = ({ children }) => {
 
       // Update axios headers
       api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+
+      // Eagerly confirm the session so we fail fast if token is invalid
+      verifySession(authToken).catch((err) => {
+        console.warn('Session verification failed after login:', err?.message || err);
+      });
 
       // Fetch wallet balance after login
       fetchWalletBalance(authToken);
@@ -174,6 +210,7 @@ export const AuthProvider = ({ children }) => {
     walletBalance,
     login,
     logout,
+    verifySession,
     updateUser,
     fetchWalletBalance,
     updateWalletBalance,

@@ -19,10 +19,12 @@ import {
   LockOutlined,
   Email
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Logo from '../common/Logo';
 
 const AdminLogin = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -74,7 +76,8 @@ const AdminLogin = () => {
       
       if (result.success) {
         setSuccess('Login successful! Redirecting...');
-        // Redirect will be handled by the auth context
+        // Redirect after a short delay so the success state is visible
+        setTimeout(() => navigate('/dashboard'), 500);
       } else {
         console.error('Login failed:', result);
         setError(result.message || 'Login failed. Please check your credentials.');
@@ -124,7 +127,7 @@ const AdminLogin = () => {
             maxWidth: 450,
             borderRadius: 3,
             overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: 'rgba(20, 17, 17, 0.95)',
             backdropFilter: 'blur(10px)'
           }}
         >

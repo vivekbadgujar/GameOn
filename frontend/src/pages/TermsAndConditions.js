@@ -196,19 +196,19 @@ const TermsAndConditions = () => {
           className="mt-8 flex flex-wrap gap-4 justify-center"
         >
           <Link 
-            to="/privacy" 
+            href="/privacy" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Privacy Policy
           </Link>
           <Link 
-            to="/refund" 
+            href="/refund" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Refund Policy
           </Link>
           <Link 
-            to="/fairplay" 
+            href="/fairplay" 
             className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
           >
             Fair Play Policy
