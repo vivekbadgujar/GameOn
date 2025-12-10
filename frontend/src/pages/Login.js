@@ -1,5 +1,4 @@
-export { default, getServerSideProps } from './Login';
-
+// Auto-generated lowercase login page to align with route casing on Linux
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -31,7 +30,6 @@ const Login = () => {
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/dashboard');
@@ -41,7 +39,6 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    // Validate inputs
     if (!email.trim()) {
       setError('Please enter your email');
       return;
@@ -55,13 +52,10 @@ const Login = () => {
     setError('');
 
     try {
-      // Try to login with the backend API
       const response = await apiLogin(email, password);
 
       if (response.success) {
-        // Login the user
         login(response.user, response.token);
-        // Navigate to dashboard after successful login
         router.push('/dashboard');
       } else {
         setError(response.message || 'Invalid email or password');
@@ -76,11 +70,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/20" />
-        
-        {/* Floating Elements */}
         <div className="absolute top-20 left-20 w-20 h-20 bg-white/10 rounded-full backdrop-blur-sm float-animation" />
         <div className="absolute top-40 right-32 w-16 h-16 bg-white/10 rounded-xl backdrop-blur-sm float-animation" style={{ animationDelay: '1s' }} />
         <div className="absolute bottom-40 left-32 w-12 h-12 bg-white/10 rounded-full backdrop-blur-sm float-animation" style={{ animationDelay: '2s' }} />
@@ -116,7 +107,6 @@ const Login = () => {
                 <p className="text-white/70">BGMI, VALORANT, Chess & more</p>
               </div>
             </div>
-
             <div className="flex items-center space-x-4 text-left">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                 <Star className="w-6 h-6" />
@@ -126,7 +116,6 @@ const Login = () => {
                 <p className="text-white/70">Win cash prizes & rewards</p>
               </div>
             </div>
-
             <div className="flex items-center space-x-4 text-left">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                 <Zap className="w-6 h-6" />
@@ -140,7 +129,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -148,7 +136,6 @@ const Login = () => {
           transition={{ duration: 0.8 }}
           className="w-full max-w-md"
         >
-          {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Trophy className="w-8 h-8 text-white" />
@@ -269,7 +256,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Terms */}
           <p className="text-center text-white/40 text-sm mt-6">
             By continuing, you agree to our{' '}
             <a href="#" className="text-blue-400 hover:text-blue-300">Terms of Service</a>
@@ -279,7 +265,6 @@ const Login = () => {
         </motion.div>
       </div>
 
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal
         isOpen={showForgotPassword}
         onClose={() => setShowForgotPassword(false)}
@@ -288,11 +273,11 @@ const Login = () => {
   );
 };
 
-// Prevent static generation - force server-side rendering
 export async function getServerSideProps() {
   return {
-    props: {}, // Will be passed to the page component as props
+    props: {},
   };
 }
 
 export default Login;
+ 

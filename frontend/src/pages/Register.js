@@ -1,5 +1,3 @@
-export { default, getServerSideProps } from './Register';
-
 'use client';
 
 import React, { useState } from 'react';
@@ -142,11 +140,8 @@ const RegisterComponent = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-green-600 via-blue-600 to-purple-500 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/20" />
-        
-        {/* Floating Elements */}
         <div className="absolute top-20 left-20 w-20 h-20 bg-white/10 rounded-full backdrop-blur-sm float-animation" />
         <div className="absolute top-40 right-32 w-16 h-16 bg-white/10 rounded-xl backdrop-blur-sm float-animation" style={{ animationDelay: '1s' }} />
         <div className="absolute bottom-40 left-32 w-12 h-12 bg-white/10 rounded-full backdrop-blur-sm float-animation" style={{ animationDelay: '2s' }} />
@@ -182,7 +177,6 @@ const RegisterComponent = () => {
                 <p className="text-white/70">No registration fees</p>
               </div>
             </div>
-
             <div className="flex items-center space-x-4 text-left">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                 <Star className="w-6 h-6" />
@@ -192,7 +186,6 @@ const RegisterComponent = () => {
                 <p className="text-white/70">Win and get paid instantly</p>
               </div>
             </div>
-
             <div className="flex items-center space-x-4 text-left">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                 <Zap className="w-6 h-6" />
@@ -206,7 +199,6 @@ const RegisterComponent = () => {
         </div>
       </div>
 
-      {/* Right Side - Registration Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -214,7 +206,6 @@ const RegisterComponent = () => {
           transition={{ duration: 0.8 }}
           className="w-full max-w-md"
         >
-          {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Trophy className="w-8 h-8 text-white" />
@@ -461,5 +452,5 @@ const RegisterComponent = () => {
   );
 };
 
-
 export default dynamic(() => Promise.resolve(RegisterComponent), { ssr: false });
+ 
