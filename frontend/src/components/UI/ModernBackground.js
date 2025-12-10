@@ -6,9 +6,9 @@ const ModernBackground = () => {
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {/* Animated gradient mesh background */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900" />
-        <div className="absolute inset-0 bg-gradient-to-tl from-blue-900/20 via-transparent to-purple-900/20" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-transparent to-blue-900/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-gray-900/70 to-black" />
+        <div className="absolute inset-0 bg-gradient-to-tl from-sky-900/15 via-transparent to-indigo-900/20" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/10 via-transparent to-blue-900/15" />
       </div>
 
       {/* Floating geometric shapes */}

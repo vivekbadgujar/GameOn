@@ -355,7 +355,7 @@ const Header = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-64 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                        className="absolute right-0 mt-2 w-64 glass-card backdrop-blur-xl border border-white/15 shadow-2xl overflow-hidden z-50"
                       >
                         <div className="p-4 border-b border-white/10">
                           <h3 className="text-white font-semibold mb-1">Welcome to GameOn!</h3>

@@ -26,7 +26,7 @@ function MyApp({ Component, pageProps }) {
       <NotificationProvider>
         <WalletProvider>
           <SocketProvider>
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+            <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900">
               <ModernBackground />
               
               {/* Global Notifications */}
