@@ -26,7 +26,6 @@ import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
 import TournamentSlots from '../components/Dashboard/TournamentSlots';
 import { useAuthModal } from '../hooks/useAuthModal';
-import HeroSection3D from '../components/UI/HeroSection3D';
 
 const Dashboard = () => {
   const { user, isAuthenticated } = useAuth();
@@ -217,26 +216,18 @@ const Dashboard = () => {
     <div className="min-h-screen pt-20 pb-8">
       <div className="container-custom">
         {/* Hero Section */}
-        <div className="mb-12">
-          <HeroSection3D user={user} isAuthenticated={isAuthenticated} />
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
+            Welcome back,{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              {user?.username || 'Gamer'}
+            </span>
+            <span className="inline-block ml-2">👋</span>
+          </h1>
+          <p className="text-lg text-white/70">
+            Ready to dominate some tournaments today?
+          </p>
         </div>
-
-        {/* Wallet Balance Card */}
-        {isAuthenticated && (
-          <div className="flex justify-center mb-8">
-            <div className="glass-card px-6 py-3">
-              <div className="flex items-center space-x-3">
-                <Wallet className="w-5 h-5 text-green-400" />
-                <div>
-                  <p className="text-sm text-white/60">Wallet Balance</p>
-                  <p className="text-xl font-bold text-green-400">
-                    ₹{dashboardData.walletBalance.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Quick Actions */}
         <div className="mb-8">
