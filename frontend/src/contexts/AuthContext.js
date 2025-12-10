@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
+import config from '../config';
 
 const AuthContext = createContext({
   user: null,
@@ -84,7 +85,7 @@ export const AuthProvider = ({ children }) => {
     try {
       if (!authToken) return;
       
-      const response = await fetch('/api/wallet/balance', {
+      const response = await fetch(`${config.API_BASE_URL}/wallet/balance`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'

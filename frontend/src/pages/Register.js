@@ -1,3 +1,5 @@
+export { default, getServerSideProps } from './Register';
+
 'use client';
 
 import React, { useState } from 'react';

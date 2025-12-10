@@ -36,7 +36,7 @@ api.interceptors.response.use(
       // Check if we're in browser environment before accessing browser APIs
       if (typeof window !== 'undefined') {
         localStorage.removeItem('adminToken');
-        window.location.href = '/admin/login';
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

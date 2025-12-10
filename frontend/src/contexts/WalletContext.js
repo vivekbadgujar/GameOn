@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import io from 'socket.io-client';
+import config from '../config';
 
 const WalletContext = createContext();
 
@@ -36,8 +37,8 @@ export const WalletProvider = ({ children }) => {
   // Initialize socket connection for real-time wallet updates
   useEffect(() => {
     if (isAuthenticated && user?._id) {
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-      const newSocket = io(apiUrl, {
+      const wsUrl = config.WS_URL || 'wss://api.gameonesport.xyz';
+      const newSocket = io(wsUrl, {
         auth: {
           token: localStorage.getItem('token')
         }
@@ -65,7 +66,7 @@ export const WalletProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      const response = await fetch('/api/wallet/balance', {
+      const response = await fetch(`${config.API_BASE_URL}/wallet/balance`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -87,7 +88,7 @@ export const WalletProvider = ({ children }) => {
     if (!isAuthenticated) return;
 
     try {
-      const response = await fetch('/api/wallet/transactions', {
+      const response = await fetch(`${config.API_BASE_URL}/wallet/transactions`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -126,7 +127,7 @@ export const WalletProvider = ({ children }) => {
   // Deduct from wallet (for tournament entries)
   const deductFromWallet = useCallback(async (amount, description, tournamentId) => {
     try {
-      const response = await fetch('/api/wallet/deduct', {
+      const response = await fetch(`${config.API_BASE_URL}/wallet/deduct`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +165,7 @@ export const WalletProvider = ({ children }) => {
   // Add to wallet (for winnings, refunds, etc.)
   const addToWallet = useCallback(async (amount, description, tournamentId) => {
     try {
-      const response = await fetch('/api/wallet/add', {
+      const response = await fetch(`${config.API_BASE_URL}/wallet/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
