@@ -240,21 +240,21 @@ const AdminLogin = () => {
                 }}
                 sx={{
                   '& .MuiOutlinedInput-input': {
-                    color: '#000000',
+                    color: '#000', // Changed from #000000
                     fontSize: '1rem',
                     '&::placeholder': {
-                      color: '#666666',
+                      color: '#666', // Changed from #666666
                       opacity: 1,
                     },
                   },
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: '#ffffff',
+                    backgroundColor: '#fff', // Changed from #ffffff
                     '&:hover fieldset': {
                       borderColor: 'primary.main',
                     },
                   },
                   '& .MuiInputBase-input': {
-                    color: '#000000',
+                    color: '#000', // Changed from #000000
                   },
                 }}
               />
@@ -305,4 +305,4 @@ const AdminLogin = () => {
   );
 };
 
-export default AdminLogin; 
+export default AdminLogin;

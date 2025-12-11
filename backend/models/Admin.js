@@ -119,7 +119,8 @@ AdminSchema.virtual('isLocked').get(function() {
 AdminSchema.pre('save', async function(next) {
   // Hash password if modified
   if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 12);
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
   }
   
   // Set default permissions based on role
