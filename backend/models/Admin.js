@@ -67,7 +67,10 @@ const AdminSchema = new mongoose.Schema({
     default: 0
   },
   lockUntil: Date,
-  ipAddresses: [String],
+  ipAddresses: {
+    type: [String],
+    default: []
+  },
   
   // Two-Factor Authentication
   twoFactorSecret: String,

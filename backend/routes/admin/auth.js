@@ -107,6 +107,9 @@ router.post('/login',
       
       // Track IP address
       const clientIP = req.ip || req.connection.remoteAddress;
+      if (!admin.ipAddresses) {
+        admin.ipAddresses = [];
+      }
       if (!admin.ipAddresses.includes(clientIP)) {
         admin.ipAddresses.push(clientIP);
         if (admin.ipAddresses.length > 10) {
