@@ -6,6 +6,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
@@ -207,28 +208,33 @@ app.use(compression());
 // Security middleware
 app.use(helmet());
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow server-to-server and health checks (no origin) while restricting browsers
-    if (isAllowedOrigin(origin)) return callback(null, true);
+// CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if the origin is in the allowed origins
+    if (allowedOrigins.includes(origin) || 
+        allowedOrigins.some(allowed => origin.endsWith(new URL(allowed).hostname.replace('www.', '')))) {
+      return callback(null, true);
+    }
+    
+    // If not allowed
+    console.error('CORS blocked for origin:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
+  exposedHeaders: ['set-cookie']
+};
 
-// Rate limiting - prevent abuse (disabled for development)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // increased limit for development
-  message: 'Too many requests from this IP, please try again later.'
-});
-// app.use('/api/', limiter); // Temporarily disabled for development
+app.use(cors(corsOptions));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' })); // For screenshot uploads
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Logging middleware
 app.use(morgan('combined'));
