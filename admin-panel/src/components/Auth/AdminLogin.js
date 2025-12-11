@@ -191,10 +191,22 @@ const AdminLogin = () => {
                   ),
                 }}
                 sx={{
+                  '& .MuiOutlinedInput-input': {
+                    color: '#000000',
+                    fontSize: '1rem',
+                    '&::placeholder': {
+                      color: '#666666',
+                      opacity: 1,
+                    },
+                  },
                   '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#ffffff',
                     '&:hover fieldset': {
                       borderColor: 'primary.main',
                     },
+                  },
+                  '& .MuiInputBase-input': {
+                    color: '#000000',
                   },
                 }}
               />
@@ -227,10 +239,22 @@ const AdminLogin = () => {
                   ),
                 }}
                 sx={{
+                  '& .MuiOutlinedInput-input': {
+                    color: '#000000',
+                    fontSize: '1rem',
+                    '&::placeholder': {
+                      color: '#666666',
+                      opacity: 1,
+                    },
+                  },
                   '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#ffffff',
                     '&:hover fieldset': {
                       borderColor: 'primary.main',
                     },
+                  },
+                  '& .MuiInputBase-input': {
+                    color: '#000000',
                   },
                 }}
               />
