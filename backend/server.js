@@ -207,12 +207,12 @@ const corsOptions = {
       return callback(null, origin);
     }
     
-    console.error('CORS blocked for origin:', origin);
-    return callback(new Error('Not allowed by CORS'));
+    // Return false instead of error to handle it gracefully
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Set-Cookie', 'Content-Type'],
   maxAge: 86400
 };

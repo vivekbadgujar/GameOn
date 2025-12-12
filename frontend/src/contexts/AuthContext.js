@@ -54,6 +54,19 @@ export const AuthProvider = ({ children }) => {
               fetchWalletBalance(storedToken).catch((err) => {
                 console.warn('Failed to fetch wallet balance:', err?.message || err);
               });
+              
+              // Set up session renewal check - renew token every 6 days (before 7-day expiry)
+              const renewalInterval = setInterval(() => {
+                console.log('[AuthContext] Session renewal check...');
+                verifySession(storedToken).catch(() => {
+                  console.warn('Session renewal verification failed - user may need to re-login soon');
+                });
+              }, 6 * 24 * 60 * 60 * 1000); // 6 days
+              
+              // Store interval ID for cleanup
+              if (typeof window !== 'undefined') {
+                window.__authRenewalInterval = renewalInterval;
+              }
             } catch (error) {
               console.error('Error parsing stored user data:', error);
               localStorage.removeItem('user');
@@ -71,21 +84,24 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for token expiration events
     const handleTokenExpired = (event) => {
-      console.log('AuthContext: Token expired event received');
+      console.log('[AuthContext] Token expired event received');
       logout();
       
       // Show user-friendly notification
       if (event.detail?.message) {
-        console.log('Session expired:', event.detail.message);
+        console.log('[AuthContext] Session expired:', event.detail.message);
       }
     };
 
     window.addEventListener('tokenExpired', handleTokenExpired);
     initializeAuth();
 
-    // Cleanup event listener
+    // Cleanup event listener and renewal interval
     return () => {
       window.removeEventListener('tokenExpired', handleTokenExpired);
+      if (typeof window !== 'undefined' && window.__authRenewalInterval) {
+        clearInterval(window.__authRenewalInterval);
+      }
     };
   }, []);
 

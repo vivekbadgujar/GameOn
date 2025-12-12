@@ -67,9 +67,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const errorMessage = error.response?.data?.message;
       
-      // Handle token expiration
-      if (errorMessage === 'Token has expired' || errorMessage === 'Invalid token') {
-        console.log('Token expired, clearing auth data');
+      // Only handle specific token expiration messages (not all 401 errors)
+      if (errorMessage && (errorMessage.includes('Token has expired') || errorMessage.includes('Invalid token'))) {
+        console.log('[API] Token expired or invalid, clearing auth data:', errorMessage);
         
         // Clear auth data (only in browser)
         if (typeof window !== 'undefined') {
@@ -91,9 +91,15 @@ api.interceptors.response.use(
             // Redirect to login after a short delay
             setTimeout(() => {
               window.location.href = '/login';
-            }, 1000);
+            }, 1500);
           }
         }
+      } else {
+        console.warn('[API] 401 error without token expiration message:', {
+          errorMessage,
+          status: error.response.status,
+          url: error.config?.url
+        });
       }
     }
     
