@@ -27,8 +27,7 @@ const app = express();
 // Canonical production origins (no localhost fallbacks anywhere)
 const allowedOrigins = [
   'https://gameonesport.xyz',
-  'https://admin.gameonesport.xyz',
-  'https://api.gameonesport.xyz'
+  'https://admin.gameonesport.xyz'
 ];
 
 const isAllowedOrigin = (origin) => {

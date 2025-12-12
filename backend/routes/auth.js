@@ -200,18 +200,18 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Set secure HTTP-only cookie for user token
+    // Set secure HTTP-only cookie for user token (Vercel serverless compatible)
     try {
       const cookieOptions = {
         httpOnly: true,
-        secure: true, // Always true for HTTPS
-        sameSite: 'None', // Required for cross-site
-        domain: 'gameonesport.xyz', // Works for all subdomains
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/'
+        secure: true, // Required for HTTPS
+        sameSite: 'None', // Required for cross-site cookies
+        domain: '.gameonesport.xyz', // Leading dot for all subdomains
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/' // Root path
       };
       res.cookie('gameon_user_token', token, cookieOptions);
-      console.log('[USER LOGIN] Cookie set successfully');
+      console.log('[USER LOGIN] Cookie set successfully with options:', cookieOptions);
     } catch (cookieError) {
       console.error('[USER LOGIN] Cookie error (non-fatal):', cookieError.message);
       // Continue - token is in response body

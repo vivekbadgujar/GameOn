@@ -205,7 +205,12 @@ const rateLimiter = (windowMs = 15 * 60 * 1000, maxAttempts = 5) => {
 
 // Generate JWT Token
 const generateToken = (userId, expiresIn = '7d') => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn });
+  // CRITICAL: Validate JWT_SECRET exists
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+    throw new Error('JWT secret missing');
+  }
+  
+  return jwt.sign({ userId }, process.env.JWT_SECRET.trim(), { expiresIn });
 };
 
 // Generate Refresh Token

@@ -1,29 +1,211 @@
-/**
- * Admin Authentication Routes
- * Handles admin login, logout, and session management
- */
+# 🔧 Login Fixes - Corrected Backend Code
 
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
-const Admin = require('../../models/Admin');
-const { generateToken, generateRefreshToken } = require('../../middleware/auth');
+## ✅ FIXED CODE SECTIONS
 
-const router = express.Router();
+---
 
-// Rate limiting for admin login (relaxed for development)
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More attempts in development
-  message: {
-    success: false,
-    message: 'Too many login attempts. Please try again later.'
+## 1. CORS CONFIGURATION (backend/server.js)
+
+**Location:** Around line 28-37 and 202-222
+
+**Replace the allowedOrigins array and CORS configuration with:**
+
+```javascript
+// Canonical production origins (no localhost fallbacks anywhere)
+const allowedOrigins = [
+  'https://gameonesport.xyz',
+  'https://admin.gameonesport.xyz'
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // allow server-to-server/health checks
+  return allowedOrigins.includes(origin.replace(/\/$/, ''));
+};
+
+// ... (keep existing code) ...
+
+// CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, origin);
+    }
+    
+    // Reject origin not in allowed list
+    return callback(null, false);
   },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Set-Cookie', 'Content-Type'],
+  maxAge: 86400
+};
+```
 
+---
+
+## 2. JWT TOKEN GENERATION FUNCTION (backend/middleware/auth.js)
+
+**Location:** Around line 206-209
+
+**Replace the generateToken function with:**
+
+```javascript
+// Generate JWT Token
+const generateToken = (userId, expiresIn = '7d') => {
+  // CRITICAL: Validate JWT_SECRET exists
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+    throw new Error('JWT secret missing');
+  }
+  
+  return jwt.sign({ userId }, process.env.JWT_SECRET.trim(), { expiresIn });
+};
+```
+
+---
+
+## 3. USER LOGIN CONTROLLER (backend/routes/auth.js)
+
+**Location:** Around line 133-249 (the `/login` route)
+
+**Replace the entire login route handler with:**
+
+```javascript
+// Simple email/password login for testing
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+
+    // Check if user exists in database first
+    let user = await User.findOne({ email }).select('+password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User does not exist'
+      });
+    }
+
+    // Check if account is locked
+    if (user.isLocked) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is temporarily locked. Please try again later.'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await user.comparePassword(password);
+    
+    if (!isValidPassword) {
+      // Increment login attempts
+      await user.incrementLoginAttempts();
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Reset login attempts on successful login
+    await user.resetLoginAttempts();
+
+    // CRITICAL: Check JWT_SECRET exists
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+      console.error('[USER LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error - authentication service unavailable'
+      });
+    }
+
+    // Generate token
+    let token;
+    try {
+      token = jwt.sign(
+        { userId: user._id.toString(), email: user.email },
+        process.env.JWT_SECRET.trim(),
+        { expiresIn: '7d' }
+      );
+    } catch (tokenError) {
+      console.error('[USER LOGIN] ❌ TOKEN ERROR:', tokenError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate authentication token'
+      });
+    }
+
+    // Set secure HTTP-only cookie for user token (Vercel serverless compatible)
+    try {
+      const cookieOptions = {
+        httpOnly: true,
+        secure: true, // Required for HTTPS
+        sameSite: 'None', // Required for cross-site cookies
+        domain: '.gameonesport.xyz', // Leading dot for all subdomains
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/' // Root path
+      };
+      res.cookie('gameon_user_token', token, cookieOptions);
+      console.log('[USER LOGIN] Cookie set successfully with options:', cookieOptions);
+    } catch (cookieError) {
+      console.error('[USER LOGIN] Cookie error (non-fatal):', cookieError.message);
+      // Continue - token is in response body
+    }
+
+    // Update last login time
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { 'security.lastLogin': new Date() } }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats,
+        createdAt: user.createdAt
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Login Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+```
+
+---
+
+## 4. ADMIN LOGIN CONTROLLER (backend/routes/admin/auth.js)
+
+**Location:** Around line 28-302 (the `/login` route)
+
+**Replace the entire admin login route handler with:**
+
+```javascript
 // Admin Login
 router.post('/login', 
   loginLimiter, // Re-enabled with relaxed limits for development
@@ -300,260 +482,84 @@ router.post('/login',
     }
   }
 );
+```
 
-// Admin Logout
-router.post('/logout', async (req, res) => {
-  try {
-    // Clear refresh token cookie
-    res.clearCookie('adminRefreshToken');
-    
-    res.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    console.error('Admin logout error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Logout failed'
-    });
-  }
-});
+---
 
-// Refresh Token
-router.post('/refresh-token', async (req, res) => {
-  try {
-    const refreshToken = req.cookies.adminRefreshToken;
-    
-    if (!refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token not provided'
-      });
-    }
+## 5. REQUIRED ENVIRONMENT VARIABLES FOR VERCEL
 
-    // Verify refresh token
-    if (!process.env.JWT_REFRESH_SECRET) {
-      return res.status(500).json({
-        success: false,
-        message: 'Refresh token functionality not configured'
-      });
-    }
-    
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    
-    // Find admin
-    const admin = await Admin.findById(decoded.userId).select('-password');
-    
-    if (!admin || admin.status !== 'active') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid refresh token'
-      });
-    }
+Add these to your Vercel project settings (Environment Variables):
 
-    // Generate new access token
-    const accessToken = generateToken(admin._id, '8h');
-    
-    res.json({
-      success: true,
-      message: 'Token refreshed successfully',
-      data: {
-        accessToken,
-        expiresIn: '8h'
-      }
-    });
+```env
+# JWT Configuration (REQUIRED)
+JWT_SECRET=your-very-long-and-secure-random-string-here-minimum-32-characters
 
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid refresh token'
-    });
-  }
-});
+# Optional (for refresh tokens)
+JWT_REFRESH_SECRET=another-very-long-and-secure-random-string-here
 
-// Get Admin Profile
-router.get('/me', async (req, res) => {
-  try {
-    // Check both Authorization header and cookie
-    const authHeader = req.headers['authorization'];
-    let token = authHeader && authHeader.split(' ')[1];
-    
-    // If no token in header, check cookie
-    if (!token && req.cookies && req.cookies.gameon_admin_token) {
-      token = req.cookies.gameon_admin_token;
-      console.log('[ADMIN /me] Using token from cookie');
-    }
+# Database (REQUIRED)
+MONGODB_URI=your-mongodb-connection-string
+# OR
+DATABASE_URL=your-mongodb-connection-string
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access token required'
-      });
-    }
+# Environment
+NODE_ENV=production
 
-    if (!process.env.JWT_SECRET) {
-      console.error('[ADMIN /me] JWT_SECRET not configured');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
+# Serverless Detection (Vercel sets this automatically)
+VERCEL=1
+```
 
-    const jwt = require('jsonwebtoken');
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (jwtError) {
-      console.error('[ADMIN /me] JWT verification error:', jwtError.message);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid or expired token'
-      });
-    }
+### 🔑 How to Generate JWT_SECRET:
 
-    const admin = await Admin.findById(decoded.userId).select('-password');
+Run this command in your terminal:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin not found'
-      });
-    }
+Copy the output and use it as your `JWT_SECRET` value.
 
-    if (admin.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admin account is not active'
-      });
-    }
+---
 
-    res.json({
-      success: true,
-      data: admin
-    });
+## 📋 SUMMARY OF CHANGES
 
-  } catch (error) {
-    console.error('[ADMIN /me] Get admin profile error:', error);
-    console.error('[ADMIN /me] Error stack:', error.stack);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
+1. ✅ **CORS Configuration**: Updated to allow only `https://gameonesport.xyz` and `https://admin.gameonesport.xyz` with `credentials: true`
 
-// Check Authentication Status
-router.get('/check', async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+2. ✅ **Cookie Settings**: 
+   - Changed domain from `gameonesport.xyz` to `.gameonesport.xyz` (with leading dot)
+   - Ensured all required attributes: `SameSite: "None"`, `Secure: true`, `HttpOnly: true`, `Path: "/"`, `Max-Age: 7 days`
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Access token required'
-      });
-    }
+3. ✅ **JWT Secret Validation**: Added proper validation that throws readable errors if `JWT_SECRET` is missing
 
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const admin = await Admin.findById(decoded.userId).select('-password');
+4. ✅ **User Login Controller**: Fixed cookie settings and JWT validation
 
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin not found'
-      });
-    }
+5. ✅ **Admin Login Controller**: Fixed cookie settings and JWT validation
 
-    res.json({
-      success: true,
-      admin: admin
-    });
+---
 
-  } catch (error) {
-    console.error('Auth check error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
-  }
-});
+## 🚀 DEPLOYMENT STEPS
 
-// Change Password
-router.post('/change-password',
-  [
-    body('currentPassword')
-      .notEmpty()
-      .withMessage('Current password is required'),
-    body('newPassword')
-      .isLength({ min: 8 })
-      .withMessage('New password must be at least 8 characters long')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-      .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character')
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation failed',
-          errors: errors.array()
-        });
-      }
+1. **Update the code files** with the corrected sections above
+2. **Set environment variables** in Vercel dashboard
+3. **Deploy to Vercel** (automatic on git push, or manual deploy)
+4. **Test login** on both frontend and admin panel
 
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
+---
 
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          message: 'Access token required'
-        });
-      }
+## 🧪 TESTING CHECKLIST
 
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const admin = await Admin.findById(decoded.userId);
+- [ ] Frontend login at `https://gameonesport.xyz` sets cookie correctly
+- [ ] Admin login at `https://admin.gameonesport.xyz` sets cookie correctly
+- [ ] Cookies persist for 7 days
+- [ ] Cookies work across subdomains (`.gameonesport.xyz`)
+- [ ] JWT token generation works with valid `JWT_SECRET`
+- [ ] Error messages are clear when `JWT_SECRET` is missing
+- [ ] CORS allows requests from both domains
 
-      if (!admin) {
-        return res.status(404).json({
-          success: false,
-          message: 'Admin not found'
-        });
-      }
+---
 
-      const { currentPassword, newPassword } = req.body;
+## ⚠️ IMPORTANT NOTES
 
-      // Verify current password
-      if (!(await admin.comparePassword(currentPassword))) {
-        return res.status(400).json({
-          success: false,
-          message: 'Current password is incorrect'
-        });
-      }
-
-      // Update password
-      admin.password = newPassword;
-      await admin.save();
-
-      res.json({
-        success: true,
-        message: 'Password changed successfully'
-      });
-
-    } catch (error) {
-      console.error('Change password error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to change password'
-      });
-    }
-  }
-);
-
-module.exports = router;
+- **Domain with leading dot**: `.gameonesport.xyz` (not `gameonesport.xyz`) - this allows cookies to work across all subdomains
+- **SameSite: "None"**: Required for cross-site cookies (frontend and API on different subdomains)
+- **Secure: true**: Required for HTTPS (always true in production)
+- **JWT_SECRET**: Must be set in Vercel environment variables before deployment
