@@ -76,8 +76,11 @@ const AdminLogin = () => {
       console.log('Login result:', result);
       
       if (result.success) {
-        setSuccess('Login successful! Redirecting...');
-        setTimeout(() => navigate('/dashboard'), 500);
+        setSuccess('Login successful! Verifying session...');
+        // Wait a moment for cookie to be set, then redirect
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1000);
       } else {
         console.error('Login failed:', result);
         setError(result.message || 'Login failed. Please check your credentials.');
@@ -188,6 +191,7 @@ const AdminLogin = () => {
                 onChange={handleChange}
                 margin="normal"
                 required
+                autoComplete="username"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">

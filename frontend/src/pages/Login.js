@@ -55,8 +55,38 @@ const Login = () => {
       const response = await apiLogin(email, password);
 
       if (response.success) {
+        // Store token and user data
         login(response.user, response.token);
-        router.push('/dashboard');
+        
+        // Verify session with /users/profile endpoint before redirect
+        try {
+          const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/users/profile`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Authorization': `Bearer ${response.token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            if (verifyData.success) {
+              console.log('Session verified successfully');
+              router.push('/dashboard');
+            } else {
+              setError('Session verification failed. Please try again.');
+            }
+          } else {
+            console.warn('Session verification returned non-OK status:', verifyResponse.status);
+            // Still allow redirect if cookie might be set
+            router.push('/dashboard');
+          }
+        } catch (verifyError) {
+          console.warn('Session verification error (non-blocking):', verifyError);
+          // Still allow redirect - cookie might be set by backend
+          router.push('/dashboard');
+        }
       } else {
         setError(response.message || 'Invalid email or password');
       }

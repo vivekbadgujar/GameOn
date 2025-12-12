@@ -39,6 +39,19 @@ export const SocketProvider = ({ children }) => {
   }, [user, token]);
 
   const initializeSocket = () => {
+    // Guard: Only initialize socket if backend supports it and we're in browser
+    if (typeof window === 'undefined') {
+      console.log('[Socket] Skipping socket initialization (server-side)');
+      return;
+    }
+
+    // Check if API base URL is production and supports WebSocket
+    const apiBaseUrl = config.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api';
+    if (!apiBaseUrl.startsWith('https://api.gameonesport.xyz')) {
+      console.log('[Socket] Skipping socket initialization (non-production API)');
+      return;
+    }
+
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {

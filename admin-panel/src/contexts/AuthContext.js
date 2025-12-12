@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       console.log('AuthContext: Attempting login...');
-      console.log('API Base URL:', process.env.REACT_APP_API_URL);
+      console.log('API Base URL:', process.env.REACT_APP_API_URL || process.env.NEXT_PUBLIC_API_URL);
       
       const response = await authAPI.login(credentials);
       console.log('AuthContext: Login response:', response.data);
@@ -85,15 +85,41 @@ export const AuthProvider = ({ children }) => {
         setAdmin(response.data.admin);
         console.log('AuthContext: Login successful, token stored');
         
+        // Verify session via /admin/auth/me before proceeding
         try {
           console.log('AuthContext: Verifying session via /admin/auth/me');
-          const meResponse = await authAPI.checkAuth();
-          console.log('AuthContext: Session verified:', meResponse.data);
+          const API_BASE_URL = (process.env.REACT_APP_API_URL || 
+                                process.env.NEXT_PUBLIC_API_URL || 
+                                process.env.NEXT_PUBLIC_API_BASE_URL || 
+                                'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+          
+          const meResponse = await fetch(`${API_BASE_URL}/admin/auth/me`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Authorization': `Bearer ${response.data.token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (meResponse.ok) {
+            const meData = await meResponse.json();
+            console.log('AuthContext: Session verified:', meData);
+            if (meData.success && meData.data) {
+              setAdmin(meData.data);
+              return { success: true };
+            } else {
+              console.warn('AuthContext: Session verification returned invalid data');
+              return { success: false, message: 'Session verification failed' };
+            }
+          } else {
+            console.warn('AuthContext: Session verification returned non-OK status:', meResponse.status);
+            return { success: false, message: 'Session verification failed' };
+          }
         } catch (verifyError) {
-          console.warn('AuthContext: Session verification failed (non-blocking):', verifyError.message);
+          console.error('AuthContext: Session verification error:', verifyError);
+          return { success: false, message: 'Session verification failed: ' + verifyError.message };
         }
-        
-        return { success: true };
       } else {
         console.log('AuthContext: Login failed -', response.data.message);
         return { success: false, message: response.data.message };
