@@ -58,9 +58,9 @@ const Login = () => {
         // Store token and user data
         login(response.user, response.token);
         
-        // Verify session with /me endpoint before redirect
+        // Verify session with /users/profile endpoint before redirect
         try {
-          const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/auth/me`, {
+          const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/users/profile`, {
             method: 'GET',
             credentials: 'include',
             headers: {
