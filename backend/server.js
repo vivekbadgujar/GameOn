@@ -201,13 +201,17 @@ app.use(helmet());
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
     
+    // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       return callback(null, origin);
     }
     
-    // Return false instead of error to handle it gracefully
+    // Reject origin not in allowed list
     return callback(null, false);
   },
   credentials: true,
@@ -218,6 +222,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Cookie parser middleware (must be before routes)
+app.use(cookieParser());
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));

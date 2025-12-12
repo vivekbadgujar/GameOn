@@ -168,6 +168,7 @@ router.post('/login',
       
       if (!process.env.JWT_SECRET) {
         console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
+        console.error('[ADMIN LOGIN] Full error stack:', new Error().stack);
         return res.status(500).json({
           success: false,
           message: 'Server configuration error - authentication service unavailable'
@@ -185,6 +186,12 @@ router.post('/login',
         console.log('[ADMIN LOGIN] Access token generated with expiry:', tokenExpiry);
       } catch (tokenError) {
         console.error('[ADMIN LOGIN] ❌ ADMIN TOKEN ERROR:', tokenError);
+        console.error('[ADMIN LOGIN] Error stack:', tokenError.stack);
+        console.error('[ADMIN LOGIN] Error details:', {
+          name: tokenError.name,
+          message: tokenError.message,
+          code: tokenError.code
+        });
         return res.status(500).json({
           success: false,
           message: 'Failed to generate authentication token'
@@ -210,23 +217,23 @@ router.post('/login',
       try {
         const cookieOptions = {
           httpOnly: true,
-          secure: true, // Production only as requested, but forcing true for now as per instructions "secure: true (production only)" - assuming we are targeting production behavior
+          secure: true, // Production: always true for HTTPS
           sameSite: 'None',
           domain: '.gameonesport.xyz',
           maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         };
-        
-        // Adjust secure flag based on environment if needed, but instructions said "secure: true (production only)"
-        // We'll use the environment check to be safe for local dev if not on https
-        if (process.env.NODE_ENV !== 'production') {
-           // cookieOptions.secure = false; // Uncomment if testing locally without https
-           // cookieOptions.domain = undefined; // Uncomment if testing locally
-        }
 
         res.cookie('gameon_admin_token', accessToken, cookieOptions);
-        console.log('[ADMIN LOGIN] gameon_admin_token cookie set');
+        console.log('[ADMIN LOGIN] gameon_admin_token cookie set with options:', {
+          httpOnly: cookieOptions.httpOnly,
+          secure: cookieOptions.secure,
+          sameSite: cookieOptions.sameSite,
+          domain: cookieOptions.domain,
+          maxAge: cookieOptions.maxAge
+        });
       } catch (cookieError) {
         console.error('[ADMIN LOGIN] Error setting main cookie:', cookieError.message);
+        console.error('[ADMIN LOGIN] Cookie error stack:', cookieError.stack);
       }
 
       // Set secure HTTP-only cookie for refresh token (only if available)
@@ -353,8 +360,15 @@ router.post('/refresh-token', async (req, res) => {
 // Get Admin Profile
 router.get('/me', async (req, res) => {
   try {
+    // Check both Authorization header and cookie
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    let token = authHeader && authHeader.split(' ')[1];
+    
+    // If no token in header, check cookie
+    if (!token && req.cookies && req.cookies.gameon_admin_token) {
+      token = req.cookies.gameon_admin_token;
+      console.log('[ADMIN /me] Using token from cookie');
+    }
 
     if (!token) {
       return res.status(401).json({
@@ -363,8 +377,26 @@ router.get('/me', async (req, res) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error('[ADMIN /me] JWT_SECRET not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      console.error('[ADMIN /me] JWT verification error:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
     const admin = await Admin.findById(decoded.userId).select('-password');
 
     if (!admin) {
@@ -374,16 +406,24 @@ router.get('/me', async (req, res) => {
       });
     }
 
+    if (admin.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin account is not active'
+      });
+    }
+
     res.json({
       success: true,
       data: admin
     });
 
   } catch (error) {
-    console.error('Get admin profile error:', error);
-    res.status(401).json({
+    console.error('[ADMIN /me] Get admin profile error:', error);
+    console.error('[ADMIN /me] Error stack:', error.stack);
+    res.status(500).json({
       success: false,
-      message: 'Invalid token'
+      message: 'Internal server error'
     });
   }
 });
