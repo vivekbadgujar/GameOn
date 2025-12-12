@@ -38,6 +38,87 @@ const upload = multer({
   }
 });
 
+// Get current user profile (supports both header and cookie auth)
+router.get('/profile', async (req, res) => {
+  try {
+    // Check both Authorization header and cookie
+    const authHeader = req.headers['authorization'];
+    let token = authHeader && authHeader.split(' ')[1];
+    
+    // If no token in header, check cookie
+    if (!token && req.cookies && req.cookies.gameon_user_token) {
+      token = req.cookies.gameon_user_token;
+      console.log('[USER /profile] Using token from cookie');
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Access token required'
+      });
+    }
+
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+      console.error('[USER /profile] JWT_SECRET not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET.trim());
+    } catch (jwtError) {
+      console.error('[USER /profile] JWT verification error:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token'
+      });
+    }
+
+    const user = await User.findById(decoded.userId).select('-password -otp');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.status === 'banned' || user.status === 'suspended') {
+      return res.status(403).json({
+        success: false,
+        message: 'Account has been suspended or banned'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats,
+        createdAt: user.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('[USER /profile] Error:', error);
+    console.error('[USER /profile] Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Get leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {

@@ -60,9 +60,10 @@ const Login = () => {
         
         // Verify session with /users/profile endpoint before redirect
         try {
-          const verifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/users/profile`, {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api';
+          const verifyResponse = await fetch(`${apiUrl}/users/profile`, {
             method: 'GET',
-            credentials: 'include',
+            credentials: 'include', // CRITICAL: Include cookies
             headers: {
               'Authorization': `Bearer ${response.token}`,
               'Content-Type': 'application/json'

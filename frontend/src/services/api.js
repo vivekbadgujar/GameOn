@@ -68,7 +68,12 @@ api.interceptors.response.use(
       const errorMessage = error.response?.data?.message;
       
       // Only handle specific token expiration messages (not all 401 errors)
-      if (errorMessage && (errorMessage.includes('Token has expired') || errorMessage.includes('Invalid token'))) {
+      if (errorMessage && (
+        errorMessage.includes('Token has expired') || 
+        errorMessage.includes('Invalid token') ||
+        errorMessage.includes('Invalid or expired token') ||
+        errorMessage.includes('Access token required')
+      )) {
         console.log('[API] Token expired or invalid, clearing auth data:', errorMessage);
         
         // Clear auth data (only in browser)
@@ -95,6 +100,7 @@ api.interceptors.response.use(
           }
         }
       } else {
+        // For other 401 errors (like invalid credentials), don't auto-logout
         console.warn('[API] 401 error without token expiration message:', {
           errorMessage,
           status: error.response.status,

@@ -175,12 +175,47 @@ router.post('/login', async (req, res) => {
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
+    // CRITICAL: Check JWT_SECRET exists
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+      console.error('[USER LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error - authentication service unavailable'
+      });
+    }
+
     // Generate token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
-    );
+    let token;
+    try {
+      token = jwt.sign(
+        { userId: user._id.toString(), email: user.email },
+        process.env.JWT_SECRET.trim(),
+        { expiresIn: '7d' }
+      );
+    } catch (tokenError) {
+      console.error('[USER LOGIN] ❌ TOKEN ERROR:', tokenError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate authentication token'
+      });
+    }
+
+    // Set secure HTTP-only cookie for user token
+    try {
+      const cookieOptions = {
+        httpOnly: true,
+        secure: true, // Always true for HTTPS
+        sameSite: 'None', // Required for cross-site
+        domain: 'gameonesport.xyz', // Works for all subdomains
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/'
+      };
+      res.cookie('gameon_user_token', token, cookieOptions);
+      console.log('[USER LOGIN] Cookie set successfully');
+    } catch (cookieError) {
+      console.error('[USER LOGIN] Cookie error (non-fatal):', cookieError.message);
+      // Continue - token is in response body
+    }
 
     // Update last login time
     await User.updateOne(

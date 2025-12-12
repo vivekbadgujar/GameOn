@@ -166,8 +166,9 @@ router.post('/login',
       // Generate JWT token with 7 days expiry
       const tokenExpiry = rememberMe ? '30d' : '7d';
       
-      if (!process.env.JWT_SECRET) {
-        console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
+      // CRITICAL: Check JWT_SECRET exists and is valid
+      if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+        console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set or is empty');
         console.error('[ADMIN LOGIN] Full error stack:', new Error().stack);
         return res.status(500).json({
           success: false,
@@ -175,22 +176,34 @@ router.post('/login',
         });
       }
 
+      // CRITICAL: Ensure admin._id exists before token generation
+      if (!admin || !admin._id) {
+        console.error('[ADMIN LOGIN] ❌ CRITICAL: Admin or admin._id is missing');
+        console.error('[ADMIN LOGIN] Admin object:', admin ? 'exists' : 'null');
+        return res.status(500).json({
+          success: false,
+          message: 'Authentication error - invalid admin data'
+        });
+      }
+
       let accessToken;
       try {
-        // Explicitly use jwt.sign as requested
+        // Explicitly use jwt.sign with proper error handling
         accessToken = jwt.sign(
-          { userId: admin._id }, 
-          process.env.JWT_SECRET, 
+          { userId: admin._id.toString() }, // Ensure _id is string
+          process.env.JWT_SECRET.trim(), // Trim whitespace
           { expiresIn: tokenExpiry }
         );
-        console.log('[ADMIN LOGIN] Access token generated with expiry:', tokenExpiry);
+        console.log('[ADMIN LOGIN] Access token generated successfully with expiry:', tokenExpiry);
       } catch (tokenError) {
         console.error('[ADMIN LOGIN] ❌ ADMIN TOKEN ERROR:', tokenError);
         console.error('[ADMIN LOGIN] Error stack:', tokenError.stack);
         console.error('[ADMIN LOGIN] Error details:', {
           name: tokenError.name,
           message: tokenError.message,
-          code: tokenError.code
+          code: tokenError.code,
+          adminId: admin?._id,
+          jwtSecretLength: process.env.JWT_SECRET?.length
         });
         return res.status(500).json({
           success: false,
@@ -217,10 +230,11 @@ router.post('/login',
       try {
         const cookieOptions = {
           httpOnly: true,
-          secure: true, // Production: always true for HTTPS
-          sameSite: 'None',
-          domain: '.gameonesport.xyz',
-          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+          secure: true, // Always true for HTTPS in production
+          sameSite: 'None', // Required for cross-site cookies
+          domain: 'gameonesport.xyz', // Remove leading dot - works for all subdomains
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+          path: '/' // Set path to root
         };
 
         res.cookie('gameon_admin_token', accessToken, cookieOptions);
@@ -229,11 +243,13 @@ router.post('/login',
           secure: cookieOptions.secure,
           sameSite: cookieOptions.sameSite,
           domain: cookieOptions.domain,
-          maxAge: cookieOptions.maxAge
+          maxAge: cookieOptions.maxAge,
+          path: cookieOptions.path
         });
       } catch (cookieError) {
         console.error('[ADMIN LOGIN] Error setting main cookie:', cookieError.message);
         console.error('[ADMIN LOGIN] Cookie error stack:', cookieError.stack);
+        // Don't fail login if cookie fails - token is still in response body
       }
 
       // Set secure HTTP-only cookie for refresh token (only if available)
@@ -241,10 +257,11 @@ router.post('/login',
         try {
           res.cookie('adminRefreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: true, // Always true for HTTPS
             sameSite: 'None',
-            domain: '.gameonesport.xyz',
-            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+            domain: 'gameonesport.xyz', // Remove leading dot
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            path: '/'
           });
           console.log('[ADMIN LOGIN] adminRefreshToken cookie set');
         } catch (refreshCookieError) {

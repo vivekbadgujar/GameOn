@@ -8,12 +8,13 @@ export default function Document() {
         <meta name="description" content="GameOn — premium esports tournaments, real-time matches, and rewards." />
         <meta property="og:title" content="GameOn — Play. Compete. Win." />
         <meta property="og:description" content="GameOn — premium esports tournaments, real-time matches, and rewards." />
-        <meta property="og:image" content="https://gameonesport.xyz/opengraph-image.png" />
+        <meta property="og:image" content="https://gameonesport.xyz/logo.png" />
         <meta property="og:url" content="https://gameonesport.xyz" />
         <meta property="og:type" content="website" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
+        <link rel="manifest" href="/manifest.json" />
       </Head>
       <body>
         <Main />

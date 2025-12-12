@@ -45,24 +45,50 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
+    // CRITICAL: Disable WebSocket in serverless environments (Vercel)
+    // Check if we're likely in a serverless environment
+    const isServerless = typeof process !== 'undefined' && (
+      process.env.VERCEL === '1' || 
+      process.env.NEXT_PUBLIC_VERCEL === '1' ||
+      window.location.hostname.includes('vercel.app')
+    );
+
+    if (isServerless) {
+      console.log('[Socket] Skipping socket initialization (serverless environment detected)');
+      setSyncStatus('disconnected');
+      return;
+    }
+
     // Check if API base URL is production and supports WebSocket
     const apiBaseUrl = config.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api';
     if (!apiBaseUrl.startsWith('https://api.gameonesport.xyz')) {
       console.log('[Socket] Skipping socket initialization (non-production API)');
+      setSyncStatus('disconnected');
       return;
     }
 
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 0, // We'll handle reconnection manually
       autoConnect: true,
       forceNew: true,
+      timeout: 5000, // 5 second timeout
     });
+
+    // Add connection timeout
+    const connectionTimeout = setTimeout(() => {
+      if (!newSocket.connected) {
+        console.warn('[Socket] Connection timeout - disabling WebSocket');
+        newSocket.disconnect();
+        setSyncStatus('disconnected');
+      }
+    }, 10000); // 10 second total timeout
 
     // Enhanced connection handling for unified platform
     newSocket.on('connect', () => {
+      clearTimeout(connectionTimeout);
       console.log('🔗 Socket connected:', newSocket.id);
       setIsConnected(true);
       setSyncStatus('connected');
@@ -92,6 +118,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('disconnect', (reason) => {
+      clearTimeout(connectionTimeout);
       console.log('🔌 Socket disconnected:', reason);
       setIsConnected(false);
       setSyncStatus('disconnected');
@@ -103,10 +130,11 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect_error', (error) => {
+      clearTimeout(connectionTimeout);
       console.error('❌ Socket connection error:', error);
       setIsConnected(false);
-      setSyncStatus('error');
-      scheduleReconnect();
+      setSyncStatus('disconnected');
+      // Don't retry - WebSocket is likely not available
     });
 
     // Unified Platform Sync Events
