@@ -36,10 +36,12 @@ router.post('/login',
       .withMessage('Password must be at least 8 characters long')
   ],
   async (req, res) => {
+    const startTime = Date.now();
     try {
       // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error('Admin login validation failed:', errors.array());
         return res.status(400).json({
           success: false,
           message: 'Validation failed',
@@ -49,42 +51,35 @@ router.post('/login',
 
       const { email, password, rememberMe = false } = req.body;
       
-      console.log('Admin login attempt:', { email, passwordLength: password.length });
+      console.log('[ADMIN LOGIN] Attempt started for:', email);
 
       // Find admin by email
-      const admin = await Admin.findOne({ 
-        email: email.toLowerCase(),
-        status: 'active'
-      });
-      
-      console.log('Admin found:', admin ? 'Yes' : 'No');
-      if (admin) {
-        console.log('Admin details:', { 
-          id: admin._id, 
-          email: admin.email, 
-          status: admin.status,
-          role: admin.role 
+      let admin;
+      try {
+        admin = await Admin.findOne({ 
+          email: email.toLowerCase(),
+          status: 'active'
+        });
+        console.log('[ADMIN LOGIN] Admin lookup result:', admin ? 'Found' : 'Not found');
+      } catch (dbError) {
+        console.error('[ADMIN LOGIN] Database error during admin lookup:', dbError.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Database error during authentication'
         });
       }
 
-      // Check if admin exists and password is correct
-      const passwordMatch = admin ? await admin.comparePassword(password) : false;
-      console.log('Password match:', passwordMatch);
-      
-      if (!admin || !passwordMatch) {
-        // If admin exists, increment login attempts
-        if (admin) {
-          await admin.incrementLoginAttempts();
-        }
-        
+      if (!admin) {
+        console.warn('[ADMIN LOGIN] Admin not found for email:', email);
         return res.status(401).json({
           success: false,
           message: 'Invalid credentials'
         });
       }
 
-      // Check if account is locked
+      // Check if account is locked BEFORE password comparison
       if (admin.isLocked) {
+        console.warn('[ADMIN LOGIN] Account locked for:', email);
         return res.status(423).json({
           success: false,
           message: 'Account is temporarily locked due to multiple failed login attempts'
@@ -93,51 +88,136 @@ router.post('/login',
 
       // Check if email is verified (for new admins)
       if (!admin.isEmailVerified && admin.role !== 'super_admin') {
+        console.warn('[ADMIN LOGIN] Email not verified for:', email);
         return res.status(403).json({
           success: false,
           message: 'Email not verified. Please contact super admin.'
         });
       }
 
-      // Reset login attempts on successful login
-      await admin.resetLoginAttempts();
+      // Now compare password
+      let passwordMatch;
+      try {
+        console.log('[ADMIN LOGIN] Starting password comparison...');
+        passwordMatch = await admin.comparePassword(password);
+        console.log('[ADMIN LOGIN] Password comparison result:', passwordMatch);
 
-      // Update last activity
-      admin.lastActivity = new Date();
-      
-      // Track IP address
-      const clientIP = req.ip || req.connection.remoteAddress;
-      if (!admin.ipAddresses) {
-        admin.ipAddresses = [];
-      }
-      if (!admin.ipAddresses.includes(clientIP)) {
-        admin.ipAddresses.push(clientIP);
-        if (admin.ipAddresses.length > 10) {
-          admin.ipAddresses = admin.ipAddresses.slice(-10);
+        if (!passwordMatch) {
+          // Check if password is plaintext (not hashed with bcrypt)
+          if (admin.password && !admin.password.startsWith('$2')) {
+            console.error('[ADMIN LOGIN] ⚠️ WARNING: Password in database appears to be plaintext (not bcrypt hashed)');
+            console.error('[ADMIN LOGIN] Admin:', email);
+            console.error('[ADMIN LOGIN] MANUAL INTERVENTION REQUIRED: Password needs to be hashed before login can work');
+            // Still fail the login
+            await admin.incrementLoginAttempts();
+            return res.status(401).json({
+              success: false,
+              message: 'Invalid credentials'
+            });
+          }
+          
+          await admin.incrementLoginAttempts();
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid credentials'
+          });
         }
+      } catch (bcryptError) {
+        console.error('[ADMIN LOGIN] Error during password comparison:', bcryptError.message);
+        console.error('[ADMIN LOGIN] Error stack:', bcryptError.stack);
+        await admin.incrementLoginAttempts();
+        return res.status(500).json({
+          success: false,
+          message: 'Authentication service error'
+        });
       }
-      
-      await admin.save();
 
-      // Generate tokens
-      const tokenExpiry = rememberMe ? '30d' : '8h';
-      const accessToken = generateToken(admin._id, tokenExpiry);
-      
+      // Reset login attempts on successful password match
+      try {
+        await admin.resetLoginAttempts();
+        console.log('[ADMIN LOGIN] Login attempts reset for:', email);
+      } catch (resetError) {
+        console.error('[ADMIN LOGIN] Error resetting login attempts:', resetError.message);
+      }
+
+      // Update last activity and track IP
+      try {
+        admin.lastActivity = new Date();
+        
+        // Track IP address
+        const clientIP = req.ip || req.connection.remoteAddress;
+        if (!admin.ipAddresses) {
+          admin.ipAddresses = [];
+        }
+        if (!admin.ipAddresses.includes(clientIP)) {
+          admin.ipAddresses.push(clientIP);
+          if (admin.ipAddresses.length > 10) {
+            admin.ipAddresses = admin.ipAddresses.slice(-10);
+          }
+        }
+        
+        await admin.save();
+        console.log('[ADMIN LOGIN] Admin profile updated for:', email);
+      } catch (updateError) {
+        console.error('[ADMIN LOGIN] Error updating admin profile:', updateError.message);
+      }
+
+      // Generate JWT token with 7 days expiry
+      const tokenExpiry = rememberMe ? '30d' : '7d';
+      let accessToken;
+      try {
+        accessToken = generateToken(admin._id, tokenExpiry);
+        console.log('[ADMIN LOGIN] Access token generated with expiry:', tokenExpiry);
+      } catch (tokenError) {
+        console.error('[ADMIN LOGIN] Error generating access token:', tokenError.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to generate authentication token'
+        });
+      }
+
       // Generate refresh token only if JWT_REFRESH_SECRET is available
       let refreshToken = null;
       if (process.env.JWT_REFRESH_SECRET) {
-        refreshToken = generateRefreshToken(admin._id);
+        try {
+          refreshToken = generateRefreshToken(admin._id);
+          console.log('[ADMIN LOGIN] Refresh token generated');
+        } catch (refreshError) {
+          console.error('[ADMIN LOGIN] Error generating refresh token:', refreshError.message);
+        }
+      }
+
+      // Set secure HTTP-only cookie for main admin token
+      try {
+        res.cookie('gameon_admin_token', accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'None',
+          domain: '.gameonesport.xyz',
+          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+        console.log('[ADMIN LOGIN] gameon_admin_token cookie set');
+      } catch (cookieError) {
+        console.error('[ADMIN LOGIN] Error setting main cookie:', cookieError.message);
       }
 
       // Set secure HTTP-only cookie for refresh token (only if available)
       if (refreshToken) {
-        res.cookie('adminRefreshToken', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-        });
+        try {
+          res.cookie('adminRefreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'None',
+            domain: '.gameonesport.xyz',
+            maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+          });
+          console.log('[ADMIN LOGIN] adminRefreshToken cookie set');
+        } catch (refreshCookieError) {
+          console.error('[ADMIN LOGIN] Error setting refresh token cookie:', refreshCookieError.message);
+        }
       }
+
+      console.log('[ADMIN LOGIN] ✅ Login successful for:', email, '| Duration:', Date.now() - startTime, 'ms');
 
       res.json({
         success: true,
@@ -155,8 +235,11 @@ router.post('/login',
       });
 
     } catch (error) {
-      console.error('Admin login error:', error);
-      console.error('Error stack:', error.stack);
+      console.error('[ADMIN LOGIN] ❌ FATAL LOGIN ERROR:', error.message);
+      console.error('[ADMIN LOGIN] Error type:', error.constructor.name);
+      console.error('[ADMIN LOGIN] Error stack:', error.stack);
+      console.error('[ADMIN LOGIN] Request email:', req.body?.email);
+      
       res.status(500).json({
         success: false,
         message: 'Login failed due to server error',

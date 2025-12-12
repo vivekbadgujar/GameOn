@@ -84,6 +84,15 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
         setAdmin(response.data.admin);
         console.log('AuthContext: Login successful, token stored');
+        
+        try {
+          console.log('AuthContext: Verifying session via /admin/auth/me');
+          const meResponse = await authAPI.checkAuth();
+          console.log('AuthContext: Session verified:', meResponse.data);
+        } catch (verifyError) {
+          console.warn('AuthContext: Session verification failed (non-blocking):', verifyError.message);
+        }
+        
         return { success: true };
       } else {
         console.log('AuthContext: Login failed -', response.data.message);

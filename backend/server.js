@@ -201,21 +201,20 @@ app.use(helmet());
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Check if the origin is in the allowed origins
     if (allowedOrigins.includes(origin)) {
       return callback(null, origin);
     }
     
-    // If not allowed
     console.error('CORS blocked for origin:', origin);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie', 'Content-Type'],
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));

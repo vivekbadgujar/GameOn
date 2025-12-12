@@ -206,7 +206,7 @@ const AdminLogin = () => {
                     },
                     '&:-webkit-autofill': {
                       WebkitBoxShadow: '0 0 0 1000px white inset !important',
-                      WebkitTextFillColor: '#000000 !important',
+                      WebkitTextFillColor: '#111111 !important',
                     },
                   },
                   '& .MuiOutlinedInput-root': {
@@ -239,6 +239,7 @@ const AdminLogin = () => {
                 onChange={handleChange}
                 margin="normal"
                 required
+                autoComplete="current-password"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -268,7 +269,7 @@ const AdminLogin = () => {
                     },
                     '&:-webkit-autofill': {
                       WebkitBoxShadow: '0 0 0 1000px white inset !important',
-                      WebkitTextFillColor: '#000000 !important',
+                      WebkitTextFillColor: '#111111 !important',
                     },
                   },
                   '& .MuiOutlinedInput-root': {
