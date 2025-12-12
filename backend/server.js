@@ -25,17 +25,11 @@ if (isServerless) {
 const app = express();
 
 // Canonical production origins (no localhost fallbacks anywhere)
-const canonicalFrontend = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz').replace(/\/$/, '');
-const canonicalAdmin = (process.env.ADMIN_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz').replace(/\/$/, '');
-const canonicalApi = (process.env.API_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
-
 const allowedOrigins = [
-  canonicalFrontend,
-  canonicalAdmin,
-  canonicalApi,
-  `https://www.${canonicalFrontend.replace(/^https?:\/\//, '')}`,
-  `https://www.${canonicalAdmin.replace(/^https?:\/\//, '')}`,
-].filter(Boolean);
+  'https://gameonesport.xyz',
+  'https://admin.gameonesport.xyz',
+  'https://api.gameonesport.xyz'
+];
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // allow server-to-server/health checks
@@ -56,16 +50,10 @@ if (!isServerless) {
   server = createServer(app);
   io = new Server(server, {
     cors: {
-      origin: (origin, callback) => {
-        if (isAllowedOrigin(origin)) {
-          return callback(null, true);
-        }
-        return callback(new Error('Not allowed by CORS'));
-      },
-      credentials: true,
-      methods: ['GET', 'POST']
+      origin: allowedOrigins,
+      credentials: true
     },
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],
     allowEIO3: true
   });
 
@@ -217,9 +205,8 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     // Check if the origin is in the allowed origins
-    if (allowedOrigins.includes(origin) || 
-        allowedOrigins.some(allowed => origin.endsWith(new URL(allowed).hostname.replace('www.', '')))) {
-      return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, origin);
     }
     
     // If not allowed
@@ -227,9 +214,8 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token'],
-  exposedHeaders: ['set-cookie']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
@@ -891,9 +877,9 @@ app.set('emitToAdmins', emitToAdmins);
 
 
 
-// For local development, start server
+// For local development or production runtime (Render/EC2), start server
 // NEVER start server in serverless mode (Vercel/Lambda)
-if (!isServerless && process.env.NODE_ENV !== 'production' && require.main === module && server) {
+if (!isServerless && require.main === module && server) {
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
