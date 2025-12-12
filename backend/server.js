@@ -27,10 +27,12 @@ const app = express();
 // Canonical production origins (no localhost fallbacks anywhere)
 const canonicalFrontend = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz').replace(/\/$/, '');
 const canonicalAdmin = (process.env.ADMIN_URL || process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz').replace(/\/$/, '');
+const canonicalApi = (process.env.API_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 
 const allowedOrigins = [
   canonicalFrontend,
   canonicalAdmin,
+  canonicalApi,
   `https://www.${canonicalFrontend.replace(/^https?:\/\//, '')}`,
   `https://www.${canonicalAdmin.replace(/^https?:\/\//, '')}`,
 ].filter(Boolean);

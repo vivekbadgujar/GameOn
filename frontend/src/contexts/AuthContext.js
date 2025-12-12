@@ -38,21 +38,27 @@ export const AuthProvider = ({ children }) => {
             try {
               const parsedUser = JSON.parse(storedUser);
               
-              // Set API headers
+              // Set API headers immediately
               api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
 
-              // Verify session before trusting stored data
-              const verifiedUser = await verifySession(storedToken).catch(() => null);
-
-              setUser(verifiedUser || parsedUser);
+              // Use stored data immediately
+              setUser(parsedUser);
               setToken(storedToken);
               
-              // Fetch wallet balance
-              await fetchWalletBalance(storedToken);
+              // Verify session in background (don't block loading)
+              verifySession(storedToken).catch(() => {
+                console.warn('Background session verification failed - using stored data');
+              });
+              
+              // Fetch wallet balance in background
+              fetchWalletBalance(storedToken).catch((err) => {
+                console.warn('Failed to fetch wallet balance:', err?.message || err);
+              });
             } catch (error) {
               console.error('Error parsing stored user data:', error);
               localStorage.removeItem('user');
               localStorage.removeItem('token');
+              setLoading(false);
             }
           }
         }
@@ -70,7 +76,6 @@ export const AuthProvider = ({ children }) => {
       
       // Show user-friendly notification
       if (event.detail?.message) {
-        // You can integrate with your notification system here
         console.log('Session expired:', event.detail.message);
       }
     };
@@ -127,8 +132,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get('/users/profile', {
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000
       });
 
       if (response?.data) {
@@ -141,8 +148,10 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.warn('Session verification failed:', error?.message || error);
-      logout();
-      throw error;
+      // Don't logout on verification failure - just warn
+      // User might have internet issues or backend might be temporarily down
+      // Let the app proceed with locally stored data
+      return null;
     }
     return null;
   };
@@ -165,15 +174,15 @@ export const AuthProvider = ({ children }) => {
       // Update axios headers
       api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
-      // Eagerly confirm the session so we fail fast if token is invalid
-      verifySession(authToken).catch((err) => {
-        console.warn('Session verification failed after login:', err?.message || err);
+      // Don't verify immediately - let the user proceed with stored data
+      // Verification will happen on profile fetch or when needed
+      console.log('AuthContext: Login successful');
+      
+      // Fetch wallet balance in background (don't block login)
+      fetchWalletBalance(authToken).catch((err) => {
+        console.warn('Failed to fetch wallet balance:', err?.message || err);
       });
 
-      // Fetch wallet balance after login
-      fetchWalletBalance(authToken);
-
-      console.log('AuthContext: Login successful');
       return true;
     } catch (error) {
       console.error('AuthContext: Login error:', error);

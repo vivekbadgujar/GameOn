@@ -68,7 +68,8 @@ const AdminLogin = () => {
     try {
       console.log('Attempting login with:', { 
         email: formData.email, 
-        apiUrl: process.env.REACT_APP_API_URL 
+        apiUrl: process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL,
+        apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL
       });
       
       const result = await login(formData);
@@ -76,7 +77,6 @@ const AdminLogin = () => {
       
       if (result.success) {
         setSuccess('Login successful! Redirecting...');
-        // Redirect after a short delay so the success state is visible
         setTimeout(() => navigate('/dashboard'), 500);
       } else {
         console.error('Login failed:', result);
@@ -84,6 +84,8 @@ const AdminLogin = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       
       // More detailed error messages
       if (error.response?.status === 401) {
@@ -95,9 +97,12 @@ const AdminLogin = () => {
       } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
         setError('Cannot connect to server. Please check your internet connection.');
       } else if (error.response?.status >= 500) {
-        setError('Server error. Please try again later.');
+        const errorMsg = error.response?.data?.message || 'Server error. Please try again later.';
+        setError(errorMsg);
+      } else if (error.response?.status === 400) {
+        setError(error.response?.data?.message || 'Invalid request. Please check your input.');
       } else {
-        setError(error.response?.data?.message || 'Login failed. Please try again.');
+        setError(error.response?.data?.message || error.message || 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -192,21 +197,35 @@ const AdminLogin = () => {
                 }}
                 sx={{
                   '& .MuiOutlinedInput-input': {
-                    color: '#000000',
+                    color: '#000000 !important',
                     fontSize: '1rem',
+                    fontWeight: '500',
                     '&::placeholder': {
-                      color: '#666666',
+                      color: '#666666 !important',
                       opacity: 1,
+                    },
+                    '&:-webkit-autofill': {
+                      WebkitBoxShadow: '0 0 0 1000px white inset !important',
+                      WebkitTextFillColor: '#000000 !important',
                     },
                   },
                   '& .MuiOutlinedInput-root': {
                     backgroundColor: '#ffffff',
+                    '& fieldset': {
+                      borderColor: '#cccccc',
+                    },
                     '&:hover fieldset': {
-                      borderColor: 'primary.main',
+                      borderColor: '#6366f1',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#6366f1',
                     },
                   },
                   '& .MuiInputBase-input': {
-                    color: '#000000',
+                    color: '#000000 !important',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: '#666666',
                   },
                 }}
               />
@@ -240,21 +259,35 @@ const AdminLogin = () => {
                 }}
                 sx={{
                   '& .MuiOutlinedInput-input': {
-                    color: '#000', // Changed from #000000
+                    color: '#000000 !important',
                     fontSize: '1rem',
+                    fontWeight: '500',
                     '&::placeholder': {
-                      color: '#666', // Changed from #666666
+                      color: '#666666 !important',
                       opacity: 1,
+                    },
+                    '&:-webkit-autofill': {
+                      WebkitBoxShadow: '0 0 0 1000px white inset !important',
+                      WebkitTextFillColor: '#000000 !important',
                     },
                   },
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: '#fff', // Changed from #ffffff
+                    backgroundColor: '#ffffff',
+                    '& fieldset': {
+                      borderColor: '#cccccc',
+                    },
                     '&:hover fieldset': {
-                      borderColor: 'primary.main',
+                      borderColor: '#6366f1',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#6366f1',
                     },
                   },
                   '& .MuiInputBase-input': {
-                    color: '#000', // Changed from #000000
+                    color: '#000000 !important',
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: '#666666',
                   },
                 }}
               />
