@@ -39,6 +39,18 @@ router.post('/login',
   async (req, res) => {
     const startTime = Date.now();
     try {
+      // CRITICAL: Validate JWT_SECRET FIRST before any operations
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
+        console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set or is empty');
+        console.error('[ADMIN LOGIN] JWT_SECRET type:', typeof jwtSecret);
+        console.error('[ADMIN LOGIN] JWT_SECRET value:', jwtSecret ? 'SET (hidden)' : 'NOT SET');
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error - authentication service unavailable'
+        });
+      }
+
       // Check validation errors
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -163,20 +175,6 @@ router.post('/login',
         console.error('[ADMIN LOGIN] Error updating admin profile:', updateError.message);
       }
 
-      // Generate JWT token with 7 days expiry
-      const tokenExpiry = rememberMe ? '30d' : '7d';
-      
-      // CRITICAL: Check JWT_SECRET exists and is valid (check before calling .trim())
-      const jwtSecret = process.env.JWT_SECRET;
-      if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
-        console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set or is empty');
-        console.error('[ADMIN LOGIN] Full error stack:', new Error().stack);
-        return res.status(500).json({
-          success: false,
-          message: 'Server configuration error - authentication service unavailable'
-        });
-      }
-
       // CRITICAL: Ensure admin._id exists before token generation
       if (!admin || !admin._id) {
         console.error('[ADMIN LOGIN] ❌ CRITICAL: Admin or admin._id is missing');
@@ -187,7 +185,10 @@ router.post('/login',
         });
       }
 
-      // Store trimmed JWT secret for use
+      // Generate JWT token with 7 days expiry
+      const tokenExpiry = rememberMe ? '30d' : '7d';
+      
+      // JWT_SECRET already validated at start, use it here
       const trimmedJwtSecret = jwtSecret.trim();
 
       let accessToken;
@@ -295,6 +296,14 @@ router.post('/login',
       console.error('[ADMIN LOGIN] Error type:', error.constructor.name);
       console.error('[ADMIN LOGIN] Error stack:', error.stack);
       console.error('[ADMIN LOGIN] Request email:', req.body?.email);
+      
+      // Check if it's a JWT_SECRET related error
+      if (error.message && (error.message.includes('secret') || error.message.includes('JWT'))) {
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error - authentication service unavailable'
+        });
+      }
       
       res.status(500).json({
         success: false,

@@ -132,6 +132,18 @@ router.post('/signup', async (req, res) => {
 // Simple email/password login for testing
 router.post('/login', async (req, res) => {
   try {
+    // CRITICAL: Validate JWT_SECRET FIRST before any operations
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
+      console.error('[USER LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set or is empty');
+      console.error('[USER LOGIN] JWT_SECRET type:', typeof jwtSecret);
+      console.error('[USER LOGIN] JWT_SECRET value:', jwtSecret ? 'SET (hidden)' : 'NOT SET');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error - authentication service unavailable'
+      });
+    }
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -175,17 +187,7 @@ router.post('/login', async (req, res) => {
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
-    // CRITICAL: Check JWT_SECRET exists (check before calling .trim())
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
-      console.error('[USER LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error - authentication service unavailable'
-      });
-    }
-
-    // Store trimmed JWT secret for use
+    // JWT_SECRET already validated at start, use it here
     const trimmedJwtSecret = jwtSecret.trim();
 
     // Generate token
@@ -244,10 +246,22 @@ router.post('/login', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Login Error:', error);
+    console.error('[USER LOGIN] ❌ FATAL ERROR:', error.message);
+    console.error('[USER LOGIN] Error type:', error.constructor.name);
+    console.error('[USER LOGIN] Error stack:', error.stack);
+    console.error('[USER LOGIN] Request body:', { email: req.body?.email, hasPassword: !!req.body?.password });
+    
+    // Check if it's a JWT_SECRET related error
+    if (error.message && (error.message.includes('secret') || error.message.includes('JWT'))) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error - authentication service unavailable'
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Server error. Please try again later.'
     });
   }
 });

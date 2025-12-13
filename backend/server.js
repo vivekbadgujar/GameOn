@@ -82,6 +82,15 @@ console.log('Environment check:');
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? `Set (length: ${process.env.JWT_SECRET.length})` : 'NOT SET');
+console.log('JWT_SECRET type:', typeof process.env.JWT_SECRET);
+
+// CRITICAL: Validate JWT_SECRET at startup
+if (!process.env.JWT_SECRET || typeof process.env.JWT_SECRET !== 'string' || process.env.JWT_SECRET.trim() === '') {
+  console.error('❌ CRITICAL ERROR: JWT_SECRET is not properly configured!');
+  console.error('JWT_SECRET value:', process.env.JWT_SECRET || 'UNDEFINED');
+  console.error('Authentication will fail until JWT_SECRET is set in environment variables');
+}
 
 // MongoDB URI from environment variables (DATABASE_URL for Render/Vercel compatibility)
 // IMPORTANT: MONGODB_URI must be set in environment variables - no localhost fallback in production
@@ -89,10 +98,15 @@ const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
 
 // Validate environment variables at startup (warn but don't crash)
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
-const missingEnvVars = requiredEnvVars.filter(key => !process.env[key] && !process.env.DATABASE_URL);
+const missingEnvVars = requiredEnvVars.filter(key => {
+  if (key === 'MONGODB_URI' && process.env.DATABASE_URL) return false; // DATABASE_URL is alternative
+  const value = process.env[key];
+  return !value || (typeof value === 'string' && value.trim() === '');
+});
 if (missingEnvVars.length > 0) {
-  console.warn('⚠️ WARNING: Missing environment variables:', missingEnvVars);
-  console.warn('Server will respond with 503 to requests until variables are configured.');
+  console.error('❌ CRITICAL: Missing or empty environment variables:', missingEnvVars);
+  console.error('Server will respond with 500 errors to authentication requests until variables are configured.');
+  console.error('Please set these in Vercel project settings > Environment Variables');
 }
 
 // MongoDB Connection - lazy initialization for serverless
