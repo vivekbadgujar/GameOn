@@ -58,7 +58,9 @@ router.get('/profile', async (req, res) => {
       });
     }
 
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+    // CRITICAL: Check JWT_SECRET exists (check before calling .trim())
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
       console.error('[USER /profile] JWT_SECRET not configured');
       return res.status(500).json({
         success: false,
@@ -69,7 +71,7 @@ router.get('/profile', async (req, res) => {
     const jwt = require('jsonwebtoken');
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET.trim());
+      decoded = jwt.verify(token, jwtSecret.trim());
     } catch (jwtError) {
       console.error('[USER /profile] JWT verification error:', jwtError.message);
       return res.status(401).json({

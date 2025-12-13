@@ -19,7 +19,16 @@ const authenticateAdmin = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Validate JWT_SECRET before use
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string') {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const decoded = jwt.verify(token, jwtSecret.trim());
     const admin = await Admin.findById(decoded.userId).select('-password');
 
     if (!admin) {

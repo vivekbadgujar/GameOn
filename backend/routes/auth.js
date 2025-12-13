@@ -175,8 +175,9 @@ router.post('/login', async (req, res) => {
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
-    // CRITICAL: Check JWT_SECRET exists
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+    // CRITICAL: Check JWT_SECRET exists (check before calling .trim())
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
       console.error('[USER LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set');
       return res.status(500).json({
         success: false,
@@ -184,12 +185,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Store trimmed JWT secret for use
+    const trimmedJwtSecret = jwtSecret.trim();
+
     // Generate token
     let token;
     try {
       token = jwt.sign(
         { userId: user._id.toString(), email: user.email },
-        process.env.JWT_SECRET.trim(),
+        trimmedJwtSecret, // Use pre-validated and trimmed secret
         { expiresIn: '7d' }
       );
     } catch (tokenError) {

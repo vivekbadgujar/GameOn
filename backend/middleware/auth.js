@@ -19,7 +19,16 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Validate JWT_SECRET before use
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string') {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const decoded = jwt.verify(token, jwtSecret.trim());
     const user = await User.findById(decoded.userId).select('-password -otp');
 
     if (!user) {
@@ -86,7 +95,13 @@ const optionalAuth = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Validate JWT_SECRET before use
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret || typeof jwtSecret !== 'string') {
+        // Don't fail optional auth, just skip
+        return next();
+      }
+      const decoded = jwt.verify(token, jwtSecret.trim());
       const user = await User.findById(decoded.userId).select('-password -otp');
       
       if (user && user.status === 'active' && !user.isLocked) {
@@ -205,12 +220,13 @@ const rateLimiter = (windowMs = 15 * 60 * 1000, maxAttempts = 5) => {
 
 // Generate JWT Token
 const generateToken = (userId, expiresIn = '7d') => {
-  // CRITICAL: Validate JWT_SECRET exists
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+  // CRITICAL: Validate JWT_SECRET exists (check before calling .trim())
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
     throw new Error('JWT secret missing');
   }
   
-  return jwt.sign({ userId }, process.env.JWT_SECRET.trim(), { expiresIn });
+  return jwt.sign({ userId }, jwtSecret.trim(), { expiresIn });
 };
 
 // Generate Refresh Token

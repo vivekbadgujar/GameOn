@@ -166,8 +166,9 @@ router.post('/login',
       // Generate JWT token with 7 days expiry
       const tokenExpiry = rememberMe ? '30d' : '7d';
       
-      // CRITICAL: Check JWT_SECRET exists and is valid
-      if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+      // CRITICAL: Check JWT_SECRET exists and is valid (check before calling .trim())
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
         console.error('[ADMIN LOGIN] ❌ CRITICAL: JWT_SECRET environment variable is NOT set or is empty');
         console.error('[ADMIN LOGIN] Full error stack:', new Error().stack);
         return res.status(500).json({
@@ -186,12 +187,15 @@ router.post('/login',
         });
       }
 
+      // Store trimmed JWT secret for use
+      const trimmedJwtSecret = jwtSecret.trim();
+
       let accessToken;
       try {
         // Explicitly use jwt.sign with proper error handling
         accessToken = jwt.sign(
           { userId: admin._id.toString() }, // Ensure _id is string
-          process.env.JWT_SECRET.trim(), // Trim whitespace
+          trimmedJwtSecret, // Use pre-validated and trimmed secret
           { expiresIn: tokenExpiry }
         );
         console.log('[ADMIN LOGIN] Access token generated successfully with expiry:', tokenExpiry);
@@ -394,7 +398,9 @@ router.get('/me', async (req, res) => {
       });
     }
 
-    if (!process.env.JWT_SECRET) {
+    // CRITICAL: Check JWT_SECRET exists (check before calling .trim())
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string' || jwtSecret.trim() === '') {
       console.error('[ADMIN /me] JWT_SECRET not configured');
       return res.status(500).json({
         success: false,
@@ -405,7 +411,7 @@ router.get('/me', async (req, res) => {
     const jwt = require('jsonwebtoken');
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = jwt.verify(token, jwtSecret.trim());
     } catch (jwtError) {
       console.error('[ADMIN /me] JWT verification error:', jwtError.message);
       return res.status(401).json({
@@ -458,8 +464,17 @@ router.get('/check', async (req, res) => {
       });
     }
 
+    // Validate JWT_SECRET before use
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || typeof jwtSecret !== 'string') {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret.trim());
     const admin = await Admin.findById(decoded.userId).select('-password');
 
     if (!admin) {
@@ -516,8 +531,17 @@ router.post('/change-password',
         });
       }
 
+      // Validate JWT_SECRET before use
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret || typeof jwtSecret !== 'string') {
+        return res.status(500).json({
+          success: false,
+          message: 'Server configuration error'
+        });
+      }
+
       const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, jwtSecret.trim());
       const admin = await Admin.findById(decoded.userId);
 
       if (!admin) {
