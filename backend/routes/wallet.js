@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const User = require('../models/User');
+const WalletService = require('../services/walletService');
 
 const router = express.Router();
 
@@ -9,16 +10,7 @@ router.get('/balance', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
-    // Find user and get wallet balance
-    const user = await User.findById(userId).select('wallet');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const balance = user.wallet?.balance || 0;
+    const balance = await WalletService.getBalance(userId);
     
     res.json({
       success: true,
@@ -29,7 +21,7 @@ router.get('/balance', authenticateToken, async (req, res) => {
     console.error('Error fetching wallet balance:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch wallet balance',
+      message: error.message || 'Failed to fetch wallet balance',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
@@ -48,61 +40,26 @@ router.post('/deduct', authenticateToken, async (req, res) => {
       });
     }
     
-    // Find user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    // Initialize wallet if it doesn't exist
-    if (!user.wallet) {
-      user.wallet = { balance: 0, transactions: [] };
-    }
-    
-    // Check if user has sufficient balance
-    if (user.wallet.balance < amount) {
-      return res.status(400).json({
-        success: false,
-        message: 'Insufficient wallet balance',
-        currentBalance: user.wallet.balance,
-        requiredAmount: amount
-      });
-    }
-    
-    // Deduct amount
-    user.wallet.balance -= amount;
-    
-    // Add transaction record
-    const transaction = {
-      type: 'debit',
-      amount: amount,
-      description: description || 'Tournament entry fee',
-      tournamentId: tournamentId || null,
-      timestamp: new Date(),
-      balanceAfter: user.wallet.balance
-    };
-    
-    if (!user.wallet.transactions) {
-      user.wallet.transactions = [];
-    }
-    user.wallet.transactions.push(transaction);
-    
-    // Save user
-    await user.save();
+    // Deduct using wallet service
+    const result = await WalletService.deductFromWallet(
+      userId,
+      amount,
+      'tournament_entry',
+      {
+        description: description || 'Tournament entry fee',
+        tournamentId: tournamentId || null
+      }
+    );
 
     // Enhanced real-time sync for unified platform
     const syncService = req.app.get('syncService');
     const pushService = req.app.get('pushNotificationService');
     
     if (syncService) {
-      // Sync wallet update across all platforms
       syncService.syncWalletUpdate(userId.toString(), 'wallet_debited', {
         amount: amount,
-        newBalance: user.wallet.balance,
-        transaction: transaction,
+        newBalance: result.newBalance,
+        transaction: result.transaction,
         description: description,
         tournamentId: tournamentId
       });
@@ -115,7 +72,7 @@ router.post('/deduct', authenticateToken, async (req, res) => {
         'wallet_debited',
         {
           amount: amount,
-          balance: user.wallet.balance,
+          balance: result.newBalance,
           description: description
         }
       );
@@ -128,38 +85,40 @@ router.post('/deduct', authenticateToken, async (req, res) => {
         userId: userId.toString(),
         type: 'debit',
         amount: amount,
-        newBalance: user.wallet.balance,
+        newBalance: result.newBalance,
         description: description
       });
 
       io.to(`user_${userId}`).emit('transactionAdded', {
         userId: userId.toString(),
-        transaction: transaction
+        transaction: result.transaction
       });
     }
     
     res.json({
       success: true,
       message: 'Amount deducted successfully',
-      newBalance: user.wallet.balance,
-      transaction: transaction
+      newBalance: result.newBalance,
+      transaction: result.transaction
     });
     
   } catch (error) {
     console.error('Error deducting from wallet:', error);
-    res.status(500).json({
+    const statusCode = error.message.includes('Insufficient') ? 400 : 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to deduct from wallet',
+      message: error.message || 'Failed to deduct from wallet',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
 
 // Add to wallet (for winnings, refunds, etc.)
+// Note: This endpoint is for admin/internal use. For Razorpay deposits, use payment routes
 router.post('/add', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    const { amount, description, tournamentId } = req.body;
+    const { amount, description, tournamentId, type = 'admin_credit' } = req.body;
     
     if (!amount || amount <= 0) {
       return res.status(400).json({
@@ -168,40 +127,16 @@ router.post('/add', authenticateToken, async (req, res) => {
       });
     }
     
-    // Find user
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    // Initialize wallet if it doesn't exist
-    if (!user.wallet) {
-      user.wallet = { balance: 0, transactions: [] };
-    }
-    
-    // Add amount
-    user.wallet.balance += amount;
-    
-    // Add transaction record
-    const transaction = {
-      type: 'credit',
-      amount: amount,
-      description: description || 'Amount added to wallet',
-      tournamentId: tournamentId || null,
-      timestamp: new Date(),
-      balanceAfter: user.wallet.balance
-    };
-    
-    if (!user.wallet.transactions) {
-      user.wallet.transactions = [];
-    }
-    user.wallet.transactions.push(transaction);
-    
-    // Save user
-    await user.save();
+    // Add using wallet service
+    const result = await WalletService.addToWallet(
+      userId,
+      amount,
+      type,
+      {
+        description: description || 'Amount added to wallet',
+        tournamentId: tournamentId || null
+      }
+    );
 
     // Emit real-time wallet update
     const io = req.app.get('io');
@@ -210,28 +145,28 @@ router.post('/add', authenticateToken, async (req, res) => {
         userId: userId.toString(),
         type: 'credit',
         amount: amount,
-        newBalance: user.wallet.balance,
+        newBalance: result.newBalance,
         description: description
       });
 
       io.to(`user_${userId}`).emit('transactionAdded', {
         userId: userId.toString(),
-        transaction: transaction
+        transaction: result.transaction
       });
     }
     
     res.json({
       success: true,
       message: 'Amount added successfully',
-      newBalance: user.wallet.balance,
-      transaction: transaction
+      newBalance: result.newBalance,
+      transaction: result.transaction
     });
     
   } catch (error) {
     console.error('Error adding to wallet:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to add to wallet',
+      message: error.message || 'Failed to add to wallet',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
@@ -241,35 +176,28 @@ router.post('/add', authenticateToken, async (req, res) => {
 router.get('/transactions', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 50, page = 1, type, status } = req.query;
     
-    // Find user and get wallet transactions
-    const user = await User.findById(userId).select('wallet');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const transactions = user.wallet?.transactions || [];
-    
-    // Sort by timestamp (newest first) and apply pagination
-    const sortedTransactions = transactions
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    // Get transactions using wallet service
+    const transactions = await WalletService.getTransactions(userId, {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      type: type || null,
+      status: status || null
+    });
     
     res.json({
       success: true,
-      transactions: sortedTransactions,
-      total: transactions.length,
+      transactions: transactions,
+      page: parseInt(page),
+      limit: parseInt(limit),
       message: 'Wallet transactions fetched successfully'
     });
   } catch (error) {
     console.error('Error fetching wallet transactions:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch wallet transactions',
+      message: error.message || 'Failed to fetch wallet transactions',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

@@ -22,9 +22,11 @@ const TransactionSchema = new mongoose.Schema({
     type: String,
     enum: [
       'deposit',
+      'wallet_topup', // Razorpay add funds
       'withdrawal', 
       'tournament_entry',
       'tournament_win',
+      'tournament_prize', // Alternative name for tournament_win (for admin panel compatibility)
       'referral_bonus',
       'refund',
       'admin_credit',
@@ -151,7 +153,7 @@ TransactionSchema.statics.getUserBalance = async function(userId) {
         credits: {
           $sum: {
             $cond: [
-              { $in: ['$type', ['deposit', 'tournament_win', 'referral_bonus', 'refund', 'admin_credit']] },
+              { $in: ['$type', ['deposit', 'wallet_topup', 'tournament_win', 'tournament_prize', 'referral_bonus', 'refund', 'admin_credit']] },
               '$amount',
               0
             ]
