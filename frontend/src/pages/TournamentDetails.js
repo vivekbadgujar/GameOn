@@ -79,7 +79,7 @@ const TournamentDetails = () => {
   };
 
   const handleOpenFullLobby = () => {
-    navigate(`/tournament/${id}/room-lobby`);
+    router.push(`/tournament/${id}/room-lobby`);
   };
 
   // Real-time updates via socket
@@ -132,7 +132,7 @@ const TournamentDetails = () => {
 
   const handleJoinTournament = async () => {
     if (!user) {
-      navigate('/login');
+      router.push('/login');
       return;
     }
 
@@ -154,10 +154,10 @@ const TournamentDetails = () => {
         const errorMessage = error.response?.data?.message;
         if (errorMessage === 'Token has expired') {
           showError('Your session has expired. Please login again.');
-          setTimeout(() => navigate('/login'), 2000);
+          setTimeout(() => router.push('/login'), 2000);
         } else {
           showError('Authentication required. Please login again.');
-          setTimeout(() => navigate('/login'), 2000);
+          setTimeout(() => router.push('/login'), 2000);
         }
       } else if (error.response?.status === 404) {
         showError('Tournament not found or has been removed.');
@@ -276,14 +276,14 @@ const TournamentDetails = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               {error?.includes('session has expired') || error?.includes('Authentication required') ? (
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => router.push('/login')}
                   className="btn-primary"
                 >
                   Login Again
                 </button>
               ) : (
                 <button
-                  onClick={() => navigate('/tournaments')}
+                  onClick={() => router.push('/tournaments')}
                   className="btn-primary"
                 >
                   Browse Tournaments
@@ -309,7 +309,7 @@ const TournamentDetails = () => {
         <motion.button
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          onClick={() => navigate(-1)}
+          onClick={() => router.back()}
           className="flex items-center space-x-2 text-white/60 hover:text-white mb-6 transition-colors duration-300"
         >
           <ArrowLeft className="w-4 h-4" />

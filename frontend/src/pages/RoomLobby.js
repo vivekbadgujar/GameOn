@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import config from '../config';
 import {
   Box,
   Container,
@@ -56,7 +57,8 @@ dayjs.extend(duration);
 
 const RoomLobby = () => {
   const router = useRouter();
-  const { tournamentId } = router.query;
+  // Support both 'id' (from dynamic route) and 'tournamentId' (from query string)
+  const tournamentId = router.query.id || router.query.tournamentId;
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
   
@@ -129,7 +131,7 @@ const RoomLobby = () => {
   const fetchRoomData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/room-slots/tournament/${tournamentId}`, {
+      const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -205,7 +207,7 @@ const RoomLobby = () => {
     try {
       setSlotChangeLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/room-slots/tournament/${tournamentId}/move`, {
+      const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
