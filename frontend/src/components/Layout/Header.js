@@ -457,7 +457,7 @@ const Header = () => {
               })}
               
               {/* Mobile Wallet Balance */}
-              <div className="flex items-center justify-between px-4 py-3 glass-card">
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/10">
                 <div className="flex items-center space-x-3">
                   <Wallet className="w-5 h-5 text-green-400" />
                   <span className="font-medium">Wallet Balance</span>

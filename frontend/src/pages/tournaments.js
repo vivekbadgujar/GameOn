@@ -35,7 +35,7 @@ const Tournaments = () => {
   const [tournaments, setTournaments] = useState([]);
   const [filteredTournaments, setFilteredTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('ongoing');
+  const [activeTab, setActiveTab] = useState('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const { lastMessage } = useSocket();
   const [selectedGame, setSelectedGame] = useState('all');

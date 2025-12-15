@@ -104,6 +104,12 @@ const TournamentDetails = () => {
   }, [lastMessage, id]);
 
   const fetchTournamentDetails = async () => {
+    if (!id) {
+      setError('Invalid tournament ID. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(''); // Clear previous errors
@@ -133,6 +139,11 @@ const TournamentDetails = () => {
   const handleJoinTournament = async () => {
     if (!user) {
       router.push('/login');
+      return;
+    }
+
+    if (!id || !tournament) {
+      showError('Invalid tournament data. Please try refreshing the page.');
       return;
     }
 
