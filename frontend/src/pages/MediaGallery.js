@@ -682,19 +682,20 @@ const MediaGallery = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
               onClick={closeVideoModal}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="bg-gray-900 rounded-xl w-full max-w-[95vw] md:max-w-6xl max-h-[90vh] overflow-y-auto md:overflow-hidden flex flex-col relative shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="relative">
+                <div className="relative w-full shrink-0">
                   {/* Video Player */}
-                  <div className="aspect-video">
+                  <div className="aspect-video w-full bg-black">
                     <iframe
                       src={getYouTubeEmbedUrl(selectedVideo)}
                       title={selectedVideo.title}
@@ -708,22 +709,22 @@ const MediaGallery = () => {
                   {/* Close Button */}
                   <button
                     onClick={closeVideoModal}
-                    className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors z-10"
+                    className="absolute top-2 right-2 md:top-4 md:right-4 bg-black/60 text-white p-2 rounded-full hover:bg-red-600 transition-colors z-50 backdrop-blur-md border border-white/10"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
                 
                 {/* Video Info */}
-                <div className="p-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">{selectedVideo.title}</h2>
+                <div className="p-4 md:p-6 overflow-y-auto">
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2 line-clamp-2">{selectedVideo.title}</h2>
                   {selectedVideo.description && (
-                    <p className="text-white/70 mb-4">{selectedVideo.description}</p>
+                    <p className="text-white/70 mb-4 text-sm md:text-base">{selectedVideo.description}</p>
                   )}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-sm text-white/60">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs md:text-sm text-white/60">
                       {selectedVideo.game && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
                           <span>{getGameIcon(selectedVideo.game)}</span>
                           <span className="capitalize">{selectedVideo.game}</span>
                         </span>
@@ -744,7 +745,7 @@ const MediaGallery = () => {
                         href={selectedVideo.youtubeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-300"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-300 w-full md:w-auto"
                       >
                         <ExternalLink className="w-4 h-4" />
                         <span>Watch on YouTube</span>
@@ -764,49 +765,50 @@ const MediaGallery = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
               onClick={closeMediaModal}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="bg-gray-900 rounded-xl w-full max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto md:overflow-hidden flex flex-col relative shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="relative">
+                <div className="relative w-full bg-black flex items-center justify-center min-h-[200px]">
                   {selectedMedia.type === 'image' ? (
                     <img
                       src={selectedMedia.url}
                       alt={selectedMedia.title}
-                      className="w-full max-h-[60vh] object-contain"
+                      className="w-full max-h-[50vh] md:max-h-[60vh] object-contain"
                     />
                   ) : (
                     <video
                       src={selectedMedia.url}
                       controls
-                      className="w-full max-h-[60vh]"
+                      className="w-full max-h-[50vh] md:max-h-[60vh]"
                     />
                   )}
                   <button
                     onClick={closeMediaModal}
-                    className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+                    className="absolute top-2 right-2 md:top-4 md:right-4 bg-black/60 text-white p-2 rounded-full hover:bg-red-600 transition-colors z-50 backdrop-blur-md border border-white/10"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
-                <div className="p-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">{selectedMedia.title}</h2>
+                <div className="p-4 md:p-6 overflow-y-auto">
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2 line-clamp-2">{selectedMedia.title}</h2>
                   {selectedMedia.description && (
-                    <p className="text-white/70 mb-4">{selectedMedia.description}</p>
+                    <p className="text-white/70 mb-4 text-sm md:text-base">{selectedMedia.description}</p>
                   )}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-sm text-white/60">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-4 text-sm text-white/60">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
                         {formatDate(selectedMedia.createdAt)}
                       </span>
-                      <span className="capitalize bg-white/10 px-3 py-1 rounded-full">
+                      <span className="capitalize bg-white/10 px-3 py-1 rounded-full text-xs md:text-sm">
                         {selectedMedia.category}
                       </span>
                     </div>
@@ -814,7 +816,7 @@ const MediaGallery = () => {
                       href={selectedMedia.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-300"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-300 w-full md:w-auto"
                     >
                       <Download className="w-4 h-4" />
                       <span>Download</span>
