@@ -79,10 +79,18 @@ const TournamentDetails = () => {
   };
 
   const handleOpenFullLobby = () => {
-    if (!id) {
+    // Guard: Check tournament ID exists and is valid
+    if (!id || typeof id !== 'string' || id.trim() === '') {
       showError('Invalid tournament ID. Cannot open room lobby.');
       return;
     }
+    
+    // Guard: Check tournament data exists
+    if (!tournament || typeof tournament !== 'object') {
+      showError('Tournament data is missing. Please try refreshing the page.');
+      return;
+    }
+    
     router.push(`/tournament/${id}/room-lobby`);
   };
 
@@ -118,6 +126,15 @@ const TournamentDetails = () => {
       setLoading(true);
       setError(''); // Clear previous errors
       const data = await getTournamentById(id);
+      
+      // Guard: Check if tournament data exists
+      if (!data || typeof data !== 'object') {
+        setError('Tournament data is invalid. Please try refreshing the page.');
+        setTournament(null);
+        setLoading(false);
+        return;
+      }
+      
       setTournament(data);
     } catch (error) {
       console.error('Error fetching tournament details:', error);
@@ -132,22 +149,34 @@ const TournamentDetails = () => {
         }
       } else if (error.response?.status === 404) {
         setError('Tournament not found or has been removed.');
+      } else if (error.message?.includes('Tournament data not found')) {
+        setError('Tournament data could not be loaded. Please try again.');
       } else {
         setError('Failed to load tournament details. Please try again.');
       }
+      
+      setTournament(null);
     } finally {
       setLoading(false);
     }
   };
 
   const handleJoinTournament = async () => {
+    // Guard: Check user is logged in
     if (!user) {
       router.push('/login');
       return;
     }
 
-    if (!id || !tournament) {
-      showError('Invalid tournament data. Please try refreshing the page.');
+    // Guard: Check tournament ID exists and is valid
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      showError('Invalid tournament ID. Please try refreshing the page.');
+      return;
+    }
+
+    // Guard: Check tournament data exists and has required fields
+    if (!tournament || typeof tournament !== 'object') {
+      showError('Tournament data is missing. Please try refreshing the page.');
       return;
     }
 

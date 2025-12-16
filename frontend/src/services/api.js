@@ -318,20 +318,38 @@ export const getTournaments = async (params = {}) => {
 
 export const getTournamentById = async (id) => {
   try {
+    // Guard: Check if ID is valid
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      const error = new Error('Invalid tournament ID provided');
+      error.response = { status: 400, data: { error: 'Invalid tournament ID' } };
+      throw error;
+    }
+
     console.log('API: Fetching tournament by ID:', id);
     const response = await api.get(`/tournaments/${id}`);
     console.log('API: Tournament response:', response.data);
     
+    // Guard: Check response has success status
+    if (!response.data) {
+      throw new Error('Empty response from server');
+    }
+
     if (!response.data?.success) {
       throw new Error(response.data?.error || 'Failed to fetch tournament');
     }
     
     const tournament = response.data?.tournament;
-    if (!tournament) {
+    // Guard: Check tournament data exists and is an object
+    if (!tournament || typeof tournament !== 'object') {
       throw new Error('Tournament data not found in response');
     }
     
-    console.log('API: Returning tournament:', tournament.title);
+    // Guard: Check tournament has required fields
+    if (!tournament._id) {
+      throw new Error('Tournament ID missing in response');
+    }
+    
+    console.log('API: Returning tournament:', tournament.title || tournament.name);
     return tournament;
   } catch (error) {
     console.error('API: Error fetching tournament by ID:', error);

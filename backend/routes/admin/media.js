@@ -28,17 +28,17 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit for tournament images
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|webm|pdf|doc|docx/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only images, videos, and documents are allowed.'));
+      cb(new Error('Invalid file type. Only JPEG, JPG, PNG, WebP, GIF, videos, and documents are allowed.'));
     }
   }
 });
@@ -100,7 +100,28 @@ router.get('/',
 // Upload media file
 router.post('/upload',
   requirePermission('media_manage'),
-  upload.single('file'),
+  (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({
+            success: false,
+            message: 'File size exceeds 5MB limit. Please upload a smaller image.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'File upload error: ' + err.message
+        });
+      } else if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || 'File upload failed'
+        });
+      }
+      next();
+    });
+  },
   [
     body('title').optional().trim(),
     body('description').optional().trim(),
