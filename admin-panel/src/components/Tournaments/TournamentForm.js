@@ -84,6 +84,7 @@ const TournamentForm = () => {
   const [errors, setErrors] = useState({});
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [imageError, setImageError] = useState('');
 
   // Fetch tournament data if editing
   const { data: tournament, isLoading: isLoadingTournament } = useQuery({
@@ -237,12 +238,33 @@ const TournamentForm = () => {
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target.result);
-      reader.readAsDataURL(file);
+    if (!file) {
+      setImageError('');
+      return;
     }
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setImageError('Invalid file type. Please upload JPEG, PNG, or WebP images only.');
+      setImageFile(null);
+      setImagePreview('');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setImageError(`File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+      setImageFile(null);
+      setImagePreview('');
+      return;
+    }
+
+    setImageError('');
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreview(e.target.result);
+    reader.readAsDataURL(file);
   };
 
   const validateForm = () => {

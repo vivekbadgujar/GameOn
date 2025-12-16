@@ -79,6 +79,10 @@ const TournamentDetails = () => {
   };
 
   const handleOpenFullLobby = () => {
+    if (!id) {
+      showError('Invalid tournament ID. Cannot open room lobby.');
+      return;
+    }
     router.push(`/tournament/${id}/room-lobby`);
   };
 
