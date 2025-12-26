@@ -535,7 +535,11 @@ const SlotEditModal = ({
                 </button>
                 {canEditSlots && playerSlot && (
                   <button
-                    onClick={() => window.open(`/tournament/${tournamentId}/room-lobby`, '_blank')}
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        window.open(`/tournaments/${tournamentId}/room-lobby`, '_blank');
+                      }
+                    }}
                     className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
                   >
                     Open Full Room Lobby

@@ -82,7 +82,7 @@ const SimpleTournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) =>
       whileTap={{ scale: 0.98 }}
       className="glass-card overflow-hidden group cursor-pointer"
     >
-      <Link href={`/tournament/${tournament._id}`} className="block">
+      <Link href={`/tournaments/${tournament._id}`} className="block">
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between mb-4">

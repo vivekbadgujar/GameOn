@@ -394,7 +394,11 @@ const SlotEditModal = ({
         {canEditSlots && playerSlot && (
           <Button 
             variant="contained" 
-            onClick={() => window.open(`/tournament/${tournamentId}/room-lobby`, '_blank')}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.open(`/tournaments/${tournamentId}/room-lobby`, '_blank');
+              }
+            }}
           >
             Open Full Room Lobby
           </Button>

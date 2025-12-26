@@ -104,7 +104,7 @@ const TournamentCardRedesigned = ({
       whileHover={{ y: -5, scale: 1.02 }}
       className="group relative"
     >
-      <Link href={`/tournament/${tournament._id}`}>
+      <Link href={`/tournaments/${tournament._id}`}>
         <div className="glass-card p-6 h-full relative overflow-hidden hover:bg-white/10 transition-all duration-300">
           {/* Background Gradient */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent rounded-full -translate-y-16 translate-x-16" />
@@ -229,7 +229,18 @@ const TournamentCardRedesigned = ({
                 )}
               </div>
             ) : tournament.status === 'completed' ? (
-              <div className="w-full py-3 px-4 bg-green-500/20 border border-green-500/30 rounded-xl text-center">
+              <div
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof window !== 'undefined') {
+                    window.location.href = `/tournaments/${tournament._id}/result`;
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                className="w-full py-3 px-4 bg-green-500/20 border border-green-500/30 rounded-xl text-center cursor-pointer"
+              >
                 <div className="flex items-center justify-center space-x-2 text-green-400 font-semibold">
                   <Trophy className="w-4 h-4" />
                   <span>View Results</span>

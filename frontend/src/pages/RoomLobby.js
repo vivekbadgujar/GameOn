@@ -77,6 +77,7 @@ const RoomLobby = () => {
 
   // Initialize socket connection
   useEffect(() => {
+    if (!tournamentId) return;
     const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
     const newSocket = io(apiUrl);
     
@@ -129,6 +130,10 @@ const RoomLobby = () => {
 
   // Fetch room data
   const fetchRoomData = async () => {
+    if (!tournamentId) {
+      setLoading(false);
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}`, {
@@ -136,12 +141,13 @@ const RoomLobby = () => {
       });
       
       if (!response.ok) {
-        if (response.status === 403) {
+        if (response.status === 401 || response.status === 403) {
           showError('You are not a participant in this tournament');
           router.push('/tournaments');
           return;
         }
-        throw new Error('Failed to fetch room data');
+        showError('Failed to load room data');
+        return;
       }
       
       const data = await response.json();
@@ -675,7 +681,7 @@ const RoomLobby = () => {
           <Button
             variant="outlined"
             startIcon={<GamepadOutlined />}
-            onClick={() => router.push(`/tournament/${tournamentId}`)}
+            onClick={() => router.push(`/tournaments/${tournamentId}`)}
             size="large"
           >
             Tournament Details

@@ -85,7 +85,7 @@ export const useTournamentJoin = (tournament, onSuccess) => {
           enqueueSnackbar('Successfully joined tournament! Redirecting to room lobby...', { variant: 'success' });
           
           // Redirect to room lobby using the URL provided by backend
-          const roomLobbyUrl = joinResponse.data.data?.roomLobbyUrl || `/tournament/${tournament._id}/room-lobby`;
+          const roomLobbyUrl = joinResponse.data.data?.roomLobbyUrl || `/tournaments/${tournament._id}/room-lobby`;
           setTimeout(() => {
             window.location.href = roomLobbyUrl;
           }, 2000);

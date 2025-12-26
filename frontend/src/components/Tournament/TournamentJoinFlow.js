@@ -228,7 +228,7 @@ const TournamentJoinFlow = ({ tournament, open, onClose, onSuccess }) => {
     // Redirect to room lobby
     if (typeof window !== 'undefined') {
       setTimeout(() => {
-        window.location.href = `/tournament/${tournament._id}/room-lobby`;
+        window.location.href = `/tournaments/${tournament._id}/room-lobby`;
       }, 1500);
     }
   };

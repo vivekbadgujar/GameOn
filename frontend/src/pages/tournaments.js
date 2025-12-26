@@ -193,7 +193,7 @@ const Tournaments = () => {
     }
     
     // Navigate to tournament details page for joining
-    router.push(`/tournament/${tournament._id}`);
+    router.push(`/tournaments/${tournament._id}`);
   };
 
   if (loading) {

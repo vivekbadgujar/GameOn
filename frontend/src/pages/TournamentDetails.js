@@ -91,7 +91,7 @@ const TournamentDetails = () => {
       return;
     }
     
-    router.push(`/tournament/${id}/room-lobby`);
+    router.push(`/tournaments/${id}/room-lobby`);
   };
 
   // Real-time updates via socket
@@ -164,7 +164,7 @@ const TournamentDetails = () => {
   const handleJoinTournament = async () => {
     // Guard: Check user is logged in
     if (!user) {
-      router.push('/login');
+      showError('Please login to register for tournaments.');
       return;
     }
 

@@ -204,7 +204,7 @@ const TournamentDetailsRedesigned = () => {
         // Redirect to room lobby if available
         if (typeof window !== 'undefined') {
           setTimeout(() => {
-            router.push(`/tournament/${tournament._id}/room-lobby`);
+            router.push(`/tournaments/${tournament._id}/room-lobby`);
           }, 2000);
         }
       } else {

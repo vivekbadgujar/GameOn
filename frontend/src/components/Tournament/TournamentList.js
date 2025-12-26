@@ -36,7 +36,7 @@ const TournamentList = ({ tournaments, user, onJoinTournament, showSuccess, show
   const [slotModal, setSlotModal] = useState({ open: false, tournament: null });
 
   const handleTournamentClick = (tournamentId) => {
-    router.push(`/tournament/${tournamentId}`);
+    router.push(`/tournaments/${tournamentId}`);
   };
 
   const isUserParticipant = (tournament) => {
