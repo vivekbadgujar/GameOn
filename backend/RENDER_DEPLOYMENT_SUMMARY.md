@@ -70,8 +70,9 @@ Script to verify all deployment requirements are met.
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
-- `RAZORPAY_KEY_ID`
-- `RAZORPAY_KEY_SECRET`
+- `CASHFREE_APP_ID`
+- `CASHFREE_SECRET`
+- `CASHFREE_ENVIRONMENT`
 
 ## Deployment Steps
 

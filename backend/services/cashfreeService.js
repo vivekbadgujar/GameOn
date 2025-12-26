@@ -3,24 +3,67 @@
  * Handles payment processing for GameOn Platform
  */
 
-const { Cashfree } = require('cashfree-pg');
 const crypto = require('crypto');
 
 class CashfreeService {
   constructor() {
-    // Initialize Cashfree with environment variables
-    if (process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY) {
-      Cashfree.XClientId = process.env.CASHFREE_APP_ID;
-      Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY;
-      Cashfree.XEnvironment = process.env.CASHFREE_ENVIRONMENT === 'production' 
-        ? Cashfree.Environment.PRODUCTION 
+    this._lastConfigStatus = null;
+  }
+
+  _getConfig() {
+    const appId = process.env.CASHFREE_APP_ID;
+    const secret = process.env.CASHFREE_SECRET || process.env.CASHFREE_SECRET_KEY;
+    const environment = process.env.CASHFREE_ENVIRONMENT;
+
+    if (!appId || typeof appId !== 'string' || appId.trim() === '') {
+      return { ok: false, code: 'CASHFREE_NOT_CONFIGURED', message: 'Cashfree is not configured (CASHFREE_APP_ID missing)' };
+    }
+    if (!secret || typeof secret !== 'string' || secret.trim() === '') {
+      return { ok: false, code: 'CASHFREE_NOT_CONFIGURED', message: 'Cashfree is not configured (CASHFREE_SECRET missing)' };
+    }
+    if (environment !== 'sandbox' && environment !== 'production') {
+      return { ok: false, code: 'CASHFREE_NOT_CONFIGURED', message: 'Cashfree is not configured (CASHFREE_ENVIRONMENT must be sandbox | production)' };
+    }
+
+    return {
+      ok: true,
+      appId: appId.trim(),
+      secret: secret.trim(),
+      environment
+    };
+  }
+
+  _getSdk() {
+    try {
+      return { ok: true, sdk: require('cashfree-pg') };
+    } catch (error) {
+      return {
+        ok: false,
+        code: 'CASHFREE_SDK_UNAVAILABLE',
+        message: 'Cashfree SDK unavailable',
+        error
+      };
+    }
+  }
+
+  _configureCashfree(Cashfree) {
+    const cfg = this._getConfig();
+    if (!cfg.ok) return cfg;
+
+    try {
+      Cashfree.XClientId = cfg.appId;
+      Cashfree.XClientSecret = cfg.secret;
+      Cashfree.XEnvironment = cfg.environment === 'production'
+        ? Cashfree.Environment.PRODUCTION
         : Cashfree.Environment.SANDBOX;
-      
-      this.isConfigured = true;
-      console.log('✅ Cashfree Payment Gateway initialized');
-    } else {
-      this.isConfigured = false;
-      console.log('⚠️  Cashfree not configured - missing credentials');
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        code: 'CASHFREE_CONFIG_ERROR',
+        message: 'Failed to configure Cashfree SDK',
+        error
+      };
     }
   }
 
@@ -30,11 +73,18 @@ class CashfreeService {
    * @returns {Promise<Object>} - Cashfree order response
    */
   async createOrder(orderData) {
-    if (!this.isConfigured) {
-      throw new Error('Cashfree payment gateway is not configured');
-    }
-
     try {
+      const sdkResult = this._getSdk();
+      if (!sdkResult.ok) {
+        return { success: false, code: sdkResult.code, message: sdkResult.message };
+      }
+      const { Cashfree } = sdkResult.sdk;
+
+      const cfgResult = this._configureCashfree(Cashfree);
+      if (!cfgResult.ok) {
+        return { success: false, code: cfgResult.code, message: cfgResult.message };
+      }
+
       const {
         orderId,
         amount,
@@ -66,11 +116,19 @@ class CashfreeService {
           data: response.data
         };
       } else {
-        throw new Error('Failed to create Cashfree order');
+        return {
+          success: false,
+          code: 'CASHFREE_API_ERROR',
+          message: 'Failed to create Cashfree order'
+        };
       }
     } catch (error) {
       console.error('Cashfree create order error:', error);
-      throw new Error(`Failed to create payment order: ${error.message}`);
+      return {
+        success: false,
+        code: 'CASHFREE_API_ERROR',
+        message: `Failed to create payment order: ${error.message}`
+      };
     }
   }
 
@@ -81,6 +139,11 @@ class CashfreeService {
    */
   verifyPayment(paymentData) {
     try {
+      const cfg = this._getConfig();
+      if (!cfg.ok) {
+        return { success: false, code: cfg.code, message: cfg.message };
+      }
+
       const {
         orderId,
         orderAmount,
@@ -97,14 +160,14 @@ class CashfreeService {
       
       // Generate signature using secret key
       const expectedSignature = crypto
-        .createHmac('sha256', process.env.CASHFREE_SECRET_KEY)
+        .createHmac('sha256', cfg.secret)
         .update(signatureData)
         .digest('base64');
 
-      return signature === expectedSignature;
+      return { success: signature === expectedSignature };
     } catch (error) {
       console.error('Cashfree signature verification error:', error);
-      return false;
+      return { success: false, code: 'CASHFREE_SIGNATURE_ERROR', message: 'Cashfree signature verification failed' };
     }
   }
 
@@ -114,11 +177,18 @@ class CashfreeService {
    * @returns {Promise<Object>} - Payment details
    */
   async getPaymentDetails(orderId) {
-    if (!this.isConfigured) {
-      throw new Error('Cashfree payment gateway is not configured');
-    }
-
     try {
+      const sdkResult = this._getSdk();
+      if (!sdkResult.ok) {
+        return { success: false, code: sdkResult.code, message: sdkResult.message };
+      }
+      const { Cashfree } = sdkResult.sdk;
+
+      const cfgResult = this._configureCashfree(Cashfree);
+      if (!cfgResult.ok) {
+        return { success: false, code: cfgResult.code, message: cfgResult.message };
+      }
+
       const response = await Cashfree.PGOrderFetchPayments("2023-08-01", orderId);
       
       if (response.data) {
@@ -127,11 +197,15 @@ class CashfreeService {
           data: response.data
         };
       } else {
-        throw new Error('Failed to fetch payment details');
+        return { success: false, code: 'CASHFREE_API_ERROR', message: 'Failed to fetch payment details' };
       }
     } catch (error) {
       console.error('Cashfree get payment details error:', error);
-      throw new Error(`Failed to get payment details: ${error.message}`);
+      return {
+        success: false,
+        code: 'CASHFREE_API_ERROR',
+        message: `Failed to get payment details: ${error.message}`
+      };
     }
   }
 
@@ -141,11 +215,18 @@ class CashfreeService {
    * @returns {Promise<Object>} - Order status
    */
   async getOrderStatus(orderId) {
-    if (!this.isConfigured) {
-      throw new Error('Cashfree payment gateway is not configured');
-    }
-
     try {
+      const sdkResult = this._getSdk();
+      if (!sdkResult.ok) {
+        return { success: false, code: sdkResult.code, message: sdkResult.message };
+      }
+      const { Cashfree } = sdkResult.sdk;
+
+      const cfgResult = this._configureCashfree(Cashfree);
+      if (!cfgResult.ok) {
+        return { success: false, code: cfgResult.code, message: cfgResult.message };
+      }
+
       const response = await Cashfree.PGFetchOrder("2023-08-01", orderId);
       
       if (response.data) {
@@ -154,11 +235,15 @@ class CashfreeService {
           data: response.data
         };
       } else {
-        throw new Error('Failed to fetch order status');
+        return { success: false, code: 'CASHFREE_API_ERROR', message: 'Failed to fetch order status' };
       }
     } catch (error) {
       console.error('Cashfree get order status error:', error);
-      throw new Error(`Failed to get order status: ${error.message}`);
+      return {
+        success: false,
+        code: 'CASHFREE_API_ERROR',
+        message: `Failed to get order status: ${error.message}`
+      };
     }
   }
 
@@ -168,11 +253,18 @@ class CashfreeService {
    * @returns {Promise<Object>} - Refund response
    */
   async processRefund(refundData) {
-    if (!this.isConfigured) {
-      throw new Error('Cashfree payment gateway is not configured');
-    }
-
     try {
+      const sdkResult = this._getSdk();
+      if (!sdkResult.ok) {
+        return { success: false, code: sdkResult.code, message: sdkResult.message };
+      }
+      const { Cashfree } = sdkResult.sdk;
+
+      const cfgResult = this._configureCashfree(Cashfree);
+      if (!cfgResult.ok) {
+        return { success: false, code: cfgResult.code, message: cfgResult.message };
+      }
+
       const {
         orderId,
         refundId,
@@ -194,11 +286,15 @@ class CashfreeService {
           data: response.data
         };
       } else {
-        throw new Error('Failed to process refund');
+        return { success: false, code: 'CASHFREE_API_ERROR', message: 'Failed to process refund' };
       }
     } catch (error) {
       console.error('Cashfree refund error:', error);
-      throw new Error(`Failed to process refund: ${error.message}`);
+      return {
+        success: false,
+        code: 'CASHFREE_API_ERROR',
+        message: `Failed to process refund: ${error.message}`
+      };
     }
   }
 
@@ -208,11 +304,18 @@ class CashfreeService {
    * @returns {Promise<Object>} - Payment session
    */
   async createPaymentSession(sessionData) {
-    if (!this.isConfigured) {
-      throw new Error('Cashfree payment gateway is not configured');
-    }
-
     try {
+      const sdkResult = this._getSdk();
+      if (!sdkResult.ok) {
+        return { success: false, code: sdkResult.code, message: sdkResult.message };
+      }
+      const { Cashfree } = sdkResult.sdk;
+
+      const cfgResult = this._configureCashfree(Cashfree);
+      if (!cfgResult.ok) {
+        return { success: false, code: cfgResult.code, message: cfgResult.message };
+      }
+
       const {
         orderId,
         returnUrl = `${process.env.FRONTEND_URL}/payment/success`,
@@ -236,11 +339,15 @@ class CashfreeService {
           }
         };
       } else {
-        throw new Error('Failed to create payment session');
+        return { success: false, code: 'CASHFREE_API_ERROR', message: 'Failed to create payment session' };
       }
     } catch (error) {
       console.error('Cashfree payment session error:', error);
-      throw new Error(`Failed to create payment session: ${error.message}`);
+      return {
+        success: false,
+        code: 'CASHFREE_API_ERROR',
+        message: `Failed to create payment session: ${error.message}`
+      };
     }
   }
 }

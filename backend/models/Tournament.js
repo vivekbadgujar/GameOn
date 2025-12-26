@@ -95,7 +95,7 @@ const TournamentSchema = new mongoose.Schema({
       enum: ['pending', 'completed', 'failed'], 
       default: 'pending' 
     },
-    paymentId: { type: String }, // Razorpay payment ID
+    paymentId: { type: String }, // Payment ID
     hasEditedSlot: { type: Boolean, default: false }, // Track if user has used slot editing
     slotUpdatedAt: { type: Date } // Track when slot was last updated
   }],

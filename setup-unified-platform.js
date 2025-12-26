@@ -148,10 +148,6 @@ CORS_ORIGIN=http://localhost:3000,http://localhost:3001
 # FIREBASE_PRIVATE_KEY=your-private-key
 # FIREBASE_CLIENT_EMAIL=your-client-email
 
-# Razorpay Configuration
-RAZORPAY_KEY_ID=your-razorpay-key-id
-RAZORPAY_KEY_SECRET=your-razorpay-key-secret
-
 # API Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
@@ -174,9 +170,6 @@ REACT_APP_ENABLE_PUSH_NOTIFICATIONS=true
 # REACT_APP_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 # REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 # REACT_APP_FIREBASE_APP_ID=your-app-id
-
-# Razorpay Configuration
-REACT_APP_RAZORPAY_KEY_ID=your-razorpay-key-id
 `.trim();
       
       createFile('./frontend/.env', frontendEnv);
@@ -402,9 +395,8 @@ async function runSetup() {
     console.log('\n📋 Next Steps:');
     console.log('1. Configure your environment variables in .env files');
     console.log('2. Set up Firebase for push notifications (optional)');
-    console.log('3. Configure Razorpay for payments');
-    console.log('4. Run: npm run init-db (to initialize database)');
-    console.log('5. Run: npm run dev (to start development servers)');
+    console.log('3. Run: npm run init-db (to initialize database)');
+    console.log('4. Run: npm run dev (to start development servers)');
     console.log('\n🚀 Your unified platform is ready!');
   } else {
     console.log('\n⚠️ Some setup steps failed. Please check the errors above.');

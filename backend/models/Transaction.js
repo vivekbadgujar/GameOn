@@ -22,7 +22,7 @@ const TransactionSchema = new mongoose.Schema({
     type: String,
     enum: [
       'deposit',
-      'wallet_topup', // Razorpay add funds
+      'wallet_topup',
       'withdrawal', 
       'tournament_entry',
       'tournament_win',
@@ -61,7 +61,6 @@ const TransactionSchema = new mongoose.Schema({
   paymentGateway: {
     provider: {
       type: String,
-      enum: ['cashfree', 'razorpay', 'paytm', 'upi', 'wallet'],
       default: 'cashfree'
     },
     gatewayTransactionId: String,
@@ -75,13 +74,6 @@ const TransactionSchema = new mongoose.Schema({
     index: true
   },
   cashfreePaymentId: String,
-  
-  // Legacy Razorpay fields (for backward compatibility)
-  razorpayOrderId: {
-    type: String,
-    index: true
-  },
-  razorpayPaymentId: String,
   
   // Wallet balance before and after transaction
   walletBalance: {

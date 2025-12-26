@@ -154,12 +154,13 @@ router.post('/verify',
       const userId = req.user.id;
 
       // Verify signature
-      const isValidSignature = cashfreeService.verifyPayment(paymentData);
-      
-      if (!isValidSignature) {
-        return res.status(400).json({
+      const signatureResult = cashfreeService.verifyPayment(paymentData);
+      if (!signatureResult || signatureResult.success !== true) {
+        const isConfigError = signatureResult && signatureResult.code === 'CASHFREE_NOT_CONFIGURED';
+        return res.status(isConfigError ? 503 : 400).json({
           success: false,
-          message: 'Invalid payment signature'
+          message: isConfigError ? 'Payment service is currently unavailable' : 'Invalid payment signature',
+          ...(signatureResult && signatureResult.code ? { code: signatureResult.code } : {})
         });
       }
 
@@ -398,12 +399,13 @@ router.post('/verify-tournament',
       const userId = req.user.id;
 
       // Verify signature
-      const isValidSignature = cashfreeService.verifyPayment(paymentData);
-      
-      if (!isValidSignature) {
-        return res.status(400).json({
+      const signatureResult = cashfreeService.verifyPayment(paymentData);
+      if (!signatureResult || signatureResult.success !== true) {
+        const isConfigError = signatureResult && signatureResult.code === 'CASHFREE_NOT_CONFIGURED';
+        return res.status(isConfigError ? 503 : 400).json({
           success: false,
-          message: 'Invalid payment signature'
+          message: isConfigError ? 'Payment service is currently unavailable' : 'Invalid payment signature',
+          ...(signatureResult && signatureResult.code ? { code: signatureResult.code } : {})
         });
       }
 
@@ -504,9 +506,14 @@ router.post('/webhook', async (req, res) => {
     const paymentData = req.body;
     
     // Verify webhook signature
-    const isValidSignature = cashfreeService.verifyPayment(paymentData);
-    
-    if (!isValidSignature) {
+    const signatureResult = cashfreeService.verifyPayment(paymentData);
+    if (!signatureResult || signatureResult.success !== true) {
+      const isConfigError = signatureResult && signatureResult.code === 'CASHFREE_NOT_CONFIGURED';
+      if (isConfigError) {
+        console.warn('Cashfree webhook verification skipped: Cashfree not configured');
+        return res.status(400).json({ success: false, message: 'Webhook verification unavailable', code: signatureResult.code });
+      }
+
       console.error('Invalid webhook signature');
       return res.status(400).json({ success: false, message: 'Invalid signature' });
     }

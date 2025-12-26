@@ -345,13 +345,15 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
     // Check for pending payments
     const pendingPayment = existingPayments.find(p => p.status === 'pending');
     if (pendingPayment) {
+      const paymentId = pendingPayment.cashfreePaymentId || pendingPayment.paymentGateway?.gatewayTransactionId || null;
+      const orderId = pendingPayment.cashfreeOrderId || pendingPayment.paymentGateway?.gatewayOrderId || null;
       return res.status(400).json({
         success: false,
         error: 'You have a pending payment for this tournament. Please complete or cancel it first.',
         code: 'PAYMENT_PENDING',
         data: {
-          paymentId: pendingPayment.razorpayPaymentId,
-          orderId: pendingPayment.razorpayOrderId,
+          paymentId,
+          orderId,
           amount: pendingPayment.amount,
           createdAt: pendingPayment.createdAt
         }
@@ -366,7 +368,7 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
         error: 'You have already paid for this tournament',
         code: 'PAYMENT_COMPLETED',
         data: {
-          paymentId: completedPayment.razorpayPaymentId,
+          paymentId: completedPayment.cashfreePaymentId || completedPayment.paymentGateway?.gatewayTransactionId || null,
           amount: completedPayment.amount,
           completedAt: completedPayment.updatedAt
         }

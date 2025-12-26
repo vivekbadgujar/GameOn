@@ -33,8 +33,9 @@ class WalletService {
       const {
         description,
         tournamentId,
-        razorpayOrderId,
-        razorpayPaymentId,
+        gatewayProvider,
+        gatewayOrderId,
+        gatewayTransactionId,
         referenceId,
         metadata = {}
       } = options;
@@ -72,16 +73,14 @@ class WalletService {
         currency: 'INR',
         description: description || `Wallet credit: ${type}`,
         tournament: tournamentId || null,
-        razorpayOrderId: razorpayOrderId || null,
-        razorpayPaymentId: razorpayPaymentId || null,
         walletBalance: {
           before: balanceBefore,
           after: balanceAfter
         },
-        paymentGateway: razorpayOrderId ? {
-          provider: 'razorpay',
-          gatewayOrderId: razorpayOrderId,
-          gatewayTransactionId: razorpayPaymentId || null
+        paymentGateway: gatewayProvider || gatewayOrderId || gatewayTransactionId ? {
+          provider: gatewayProvider,
+          gatewayOrderId: gatewayOrderId || null,
+          gatewayTransactionId: gatewayTransactionId || null
         } : undefined,
         metadata: {
           ...metadata,

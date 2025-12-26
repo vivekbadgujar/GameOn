@@ -3,12 +3,11 @@
  * Handles cross-platform push notifications (Web + Mobile)
  */
 
-const admin = require('firebase-admin');
-
 class PushNotificationService {
   constructor() {
     this.isInitialized = false;
     this.deviceTokens = new Map(); // userId -> { web: [tokens], mobile: [tokens] }
+    this.admin = null;
     this.init();
   }
 
@@ -17,6 +16,16 @@ class PushNotificationService {
    */
   init() {
     try {
+      let admin;
+      try {
+        admin = require('firebase-admin');
+        this.admin = admin;
+      } catch (requireError) {
+        console.warn('⚠️  firebase-admin not available - push notifications disabled');
+        this.isInitialized = false;
+        return;
+      }
+
       // Initialize Firebase Admin SDK if not already initialized
       if (!admin.apps.length) {
         // For now, we'll use a placeholder - you'll need to add your Firebase config

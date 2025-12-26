@@ -114,7 +114,7 @@ router.post('/deduct', authenticateToken, async (req, res) => {
 });
 
 // Add to wallet (for winnings, refunds, etc.)
-// Note: This endpoint is for admin/internal use. For Razorpay deposits, use payment routes
+// Note: This endpoint is for admin/internal use. For deposits, use payment routes
 router.post('/add', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;

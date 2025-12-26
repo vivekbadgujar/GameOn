@@ -154,7 +154,7 @@ class UnifiedApiService {
     return response.data;
   }
 
-  async addMoney(amount, paymentMethod = 'razorpay') {
+  async addMoney(amount, paymentMethod = 'cashfree') {
     const response = await this.api.post('/wallet/add-money', {
       amount,
       paymentMethod

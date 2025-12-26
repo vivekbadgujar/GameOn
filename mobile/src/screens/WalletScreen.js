@@ -76,7 +76,7 @@ const WalletScreen = ({ navigation }) => {
     try {
       await dispatch(addMoney({ 
         amount, 
-        paymentMethod: 'razorpay' 
+        paymentMethod: 'cashfree' 
       })).unwrap();
       
       setShowAddMoneyModal(false);

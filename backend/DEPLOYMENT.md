@@ -18,8 +18,9 @@ Set the following environment variables in your Render dashboard:
 - `CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name
 - `CLOUDINARY_API_KEY`: Your Cloudinary API key
 - `CLOUDINARY_API_SECRET`: Your Cloudinary API secret
-- `RAZORPAY_KEY_ID`: Your Razorpay key ID
-- `RAZORPAY_KEY_SECRET`: Your Razorpay key secret
+- `CASHFREE_APP_ID`: Your Cashfree app ID
+- `CASHFREE_SECRET`: Your Cashfree secret
+- `CASHFREE_ENVIRONMENT`: `sandbox` or `production`
 
 ## Deployment Steps
 
