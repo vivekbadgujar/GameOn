@@ -138,6 +138,35 @@ router.post('/create-tournament-join-order',
       const entryFee = tournament.entryFee;
       const walletBalance = await WalletService.getBalance(userId);
 
+      // Free tournament: join immediately, no wallet/payment gateway
+      if (Number(entryFee) === 0) {
+        const slotNumber = tournament.currentParticipants + 1;
+        tournament.participants.push({
+          user: userId,
+          joinedAt: new Date(),
+          slotNumber: slotNumber,
+          paymentStatus: 'completed',
+          paymentData: {
+            method: 'free',
+            entryFee: 0
+          }
+        });
+        tournament.currentParticipants += 1;
+        await tournament.save();
+
+        res.json({
+          success: true,
+          message: 'Tournament joined successfully',
+          data: {
+            tournamentId: tournament._id,
+            slotNumber: slotNumber,
+            paymentMethod: 'free',
+            entryFee: 0
+          }
+        });
+        return;
+      }
+
       // Handle wallet-only payment
       if (paymentMethod === 'wallet') {
         if (walletBalance < entryFee) {

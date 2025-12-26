@@ -26,7 +26,7 @@ const validateTournament = [
   
   body('entryFee')
     .isNumeric().withMessage('Entry fee must be a number')
-    .custom(value => value >= 0).withMessage('Entry fee cannot be negative'),
+    .custom(value => Number(value) >= 0).withMessage('Entry fee cannot be negative'),
   
   body('prizePool')
     .isNumeric().withMessage('Prize pool must be a number')

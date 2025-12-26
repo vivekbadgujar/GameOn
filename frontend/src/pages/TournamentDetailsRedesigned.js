@@ -131,6 +131,11 @@ const TournamentDetailsRedesigned = () => {
       return;
     }
 
+    if (!tournament?._id) {
+      showError('Invalid tournament');
+      return;
+    }
+
     if (!tournament) {
       showError('Tournament data not available');
       return;
@@ -152,7 +157,34 @@ const TournamentDetailsRedesigned = () => {
       return;
     }
 
-    // Check wallet balance
+    // Free tournament: skip wallet/payment gateway
+    if (Number(tournament.entryFee) === 0) {
+      try {
+        setJoining(true);
+        const joinResponse = await joinTournament(tournament._id);
+
+        if (joinResponse?.success) {
+          showSuccess('Successfully joined tournament!');
+          await fetchTournamentDetails();
+          if (typeof window !== 'undefined') {
+            setTimeout(() => {
+              router.push(`/tournaments/${tournament._id}/room-lobby`);
+            }, 1000);
+          }
+          return;
+        }
+
+        showError(joinResponse?.message || 'Failed to join tournament');
+      } catch (error) {
+        console.error('Free join tournament error:', error);
+        showError(error?.response?.data?.message || error.message || 'Failed to join tournament');
+      } finally {
+        setJoining(false);
+      }
+      return;
+    }
+
+    // Paid tournament: check wallet balance
     if (!hasSufficientBalance(tournament.entryFee)) {
       showError(`Insufficient balance. Required: ₹${tournament.entryFee}`);
       return;
@@ -169,7 +201,8 @@ const TournamentDetailsRedesigned = () => {
       });
 
       if (!orderResponse.success) {
-        throw new Error(orderResponse.message || 'Failed to create payment order');
+        showError(orderResponse.message || 'Failed to create payment order');
+        return;
       }
 
       // Show payment modal with Cashfree integration

@@ -287,7 +287,8 @@ const TournamentForm = () => {
       newErrors.map = 'Map is required';
       console.log('Map validation failed');
     }
-    if (!formData.entryFee || formData.entryFee < 0) {
+    const entryFeeValue = Number(formData.entryFee);
+    if (formData.entryFee === '' || formData.entryFee === null || Number.isNaN(entryFeeValue) || entryFeeValue < 0) {
       newErrors.entryFee = 'Valid entry fee is required';
       console.log('Entry fee validation failed:', formData.entryFee);
     }
@@ -567,7 +568,7 @@ const TournamentForm = () => {
                       value={formData.entryFee}
                       onChange={(e) => handleChange('entryFee', e.target.value)}
                       error={!!errors.entryFee}
-                      helperText={errors.entryFee}
+                      helperText={errors.entryFee || '₹0 = Free Tournament'}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                       }}

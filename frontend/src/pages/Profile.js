@@ -19,10 +19,12 @@ import {
   Upload
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
 const Profile = () => {
-  const { user, updateUser, token } = useAuth();
+  const { user, updateUser, token, loading: authLoading } = useAuth();
+  const { showError, showInfo } = useNotification();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [tournaments, setTournaments] = useState([]);
@@ -56,18 +58,57 @@ const Profile = () => {
             'Authorization': `Bearer ${token}`
           }
         });
+
+        if (response.status === 401 || response.status === 403) {
+          showInfo('Please login to view your profile');
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          return;
+        }
         
         if (response.ok) {
           const data = await response.json();
           setTournaments(data.tournaments || []);
+        } else {
+          setTournaments([]);
         }
       } catch (error) {
         console.error('Error fetching tournaments:', error);
+        showError('Failed to load your tournaments. Please try again.');
+        setTournaments([]);
       }
     };
 
     fetchTournaments();
   }, [user, token]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md w-full glass-card p-6 text-center">
+          <h1 className="text-xl font-semibold text-white">Login Required</h1>
+          <p className="text-white/70 mt-2">Please login to view your profile.</p>
+          <button
+            className="btn-primary mt-4"
+            onClick={() => {
+              if (typeof window !== 'undefined') window.location.href = '/login';
+            }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -166,14 +207,6 @@ const Profile = () => {
       event.target.value = '';
     }
   };
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 py-8">

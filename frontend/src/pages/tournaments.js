@@ -187,6 +187,10 @@ const Tournaments = () => {
   };
 
   const handleJoinTournament = async (tournament) => {
+    if (!tournament || !tournament._id) {
+      showError('Invalid tournament');
+      return;
+    }
     if (!isAuthenticated) {
       openAuthModal('login');
       return;
