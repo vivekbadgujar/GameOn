@@ -1,11 +1,13 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { RoomLobby } from './Room';
 import { useSnackbar } from 'notistack';
 
 const TournamentRoom = () => {
-  const { tournamentId } = useParams();
+  const router = useRouter();
+  const tournamentId = router.query.tournamentId;
   const { enqueueSnackbar } = useSnackbar();
+  const [savedSlot, setSavedSlot] = useState(null);
   
   // You can fetch user data from your auth context/store
   const user = {
@@ -24,8 +26,15 @@ const TournamentRoom = () => {
     enqueueSnackbar(message, { variant: 'info' });
   };
 
-  // Get saved slot number from localStorage if available
-  const savedSlot = localStorage.getItem(`tournament_${tournamentId}_slot`);
+  // Get saved slot number from localStorage if available (client-only)
+  useEffect(() => {
+    if (!tournamentId) return;
+    try {
+      setSavedSlot(localStorage.getItem(`tournament_${tournamentId}_slot`));
+    } catch {
+      setSavedSlot(null);
+    }
+  }, [tournamentId]);
   
   return (
     <RoomLobby

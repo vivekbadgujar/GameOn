@@ -1,3 +1,3 @@
-export { default, getServerSideProps } from './FairPlayPolicy';
+export { default } from './FairPlayPolicy';
 
 

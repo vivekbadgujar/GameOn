@@ -1,3 +1,3 @@
-export { default, getServerSideProps } from './PrivacyPolicy';
+export { default } from './PrivacyPolicy';
 
 

@@ -124,7 +124,7 @@ const ResetPassword = () => {
             {error || 'This password reset link is invalid or has expired.'}
           </p>
           <Link
-            to="/login"
+            href="/login"
             className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -151,7 +151,7 @@ const ResetPassword = () => {
             Your password has been reset successfully. You will be redirected to the login page shortly.
           </p>
           <Link
-            to="/login"
+            href="/login"
             className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
           >
             <span>Go to Login</span>

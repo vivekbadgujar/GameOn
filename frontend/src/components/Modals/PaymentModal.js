@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -260,19 +260,19 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
                 />
                 <label htmlFor="agreeToPolicies" className="text-white/80 text-xs leading-relaxed">
                   I have read and agree to GameOn's{' '}
-                  <Link to="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                  <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                     Terms & Conditions
                   </Link>
                   ,{' '}
-                  <Link to="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                  <Link href="/refund" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                     Refund Policy
                   </Link>
                   ,{' '}
-                  <Link to="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                  <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                     Privacy Policy
                   </Link>
                   , and{' '}
-                  <Link to="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
+                  <Link href="/fairplay" className="text-blue-400 hover:text-blue-300 underline" target="_blank">
                     Fair Play Policy
                   </Link>
                   .

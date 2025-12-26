@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -82,7 +82,7 @@ const SimpleTournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) =>
       whileTap={{ scale: 0.98 }}
       className="glass-card overflow-hidden group cursor-pointer"
     >
-      <Link to={`/tournament/${tournament._id}`} className="block">
+      <Link href={`/tournament/${tournament._id}`} className="block">
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between mb-4">

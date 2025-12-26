@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -104,7 +104,7 @@ const TournamentCardRedesigned = ({
       whileHover={{ y: -5, scale: 1.02 }}
       className="group relative"
     >
-      <Link to={`/tournament/${tournament._id}`}>
+      <Link href={`/tournament/${tournament._id}`}>
         <div className="glass-card p-6 h-full relative overflow-hidden hover:bg-white/10 transition-all duration-300">
           {/* Background Gradient */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent rounded-full -translate-y-16 translate-x-16" />

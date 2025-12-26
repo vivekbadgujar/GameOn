@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -24,6 +25,7 @@ import AuthModal from '../components/Auth/AuthModal';
 import { useAuthModal } from '../hooks/useAuthModal';
 
 const Tournaments = () => {
+  const router = useRouter();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
   const { 
@@ -191,7 +193,7 @@ const Tournaments = () => {
     }
     
     // Navigate to tournament details page for joining
-    window.location.href = `/tournament/${tournament._id}`;
+    router.push(`/tournament/${tournament._id}`);
   };
 
   if (loading) {

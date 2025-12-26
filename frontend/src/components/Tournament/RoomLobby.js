@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 import {
   Box,
   Container,
@@ -23,7 +24,7 @@ import {
   Warning,
 } from '@mui/icons-material';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
 import { RoomSlotLayout } from './Room';
@@ -37,7 +38,7 @@ const RoomLobby = ({
   isEditMode = false
 }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ const RoomLobby = ({
   const [slotChangeLoading, setSlotChangeLoading] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(process.env.REACT_APP_BACKEND_URL);
+    const newSocket = io(config.WS_URL);
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -125,7 +126,7 @@ const RoomLobby = ({
       if (!response.ok) {
         if (response.status === 403) {
           showError('You are not a participant in this tournament');
-          navigate('/tournaments');
+          router.push('/tournaments');
           return;
         }
         throw new Error('Failed to fetch room data');

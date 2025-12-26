@@ -20,7 +20,6 @@ import {
   EmojiEvents,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relative from 'dayjs/plugin/relativeTime';
 import SlotEditModal from './SlotEditModal';
@@ -31,7 +30,6 @@ dayjs.extend(relative);
 
 const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [slotEditModal, setSlotEditModal] = useState({

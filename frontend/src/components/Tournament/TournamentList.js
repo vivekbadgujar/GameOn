@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import {
   Box,
   Card,
@@ -32,11 +32,11 @@ import BGMIRoomLobby from './BGMIRoomLobby';
 
 const TournamentList = ({ tournaments, user, onJoinTournament, showSuccess, showError, showInfo }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [slotModal, setSlotModal] = useState({ open: false, tournament: null });
 
   const handleTournamentClick = (tournamentId) => {
-    navigate(`/tournaments/${tournamentId}`);
+    router.push(`/tournament/${tournamentId}`);
   };
 
   const isUserParticipant = (tournament) => {

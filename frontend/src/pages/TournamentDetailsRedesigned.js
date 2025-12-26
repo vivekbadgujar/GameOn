@@ -127,7 +127,7 @@ const TournamentDetailsRedesigned = () => {
   const handleJoinTournament = async () => {
     if (!user) {
       showError('Please login to join tournaments');
-      navigate('/login');
+      router.push('/login');
       return;
     }
 
@@ -291,7 +291,7 @@ const TournamentDetailsRedesigned = () => {
               Try Again
             </button>
             <button
-              onClick={() => navigate('/tournaments')}
+              onClick={() => router.push('/tournaments')}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               Back to Tournaments
