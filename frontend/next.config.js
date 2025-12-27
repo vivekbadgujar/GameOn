@@ -36,6 +36,34 @@ const nextConfig = {
         destination: '/',
         permanent: false,
       },
+
+      // Case-sensitive route fix (Linux prod): /Profile -> /profile
+      {
+        source: '/Profile',
+        destination: '/profile',
+        permanent: false,
+      },
+
+      // Legacy singular tournament routes -> canonical plural routes
+      {
+        source: '/tournament/:path*',
+        destination: '/tournaments/:path*',
+        permanent: false,
+      },
+
+      // If any UI navigates to a non-existent explicit register route, send to details page
+      {
+        source: '/tournaments/:id/register',
+        destination: '/tournaments/:id',
+        permanent: false,
+      },
+
+      // If any UI navigates to plural results route, send to the existing result page
+      {
+        source: '/tournaments/:id/results',
+        destination: '/tournaments/:id/result',
+        permanent: false,
+      },
     ];
   },
 
