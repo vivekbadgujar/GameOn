@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import config from '../config';
 
 const Profile = () => {
   const { user, updateUser, token, loading: authLoading } = useAuth();
@@ -53,7 +54,7 @@ const Profile = () => {
       if (!user || !token) return;
       
       try {
-        const response = await fetch('/api/users/tournaments', {
+        const response = await fetch(`${config.API_BASE_URL}/users/tournaments`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -121,7 +122,7 @@ const Profile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/users/profile', {
+      const response = await fetch(`${config.API_BASE_URL}/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

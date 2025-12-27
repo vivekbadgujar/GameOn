@@ -28,6 +28,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { RoomSlotLayout } from './Room';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
+import config from '../../config';
 
 const SlotEditModal = ({ 
   open, 
@@ -52,7 +53,19 @@ const SlotEditModal = ({
   useEffect(() => {
     if (!open || !tournamentId) return;
 
-    const newSocket = io(process.env.REACT_APP_BACKEND_URL);
+    if (typeof window === 'undefined') return;
+
+    const wsUrl = config.WS_URL;
+    if (!wsUrl) {
+      return;
+    }
+
+    const newSocket = io(wsUrl, {
+      transports: ['websocket'],
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -68,7 +81,7 @@ const SlotEditModal = ({
     newSocket.on('slotChanged', (data) => {
       if (data.tournamentId === tournamentId) {
         setRoomSlot(data.roomSlot);
-        if (data.playerId === user._id) {
+        if (data.playerId === user?._id) {
           setPlayerSlot(data.playerSlot);
         }
         showInfo(`Player moved to Team ${data.toTeam}, Slot ${data.toSlot}`);
@@ -120,7 +133,7 @@ const SlotEditModal = ({
   const fetchRoomData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/room-slots/tournament/${tournamentId}`, {
+      const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -158,7 +171,7 @@ const SlotEditModal = ({
 
     try {
       setSlotChangeLoading(true);
-      const response = await fetch(`/api/room-slots/tournament/${tournamentId}/move`, {
+      const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +241,8 @@ const SlotEditModal = ({
   const canEditSlots = roomSlot?.settings?.allowSlotChange && 
     !roomSlot?.isLocked && 
     tournament?.status !== 'completed' &&
-    tournament?.participants?.some(p => p.user._id === user._id);
+    Array.isArray(tournament?.participants) &&
+    tournament.participants.some(p => (p?.user?._id || p?.userId || p?._id) === user?._id);
 
   return (
     <Dialog 
