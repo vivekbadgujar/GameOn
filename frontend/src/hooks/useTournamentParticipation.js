@@ -14,6 +14,8 @@ export const useTournamentParticipation = (tournamentId) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const statusData = participationStatus?.data || participationStatus;
+
   // Fetch participation status
   const fetchParticipationStatus = useCallback(async () => {
     if (!tournamentId || !token) return;
@@ -23,7 +25,7 @@ export const useTournamentParticipation = (tournamentId) => {
       setError(null);
 
       const response = await getTournamentParticipationStatus(tournamentId);
-      setParticipationStatus(response.data);
+      setParticipationStatus(response);
     } catch (err) {
       console.error('Error fetching participation status:', err);
       setError(err.message);
@@ -34,47 +36,47 @@ export const useTournamentParticipation = (tournamentId) => {
 
   // Check if user can join tournament
   const canJoin = useCallback(() => {
-    if (!participationStatus) return false;
+    if (!statusData) return false;
     
-    return participationStatus.canJoin && 
-           !participationStatus.hasJoined && 
-           !participationStatus.payments?.some(p => p.status === 'pending');
-  }, [participationStatus]);
+    return statusData.canJoin && 
+           !statusData.hasJoined && 
+           !statusData.payments?.some(p => p.status === 'pending');
+  }, [statusData]);
 
   // Check if user has already joined
   const hasJoined = useCallback(() => {
-    return participationStatus?.hasJoined || false;
-  }, [participationStatus]);
+    return statusData?.hasJoined || false;
+  }, [statusData]);
 
   // Get participation details
   const getParticipationDetails = useCallback(() => {
-    return participationStatus?.participation || null;
-  }, [participationStatus]);
+    return statusData?.participation || null;
+  }, [statusData]);
 
   // Get payment status
   const getPaymentStatus = useCallback(() => {
     // First check if the API response includes paymentStatus directly
-    if (participationStatus?.paymentStatus) {
-      return participationStatus.paymentStatus;
+    if (statusData?.paymentStatus) {
+      return statusData.paymentStatus;
     }
     
     // Fallback to checking payments array
-    if (!participationStatus?.payments?.length) return 'none';
+    if (!statusData?.payments?.length) return 'none';
     
-    const latestPayment = participationStatus.payments[0]; // Already sorted by createdAt desc
+    const latestPayment = statusData.payments[0]; // Already sorted by createdAt desc
     return latestPayment.status;
-  }, [participationStatus]);
+  }, [statusData]);
 
   // Get latest payment details
   const getLatestPayment = useCallback(() => {
-    if (!participationStatus?.payments?.length) return null;
-    return participationStatus.payments[0];
-  }, [participationStatus]);
+    if (!statusData?.payments?.length) return null;
+    return statusData.payments[0];
+  }, [statusData]);
 
   // Check if user has pending payment
   const hasPendingPayment = useCallback(() => {
-    return participationStatus?.payments?.some(p => p.status === 'pending') || false;
-  }, [participationStatus]);
+    return statusData?.payments?.some(p => p.status === 'pending') || false;
+  }, [statusData]);
 
   // Get join button state
   const getJoinButtonState = useCallback(() => {
