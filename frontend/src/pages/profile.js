@@ -29,6 +29,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [tournaments, setTournaments] = useState([]);
+  const [tournamentsAuthError, setTournamentsAuthError] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -61,16 +62,16 @@ const Profile = () => {
         });
 
         if (response.status === 401 || response.status === 403) {
-          showInfo('Please login to view your profile');
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
+          setTournaments([]);
+          setTournamentsAuthError(true);
+          showInfo('Your session is not authorized for this request. Please login again.');
           return;
         }
         
         if (response.ok) {
           const data = await response.json();
           setTournaments(data.tournaments || []);
+          setTournamentsAuthError(false);
         } else {
           setTournaments([]);
         }
@@ -82,7 +83,7 @@ const Profile = () => {
     };
 
     fetchTournaments();
-  }, [user, token]);
+  }, [user, token, showError, showInfo]);
 
   if (authLoading) {
     return (

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import { getTournamentParticipationStatus } from '../services/api';
+import config from '../config';
 
 /**
  * Hook for managing tournament participation status
@@ -142,11 +143,17 @@ export const useSlotEditing = (tournamentId, user) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lockedSlots, setLockedSlots] = useState(new Set());
   const [editingUsers, setEditingUsers] = useState(new Map());
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!tournamentId || !user) return;
 
-    const newSocket = io(process.env.REACT_APP_BACKEND_URL);
+    const newSocket = io(config.WS_URL, {
+      transports: ['polling', 'websocket'],
+      auth: {
+        token: token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
+      }
+    });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -193,7 +200,7 @@ export const useSlotEditing = (tournamentId, user) => {
       newSocket.emit('leave_tournament', tournamentId);
       newSocket.close();
     };
-  }, [tournamentId, user]);
+  }, [tournamentId, user, token]);
 
   // Request slot lock before moving
   const requestSlotLock = useCallback((teamNumber, slotNumber) => {

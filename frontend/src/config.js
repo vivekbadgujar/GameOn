@@ -1,10 +1,28 @@
+const PROD_API_BASE_URL = 'https://api.gameonesport.xyz/api';
+const PROD_SOCKET_URL = 'https://api.gameonesport.xyz';
+
+const normalizeUrl = (value, fallback) => {
+  if (!value || typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  // Guard against misconfiguration like "/api" in production.
+  if (trimmed.startsWith('/')) return fallback;
+  // Guard against values without a scheme (e.g. "api.gameonesport.xyz")
+  if (!trimmed.includes('://')) return fallback;
+  // Socket.IO base URL should be http(s). Convert ws(s) to http(s) for Engine.IO polling compatibility.
+  const normalizedScheme = trimmed
+    .replace(/^wss:\/\//i, 'https://')
+    .replace(/^ws:\/\//i, 'http://');
+  return normalizedScheme.replace(/\/$/, '');
+};
+
 const config = {
   // API Configuration - Production API endpoint
   // Use NEXT_PUBLIC_* env vars for Next.js (automatically available in browser)
   // Ensure no trailing slash and correct path
   // Production fallback: https://api.gameonesport.xyz/api (NO localhost fallback)
-  API_BASE_URL: (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, ''),
-  WS_URL: (process.env.NEXT_PUBLIC_WS_URL || 'wss://api.gameonesport.xyz').replace(/\/$/, ''),
+  API_BASE_URL: normalizeUrl(process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL, PROD_API_BASE_URL),
+  // Socket.IO should use an http(s) URL (Engine.IO polling uses HTTP), not wss://
+  WS_URL: normalizeUrl(process.env.NEXT_PUBLIC_WS_URL, PROD_SOCKET_URL),
   
   // Frontend and Admin URLs for production
   FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz',
