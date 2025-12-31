@@ -59,7 +59,7 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
       if (!response.ok) throw new Error('Failed to fetch tournaments');
       
       const data = await response.json();
-      setTournaments(data.data || []);
+      setTournaments(data.data || data.tournaments || []);
     } catch (error) {
       console.error('Error fetching tournaments:', error);
     } finally {
@@ -181,6 +181,31 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
                 {tournament.title}
               </Typography>
 
+              {tournament.status === 'completed' && Array.isArray(tournament.participants) && user?._id && (
+                (() => {
+                  const participation = tournament.participants.find((p) => {
+                    const pid = p?.user?._id || p?.user || p?.userId;
+                    return pid?.toString() === user._id.toString();
+                  });
+                  const finalPosition = participation?.rank;
+                  if (!finalPosition) return null;
+                  return (
+                    <Box
+                      sx={{
+                        bgcolor: alpha(theme.palette.success.main, 0.1),
+                        borderRadius: 1,
+                        p: 1.5,
+                        mb: 1
+                      }}
+                    >
+                      <Typography variant="body2" color="success.main" fontWeight="bold">
+                        Final Position: #{finalPosition}
+                      </Typography>
+                    </Box>
+                  );
+                })()
+              )}
+
               <Box display="flex" gap={2} mb={2}>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <CalendarToday fontSize="small" color="action" />
@@ -258,7 +283,7 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
               </Box>
               
               <Box display="flex" gap={1}>
-                {(tournament.status === 'upcoming' || tournament.status === 'live') && (
+                {(tournament.status === 'upcoming' || tournament.status === 'registration') && (
                   <>
                     <Tooltip title="Edit Slot Position">
                       <IconButton 

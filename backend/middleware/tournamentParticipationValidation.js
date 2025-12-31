@@ -194,20 +194,17 @@ const validateSlotEditPermissions = async (req, res, next) => {
       });
     }
 
-    // Check if slots are locked due to tournament timing
-    const now = new Date();
-    const startTime = new Date(tournament.startDate);
-    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
-
-    if (now >= lockTime) {
+    // Lock slot editing only when tournament is live/ongoing or has ended.
+    // Admin explicit slot locks are enforced at the RoomSlot level.
+    const lockedStatuses = ['live', 'active', 'completed', 'cancelled'];
+    const tournamentStatus = (tournament.status || '').toLowerCase();
+    if (lockedStatuses.includes(tournamentStatus)) {
       return res.status(403).json({
         success: false,
-        error: 'Slots are locked! Tournament starts soon.',
+        error: 'Slots are locked for this tournament status.',
         code: 'SLOTS_LOCKED',
         data: {
-          lockTime,
-          startTime,
-          reason: 'Tournament starts in less than 10 minutes'
+          status: tournament.status
         }
       });
     }

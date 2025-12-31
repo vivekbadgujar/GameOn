@@ -9,6 +9,7 @@ import {
   Button,
   Grid,
   TextField,
+  Autocomplete,
   FormControl,
   InputLabel,
   Select,
@@ -48,6 +49,9 @@ const TournamentResults = () => {
     queryFn: () => tournamentAPI.getParticipants(id),
   });
 
+  const tournamentData = tournament?.data?.data || tournament?.data;
+  const participantsData = participants?.data?.data || participants?.data || [];
+
   const postResultMutation = useMutation({
     mutationFn: ({ id, result }) => tournamentAPI.postResult(id, result),
     onSuccess: () => {
@@ -75,9 +79,9 @@ const TournamentResults = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 3 }}>
-                Tournament: {tournament?.title}
+                Tournament: {tournamentData?.title}
               </Typography>
-              
+
               <Box sx={{ mb: 3 }}>
                 <Typography variant="body2" color="text.secondary">
                   Select winners and their positions
@@ -89,28 +93,27 @@ const TournamentResults = () => {
                   <Typography variant="subtitle1" sx={{ mb: 1 }}>
                     {position === 1 ? '🥇 1st Place' : position === 2 ? '🥈 2nd Place' : '🥉 3rd Place'}
                   </Typography>
-                  <FormControl fullWidth>
-                    <InputLabel>Select Winner</InputLabel>
-                    <Select
-                      value={results[position - 1]?.participantId || ''}
-                      onChange={(e) => {
-                        const newResults = [...results];
-                        newResults[position - 1] = {
-                          position,
-                          participantId: e.target.value,
-                          participant: participants.find(p => p.id === e.target.value),
-                        };
-                        setResults(newResults);
-                      }}
-                      label="Select Winner"
-                    >
-                      {participants.map((participant) => (
-                        <MenuItem key={participant.id} value={participant.id}>
-                          {participant.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Autocomplete
+                    options={participantsData}
+                    getOptionLabel={(option) => option?.name || ''}
+                    value={participantsData.find((p) => p.id === results[position - 1]?.participantId) || null}
+                    onChange={(_, value) => {
+                      const newResults = [...results];
+                      newResults[position - 1] = value ? {
+                        position,
+                        participantId: value.id,
+                        participant: value
+                      } : undefined;
+                      setResults(newResults);
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Search player (in-game name)"
+                        placeholder="Type to search..."
+                      />
+                    )}
+                  />
                 </Box>
               ))}
 
@@ -138,10 +141,10 @@ const TournamentResults = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2 }}>
-                Participants ({participants.length})
+                Participants ({participantsData.length})
               </Typography>
               <List>
-                {participants.map((participant, index) => (
+                {participantsData.map((participant) => (
                   <ListItem key={participant.id}>
                     <ListItemAvatar>
                       <Avatar>{participant.name.charAt(0)}</Avatar>

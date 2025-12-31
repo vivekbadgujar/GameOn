@@ -12,10 +12,12 @@ import {
   CircularProgress,
   IconButton,
   useTheme,
+  useMediaQuery,
   alpha,
   Fade,
   LinearProgress
 } from '@mui/material';
+
 import {
   Close as CloseIcon,
   Timer,
@@ -40,6 +42,7 @@ const SlotEditModal = ({
   showInfo 
 }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,7 +50,6 @@ const SlotEditModal = ({
   const [roomSlot, setRoomSlot] = useState(null);
   const [playerSlot, setPlayerSlot] = useState(null);
   const [timeToStart, setTimeToStart] = useState(0);
-  const [timeToLock, setTimeToLock] = useState(0);
   const [slotChangeLoading, setSlotChangeLoading] = useState(false);
 
   useEffect(() => {
@@ -122,8 +124,6 @@ const SlotEditModal = ({
     const interval = setInterval(() => {
       const now = dayjs();
       const startTime = dayjs(tournament.startDate);
-      const lockTime = startTime.subtract(10, 'minutes'); // Lock 10 minutes before start
-      setTimeToLock(lockTime.diff(now));
       setTimeToStart(startTime.diff(now));
     }, 1000);
 
@@ -238,11 +238,14 @@ const SlotEditModal = ({
 
   if (!open) return null;
 
-  const canEditSlots = roomSlot?.settings?.allowSlotChange && 
-    !roomSlot?.isLocked && 
-    tournament?.status !== 'completed' &&
-    Array.isArray(tournament?.participants) &&
-    tournament.participants.some(p => (p?.user?._id || p?.userId || p?._id) === user?._id);
+  const tournamentStatus = tournament?.status?.toLowerCase();
+  const isTournamentLockedByStatus = ['live', 'active', 'completed', 'cancelled'].includes(tournamentStatus);
+  const isParticipant = Boolean(playerSlot);
+
+  const canEditSlots = isParticipant &&
+    roomSlot?.settings?.allowSlotChange &&
+    !roomSlot?.isLocked &&
+    !isTournamentLockedByStatus;
 
   return (
     <Dialog 
@@ -253,7 +256,16 @@ const SlotEditModal = ({
       PaperProps={{
         sx: {
           minHeight: '80vh',
-          bgcolor: 'background.default'
+          bgcolor: 'background.default',
+          ...(isMobile ? {
+            width: '90vw',
+            maxWidth: '90vw',
+            maxHeight: '80vh',
+            m: 0,
+            borderRadius: 2,
+            display: 'flex',
+            flexDirection: 'column'
+          } : {})
         }
       }}
     >
@@ -261,7 +273,11 @@ const SlotEditModal = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        pb: 1
+        pb: 1,
+        position: 'sticky',
+        top: 0,
+        zIndex: 1,
+        bgcolor: 'background.default'
       }}>
         <Box>
           <Typography variant="h6">
@@ -278,7 +294,7 @@ const SlotEditModal = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent sx={{ p: 0, ...(isMobile ? { flex: 1, overflowY: 'auto' } : {}) }}>
         {loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
             <CircularProgress size={60} />
@@ -365,11 +381,6 @@ const SlotEditModal = ({
                   >
                     <AlertTitle>How to change your position:</AlertTitle>
                     On desktop: Drag your slot to move. On mobile: Tap an empty slot to move there.
-                    {timeToLock > 0 && timeToLock < 600000 && (
-                      <Typography color="warning.main" sx={{ mt: 1, fontWeight: 'bold' }}>
-                        ⚠️ Slots will lock in {formatTimeRemaining(timeToLock)}!
-                      </Typography>
-                    )}
                   </Alert>
                 </Fade>
               )}

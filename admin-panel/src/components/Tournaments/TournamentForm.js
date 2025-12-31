@@ -156,7 +156,7 @@ const TournamentForm = () => {
 
   useEffect(() => {
     if (tournament?.data && isEditing) {
-      const data = tournament.data;
+      const data = tournament.data?.data || tournament.data;
       setFormData({
         title: data.title || '',
         description: data.description || '',

@@ -101,7 +101,10 @@ const TournamentSchema = new mongoose.Schema({
   }],
   winners: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    prize: Number
+    position: { type: Number },
+    prize: { type: Number },
+    kills: { type: Number },
+    rank: { type: Number }
   }],
   screenshots: [{
     participant: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -876,150 +876,55 @@ function calculatePrizeDistribution(prizePool, tournamentType) {
     default:
       distribution = [0.5, 0.3, 0.2]; // Default distribution
   }
-  
-  return distribution.map(percentage => Math.round(prizePool * percentage));
+
+  return distribution.map((ratio) => Math.floor(prizePool * ratio));
 }
 
-// Post tournament results
-router.post('/:id/results', 
+// Get tournament participants (for admin results + management screens)
+router.get('/:id/participants',
   requirePermission('tournaments_manage'),
-  auditLog('post_tournament_results'),
   async (req, res) => {
     try {
       const tournamentId = req.params.id;
-      const { results } = req.body;
-      
-      if (!results || !Array.isArray(results)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Results array is required'
-        });
-      }
-      
+
       const tournament = await Tournament.findById(tournamentId)
-        .populate('participants.user', 'username displayName wallet');
-      
+        .populate('participants.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
+        .lean();
+
       if (!tournament) {
         return res.status(404).json({
           success: false,
           message: 'Tournament not found'
         });
       }
-      
-      if (tournament.status !== 'live') {
-        return res.status(400).json({
-          success: false,
-          message: 'Can only post results for live tournaments'
-        });
-      }
-      
-      // Update participant results
-      for (const result of results) {
-        const participant = tournament.participants.find(
-          p => p.user._id.toString() === result.userId
-        );
-        
-        if (participant) {
-          participant.kills = result.kills || 0;
-          participant.rank = result.rank || 0;
-        }
-      }
-      
-      // Calculate and distribute prizes
-      const prizeDistribution = calculatePrizeDistribution(tournament.prizePool, tournament.tournamentType);
-      const sortedParticipants = tournament.participants
-        .filter(p => p.rank > 0)
-        .sort((a, b) => a.rank - b.rank);
-      
-      const winners = [];
-      const transactions = [];
-      
-      for (let i = 0; i < Math.min(sortedParticipants.length, prizeDistribution.length); i++) {
-        const participant = sortedParticipants[i];
-        const prize = prizeDistribution[i];
-        
-        if (prize > 0) {
-          winners.push({
-            user: participant.user._id,
-            prize: prize,
-            position: i + 1,
-            kills: participant.kills
-          });
-          
-          // Update user wallet
-          await User.findByIdAndUpdate(participant.user._id, {
-            $inc: { 
-              'wallet.balance': prize,
-              'stats.totalEarnings': prize,
-              'stats.tournamentsWon': i === 0 ? 1 : 0
-            }
-          });
-          
-          // Create transaction record
-          transactions.push({
-            user: participant.user._id,
-            amount: prize,
-            type: 'tournament_prize',
-            description: `Prize for ${tournament.title} (Position: ${i + 1})`,
-            status: 'completed',
-            tournamentId: tournament._id
-          });
-        }
-      }
-      
-      // Save transactions
-      if (transactions.length > 0) {
-        await Transaction.insertMany(transactions);
-      }
-      
-      // Update tournament
-      tournament.winners = winners;
-      tournament.status = 'completed';
-      tournament.endDate = new Date();
-      await tournament.save();
-      
-      // Emit real-time updates
-      req.app.get('io').emit('tournamentCompleted', {
-        tournamentId: tournament._id,
-        winners: winners,
-        timestamp: new Date().toISOString()
+
+      const participants = (tournament.participants || []).map((p) => {
+        const user = p.user || {};
+        return {
+          id: user._id,
+          name: user.gameProfile?.bgmiName || user.displayName || user.username || 'Player',
+          username: user.username,
+          bgmiName: user.gameProfile?.bgmiName,
+          joinedAt: p.joinedAt,
+          slotNumber: p.slotNumber,
+          teamNumber: p.teamNumber
+        };
       });
-      
-      // Notify all participants
-      for (const participant of tournament.participants) {
-        req.app.get('emitToUser')(participant.user._id, 'tournament_results', {
-          tournamentId: tournament._id,
-          tournamentTitle: tournament.title,
-          yourRank: participant.rank,
-          yourKills: participant.kills,
-          yourPrize: winners.find(w => w.user.toString() === participant.user._id.toString())?.prize || 0
-        });
-      }
-      
+
       res.json({
         success: true,
-        message: 'Tournament results posted successfully',
-        data: {
-          tournament: tournament,
-          winners: winners,
-          totalPrizeDistributed: winners.reduce((sum, w) => sum + w.prize, 0)
-        }
+        data: participants
       });
-      
     } catch (error) {
-      console.error('Error posting tournament results:', error);
+      console.error('Error fetching tournament participants:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to post tournament results',
+        message: 'Failed to fetch tournament participants',
         error: error.message
       });
     }
   }
 );
-
-
-
-
 
 // Export tournaments
 router.get('/export', 

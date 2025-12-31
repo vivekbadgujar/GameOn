@@ -149,37 +149,17 @@ router.post('/tournament/:tournamentId/move', [
         error: 'Slot changes are not allowed'
       });
     }
-    
-    // Check if deadline has passed or slots are locked due to tournament timing
-    const tournament = await Tournament.findById(tournamentId);
-    const now = new Date();
-    const startTime = new Date(tournament.startDate);
-    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
 
-    if (now >= lockTime) {
-      // Auto-lock the room slot if not already locked
-      if (!roomSlot.isLocked) {
-        roomSlot.isLocked = true;
-        roomSlot.lockedAt = now;
-        await roomSlot.save();
-
-        // Emit lock event
-        const io = req.app.get('io');
-        if (io) {
-          io.to(`tournament_${tournamentId}`).emit('slotsLocked', {
-            tournamentId,
-            lockedAt: now,
-            reason: 'Tournament starts in 10 minutes'
-          });
-        }
-      }
-
+    // Admin explicit lock: lock the entire room layout.
+    if (roomSlot.isLocked) {
       return res.status(403).json({
         success: false,
-        error: 'Slots are locked! Tournament starts soon.'
+        error: 'Slots are locked!'
       });
     }
 
+    // Optional deadline-based lock (admin-controlled)
+    const now = new Date();
     if (roomSlot.settings.slotChangeDeadline && now > roomSlot.settings.slotChangeDeadline) {
       return res.status(403).json({
         success: false,
@@ -214,6 +194,14 @@ router.post('/tournament/:tournamentId/move', [
         success: false,
         error: 'Slot is temporarily locked. Please try again.',
         code: 'SLOT_TEMPORARILY_LOCKED'
+      });
+    }
+
+    // Admin (or persistent) slot lock
+    if (destSlot?.isLocked) {
+      return res.status(403).json({
+        success: false,
+        error: 'Slot is locked.'
       });
     }
 
