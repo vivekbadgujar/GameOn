@@ -49,6 +49,7 @@ import TournamentParticipants from './TournamentParticipants';
 import BGMIRoomLayout from './BGMIRoomLayout';
 import ModernParticipationTable from './ModernParticipationTable';
 import RoomCredentialsManager from './RoomCredentialsManager';
+import TournamentResults from './TournamentResults';
 
 const TournamentDetails = () => {
   const { id: tournamentId } = useParams();
@@ -224,6 +225,16 @@ const TournamentDetails = () => {
   const tournamentData = tournament?.data;
   const stats = participantStats?.data;
 
+  const canCompleteTournament = Boolean(
+    tournamentData &&
+    tournamentData.status !== 'completed' &&
+    tournamentData.status !== 'cancelled' &&
+    (
+      tournamentData.status === 'live' ||
+      (tournamentData.startDate && new Date(tournamentData.startDate).getTime() <= Date.now())
+    )
+  );
+
   return (
     <Box>
       {/* Header */}
@@ -235,7 +246,7 @@ const TournamentDetails = () => {
           {tournamentData?.title}
         </Typography>
         {/* Tournament Status Buttons */}
-        {tournamentData?.status !== 'completed' && (
+        {canCompleteTournament && (
           <Button
             variant="contained"
             color="success"
@@ -475,9 +486,18 @@ const TournamentDetails = () => {
               <Typography variant="h6" gutterBottom>
                 Tournament Results
               </Typography>
-              <Alert severity="info">
-                Results will be available after the tournament is completed.
-              </Alert>
+
+              {tournamentData?.status === 'completed' ? (
+                <TournamentResults
+                  tournamentId={tournamentId}
+                  embedded
+                  onSuccess={() => window.location.reload()}
+                />
+              ) : (
+                <Alert severity="info">
+                  Results will be available after the tournament is completed.
+                </Alert>
+              )}
             </Box>
           )}
           

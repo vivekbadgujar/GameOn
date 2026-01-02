@@ -107,4 +107,26 @@ const config = {
   },
 };
 
+export const isSocketFeatureEnabled = () => {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.sessionStorage?.getItem('gameon_socket_disabled') === '1') return false;
+  } catch (_) {
+  }
+
+  const envFlag = process.env.NEXT_PUBLIC_ENABLE_SOCKET;
+  if (envFlag === 'true') return true;
+  if (envFlag === 'false') return false;
+
+  return process.env.NODE_ENV !== 'production';
+};
+
+export const disableSocketFeatureForSession = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage?.setItem('gameon_socket_disabled', '1');
+  } catch (_) {
+  }
+};
+
 export default config;

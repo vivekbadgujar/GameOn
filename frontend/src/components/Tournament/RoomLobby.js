@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import config from '../../config';
+import React, { useState, useEffect, useRef } from 'react';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+
 import {
   Box,
   Container,
@@ -41,6 +42,7 @@ const RoomLobby = ({
   const router = useRouter();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const hasLoggedSocketDisableRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   const [roomSlot, setRoomSlot] = useState(null);
@@ -50,7 +52,21 @@ const RoomLobby = ({
   const [slotChangeLoading, setSlotChangeLoading] = useState(false);
 
   useEffect(() => {
-    const newSocket = io(config.WS_URL);
+    if (typeof window === 'undefined') return;
+
+    if (!isSocketFeatureEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+
+    const newSocket = io(config.WS_URL, {
+      reconnection: false,
+      reconnectionAttempts: 0,
+      timeout: 5000,
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -60,6 +76,19 @@ const RoomLobby = ({
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', () => {
+      if (!hasLoggedSocketDisableRef.current) {
+        hasLoggedSocketDisableRef.current = true;
+        console.warn('[Socket] RoomLobby disabled for this session (connection failed)');
+      }
+      disableSocketFeatureForSession();
+      setIsConnected(false);
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Listen for real-time updates

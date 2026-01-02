@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
-import config from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
+
 import {
   Box,
   Container,
@@ -61,7 +62,8 @@ const RoomLobby = () => {
   const tournamentId = router.query.id || router.query.tournamentId;
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  
+  const hasLoggedSocketDisableRef = useRef(false);
+
   // State management
   const [tournament, setTournament] = useState(null);
   const [roomSlot, setRoomSlot] = useState(null);
@@ -78,9 +80,24 @@ const RoomLobby = () => {
   // Initialize socket connection
   useEffect(() => {
     if (!tournamentId) return;
-    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-    const newSocket = io(apiUrl);
-    
+
+    if (typeof window === 'undefined') return;
+
+    if (!isSocketFeatureEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+
+    const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+    const newSocket = io(apiUrl, {
+      reconnection: false,
+      reconnectionAttempts: 0,
+      timeout: 5000,
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
     newSocket.on('connect', () => {
       setIsConnected(true);
       newSocket.emit('join_tournament', tournamentId);
@@ -89,6 +106,19 @@ const RoomLobby = () => {
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', () => {
+      if (!hasLoggedSocketDisableRef.current) {
+        hasLoggedSocketDisableRef.current = true;
+        console.warn('[Socket] RoomLobby page disabled for this session (connection failed)');
+      }
+      disableSocketFeatureForSession();
+      setIsConnected(false);
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Listen for real-time slot updates

@@ -57,6 +57,18 @@ const TournamentList = () => {
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
 
+  const canCompleteTournament = (tournament) => {
+    return Boolean(
+      tournament &&
+      tournament.status !== 'completed' &&
+      tournament.status !== 'cancelled' &&
+      (
+        tournament.status === 'live' ||
+        (tournament.startDate && new Date(tournament.startDate).getTime() <= Date.now())
+      )
+    );
+  };
+
   // State management
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -493,7 +505,7 @@ const TournamentList = () => {
           Edit Tournament
         </MenuItem>
 
-        {selectedTournament?.status === 'upcoming' && (
+        {canCompleteTournament(selectedTournament) && (
           <MenuItem onClick={() => handleStatusChange(selectedTournament, 'completed')}>
             <CheckCircle sx={{ mr: 1 }} color="success" />
             Mark Complete

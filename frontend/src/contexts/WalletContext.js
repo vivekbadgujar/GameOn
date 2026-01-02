@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 import io from 'socket.io-client';
-import config from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
 
 const WalletContext = createContext();
 
@@ -28,7 +28,8 @@ export const useWallet = () => {
 export const WalletProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  
+  const hasLoggedSocketDisableRef = useRef(false);
+
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
@@ -37,10 +38,31 @@ export const WalletProvider = ({ children }) => {
   // Initialize socket connection for real-time wallet updates
   useEffect(() => {
     if (isAuthenticated && user?._id) {
+      if (typeof window === 'undefined') return;
+
+      if (!isSocketFeatureEnabled()) {
+        return;
+      }
+
       const wsUrl = config.WS_URL || 'wss://api.gameonesport.xyz';
       const newSocket = io(wsUrl, {
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
         auth: {
           token: localStorage.getItem('token')
+        }
+      });
+
+      newSocket.on('connect_error', () => {
+        if (!hasLoggedSocketDisableRef.current) {
+          hasLoggedSocketDisableRef.current = true;
+          console.warn('[Socket] Wallet realtime disabled for this session (connection failed)');
+        }
+        disableSocketFeatureForSession();
+        try {
+          newSocket.disconnect();
+        } catch (_) {
         }
       });
 

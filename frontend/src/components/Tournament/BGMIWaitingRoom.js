@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
 import {
   Box,
   Card,
@@ -38,12 +39,14 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import io from 'socket.io-client';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
 import dayjs from 'dayjs';
 
 const BGMIWaitingRoom = ({ tournament, onLeave }) => {
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  
+  const hasLoggedSocketDisableRef = useRef(false);
+
   // State management
   const [participants, setParticipants] = useState([]);
   const [roomCredentials, setRoomCredentials] = useState(null);
@@ -58,9 +61,23 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-    const newSocket = io(apiUrl);
-    
+    if (typeof window === 'undefined') return;
+
+    if (!isSocketFeatureEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+
+    const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+    const newSocket = io(apiUrl, {
+      reconnection: false,
+      reconnectionAttempts: 0,
+      timeout: 5000,
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
     newSocket.on('connect', () => {
       setIsConnected(true);
       console.log('Connected to waiting room');
@@ -68,6 +85,19 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', () => {
+      if (!hasLoggedSocketDisableRef.current) {
+        hasLoggedSocketDisableRef.current = true;
+        console.warn('[Socket] BGMIWaitingRoom disabled for this session (connection failed)');
+      }
+      disableSocketFeatureForSession();
+      setIsConnected(false);
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Listen for real-time updates

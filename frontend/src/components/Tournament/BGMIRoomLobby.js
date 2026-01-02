@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -33,12 +33,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import io from 'socket.io-client';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
 
 const BGMIRoomLobby = ({ tournament, onClose }) => {
   const theme = useTheme();
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  
+  const hasLoggedSocketDisableRef = useRef(false);
+
   const [roomData, setRoomData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -48,10 +50,31 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
   // Initialize socket connection
   useEffect(() => {
     if (tournament?._id) {
-      const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+      if (typeof window === 'undefined') return;
+
+      if (!isSocketFeatureEnabled()) {
+        return;
+      }
+
+      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
       const newSocket = io(apiUrl, {
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
         auth: {
           token: localStorage.getItem('token')
+        }
+      });
+
+      newSocket.on('connect_error', () => {
+        if (!hasLoggedSocketDisableRef.current) {
+          hasLoggedSocketDisableRef.current = true;
+          console.warn('[Socket] BGMIRoomLobby disabled for this session (connection failed)');
+        }
+        disableSocketFeatureForSession();
+        try {
+          newSocket.disconnect();
+        } catch (_) {
         }
       });
 

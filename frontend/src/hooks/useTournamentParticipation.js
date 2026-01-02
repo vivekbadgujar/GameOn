@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import { getTournamentParticipationStatus } from '../services/api';
-import config from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
 
 /**
  * Hook for managing tournament participation status
@@ -146,12 +146,23 @@ export const useSlotEditing = (tournamentId, user) => {
   const [lockedSlots, setLockedSlots] = useState(new Set());
   const [editingUsers, setEditingUsers] = useState(new Map());
   const { token } = useAuth();
+  const hasLoggedSocketDisableRef = useRef(false);
 
   useEffect(() => {
     if (!tournamentId || !user) return;
 
+    if (typeof window === 'undefined') return;
+
+    if (!isSocketFeatureEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+
     const newSocket = io(config.WS_URL, {
       transports: ['polling', 'websocket'],
+      reconnection: false,
+      reconnectionAttempts: 0,
+      timeout: 5000,
       auth: {
         token: token || (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
       }
@@ -164,6 +175,19 @@ export const useSlotEditing = (tournamentId, user) => {
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', () => {
+      if (!hasLoggedSocketDisableRef.current) {
+        hasLoggedSocketDisableRef.current = true;
+        console.warn('[Socket] SlotEditing disabled for this session (connection failed)');
+      }
+      disableSocketFeatureForSession();
+      setIsConnected(false);
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Handle slot locking events

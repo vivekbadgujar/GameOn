@@ -33,8 +33,9 @@ import {
 } from '@mui/icons-material';
 import { tournamentAPI } from '../../services/api';
 
-const TournamentResults = () => {
-  const { id } = useParams();
+const TournamentResults = ({ tournamentId, embedded = false, onSuccess }) => {
+  const { id: routeId } = useParams();
+  const id = tournamentId || routeId;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [results, setResults] = useState([]);
@@ -56,23 +57,43 @@ const TournamentResults = () => {
     mutationFn: ({ id, result }) => tournamentAPI.postResult(id, result),
     onSuccess: () => {
       queryClient.invalidateQueries(['tournament', id]);
-      navigate('/tournaments');
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+        return;
+      }
+      if (!embedded) {
+        navigate('/tournaments');
+      }
     },
   });
 
   const handleSubmit = async () => {
-    if (results.length > 0) {
-      await postResultMutation.mutateAsync({ id, result: { winners: results } });
+    if (tournamentData?.status !== 'completed') return;
+    const winners = results.filter(Boolean);
+    if (winners.length > 0) {
+      await postResultMutation.mutateAsync({ id, result: { winners } });
     }
   };
 
   if (isLoading) return <LinearProgress />;
 
+  if (tournamentData?.status !== 'completed') {
+    return (
+      <Box>
+        <Alert severity="info">
+          Results can be declared only after the tournament is marked as completed.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 700 }}>
-        Post Tournament Results
-      </Typography>
+      {!embedded && (
+        <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 700 }}>
+          Post Tournament Results
+        </Typography>
+      )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
@@ -118,17 +139,19 @@ const TournamentResults = () => {
               ))}
 
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/tournaments')}
-                >
-                  Cancel
-                </Button>
+                {!embedded && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/tournaments')}
+                  >
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   variant="contained"
                   startIcon={<Save />}
                   onClick={handleSubmit}
-                  disabled={results.length === 0 || postResultMutation.isPending}
+                  disabled={results.filter(Boolean).length === 0 || postResultMutation.isPending}
                 >
                   {postResultMutation.isPending ? 'Posting...' : 'Post Results'}
                 </Button>

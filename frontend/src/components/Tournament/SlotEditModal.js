@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
 import {
   Dialog,
   DialogTitle,
@@ -30,7 +31,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { RoomSlotLayout } from './Room';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
-import config from '../../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
 
 const SlotEditModal = ({ 
   open, 
@@ -45,6 +46,7 @@ const SlotEditModal = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const hasLoggedSocketDisableRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   const [roomSlot, setRoomSlot] = useState(null);
@@ -57,6 +59,11 @@ const SlotEditModal = ({
 
     if (typeof window === 'undefined') return;
 
+    if (!isSocketFeatureEnabled()) {
+      setIsConnected(false);
+      return;
+    }
+
     const wsUrl = config.WS_URL;
     if (!wsUrl) {
       return;
@@ -64,6 +71,9 @@ const SlotEditModal = ({
 
     const newSocket = io(wsUrl, {
       transports: ['websocket'],
+      reconnection: false,
+      reconnectionAttempts: 0,
+      timeout: 5000,
       auth: {
         token: localStorage.getItem('token')
       }
@@ -77,6 +87,19 @@ const SlotEditModal = ({
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', () => {
+      if (!hasLoggedSocketDisableRef.current) {
+        hasLoggedSocketDisableRef.current = true;
+        console.warn('[Socket] SlotEditModal disabled for this session (connection failed)');
+      }
+      disableSocketFeatureForSession();
+      setIsConnected(false);
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Listen for real-time updates
@@ -100,7 +123,7 @@ const SlotEditModal = ({
     newSocket.on('slotsLocked', (data) => {
       if (data.tournamentId === tournamentId) {
         fetchRoomData();
-        showInfo('🔒 Slots are now locked! No more position changes allowed.');
+        showInfo(' Slots are now locked! No more position changes allowed.');
       }
     });
 
