@@ -13,7 +13,8 @@ import {
   FileText,
   Shield,
   RefreshCw,
-  Eye
+  Eye,
+  Scale
 } from 'lucide-react';
 
 const Footer = () => {
@@ -23,7 +24,8 @@ const Footer = () => {
     { to: '/terms', label: 'Terms & Conditions', icon: FileText },
     { to: '/privacy', label: 'Privacy Policy', icon: Shield },
     { to: '/refund', label: 'Refund Policy', icon: RefreshCw },
-    { to: '/fairplay', label: 'Fair Play Policy', icon: Eye }
+    { to: '/fairplay', label: 'Fair Play Policy', icon: Eye },
+    { to: '/legal', label: 'Legal Information', icon: Scale }
   ];
 
   const quickLinks = [
@@ -137,10 +139,10 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <Mail className="w-4 h-4 text-blue-400 flex-shrink-0" />
                 <a 
-                  href="mailto:support@gameon.com" 
+                  href="mailto:support@gameonesport.xyz" 
                   className="text-white/60 hover:text-white transition-colors duration-300 text-sm"
                 >
-                  support@gameon.com
+                  support@gameonesport.xyz
                 </a>
               </div>
               <div className="flex items-center space-x-3">
@@ -155,7 +157,7 @@ const Footer = () => {
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                 <span className="text-white/60 text-sm">
-                  Ahmebadab, Gujarat, India
+                  Ahmedabad, Gujarat, India
                 </span>
               </div>
             </div>
