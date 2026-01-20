@@ -1,11 +1,17 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, RefreshCw, XCircle, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import Head from 'next/head';
 
 const RefundPolicy = () => {
+  const lastUpdated = "20-01-2026";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 py-8">
+      <Head>
+        <title>Cancellation & Refund Policy | GameOn</title>
+      </Head>
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Header */}
         <motion.div
@@ -27,14 +33,10 @@ const RefundPolicy = () => {
               <RefreshCw className="w-8 h-8 text-green-400" />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              <span className="text-gradient">Refund Policy</span>
+              <span className="text-gradient">Cancellation & Refund Policy</span>
             </h1>
             <p className="text-white/60 text-lg max-w-3xl mx-auto">
-              Last Updated: {new Date().toLocaleDateString('en-IN', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+              Last updated on {lastUpdated}
             </p>
           </div>
         </motion.div>
@@ -44,145 +46,54 @@ const RefundPolicy = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="space-y-8"
+          className="glass-card p-8 md:p-12"
         >
-          {/* Refunds Are Granted Section */}
-          <div className="glass-card p-8">
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mr-4">
-                <CheckCircle className="w-6 h-6 text-green-400" />
-              </div>
-              <h2 className="text-3xl font-bold text-white">Refunds Are Granted ONLY If:</h2>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-green-400 mb-4">Eligible Refund Scenarios</h3>
-                <div className="space-y-3 text-white/80">
-                  <div className="flex items-start">
-                    <CheckCircle className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Tournament is cancelled by GameOn due to insufficient participants or technical errors.</p>
-                  </div>
-                  <div className="flex items-start">
-                    <CheckCircle className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Payment was deducted but slot was not allocated.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="prose prose-invert max-w-none">
+            <p className="text-white/90 text-lg leading-relaxed mb-8">
+              VIVEK BADGUJAR believes in helping its customers as far as possible, and has therefore a liberal cancellation policy. Under this policy:
+            </p>
 
-          {/* Refunds Will NOT Be Granted Section */}
-          <div className="glass-card p-8">
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mr-4">
-                <XCircle className="w-6 h-6 text-red-400" />
-              </div>
-              <h2 className="text-3xl font-bold text-white">Refunds Will NOT Be Granted If:</h2>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-red-400 mb-4">Non-Eligible Scenarios</h3>
-                <div className="space-y-3 text-white/80">
-                  <div className="flex items-start">
-                    <XCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Player withdraws after registration.</p>
-                  </div>
-                  <div className="flex items-start">
-                    <XCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Player is disqualified due to rule violation.</p>
-                  </div>
-                  <div className="flex items-start">
-                    <XCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Player cannot join due to internet/device issues.</p>
-                  </div>
-                  <div className="flex items-start">
-                    <XCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <p>Player fails to join on time.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            <ul className="space-y-6 text-white/80 list-none p-0">
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>Cancellations will be considered only if the request is made immediately after tournament registration. However, the cancellation request may not be entertained if the participation confirmation has been issued or the tournament has already started.</p>
+              </li>
+              
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>There is no cancellation of registrations for tournaments scheduled for the same day.</p>
+              </li>
 
-          {/* Refund Timeline Section */}
-          <div className="glass-card p-8">
-            <div className="flex items-center mb-6">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mr-4">
-                <Clock className="w-6 h-6 text-blue-400" />
-              </div>
-              <h2 className="text-3xl font-bold text-white">Refund Timeline</h2>
-            </div>
-            
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
-              <div className="flex items-center">
-                <Clock className="w-6 h-6 text-blue-400 mr-3" />
-                <div>
-                  <h3 className="text-xl font-semibold text-blue-400 mb-2">Processing Time</h3>
-                  <p className="text-white/80">
-                    Eligible refunds are processed within <span className="font-bold text-blue-400">5–7 working days</span> via the same payment method.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>No cancellations are entertained for those tournament registrations that the GameOn marketing team has obtained on special occasions like festive events or seasonal championships. These are limited occasion offers and therefore cancellations are not possible.</p>
+              </li>
 
-          {/* Important Notes */}
-          <div className="glass-card p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Important Notes</h2>
-            <div className="space-y-4 text-white/80">
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <p className="text-yellow-400 font-semibold mb-2">⚠️ Please Note:</p>
-                <ul className="space-y-2 text-yellow-300">
-                  <li>• All tournament fees are non-refundable once the tournament begins</li>
-                  <li>• Refund requests must be submitted within 24 hours of the incident</li>
-                  <li>• GameOn reserves the right to investigate all refund claims</li>
-                  <li>• Fraudulent refund requests will result in account suspension</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>VIVEK BADGUJAR does not accept cancellation requests due to user-end issues such as internet connectivity problems or device malfunctions. However, a refund can be made if a technical error occurs from the platform side preventing participation despite successful payment.</p>
+              </li>
 
-          {/* How to Request a Refund */}
-          <div className="glass-card p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">How to Request a Refund</h2>
-            <div className="space-y-4">
-              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-indigo-400 mb-4">Refund Process</h3>
-                <div className="space-y-3 text-white/80">
-                  <div className="flex items-start">
-                    <div className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <span className="text-indigo-400 text-sm font-bold">1</span>
-                    </div>
-                    <p>Contact our support team at <span className="text-indigo-400 font-semibold">support@gameon.com</span></p>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <span className="text-indigo-400 text-sm font-bold">2</span>
-                    </div>
-                    <p>Provide your transaction ID and tournament details</p>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                      <span className="text-indigo-400 text-sm font-bold">3</span>
-                    </div>
-                    <p>Our team will review and process eligible refunds</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>In case of payment being deducted but participation not being confirmed, please report the same to our Customer Service team. The request will, however, be entertained once GameOn has checked and determined the same at its own end. This should be reported within 24 hours of the transaction.</p>
+              </li>
 
-          {/* Contact Information */}
-          <div className="glass-card p-8 border-t border-white/10">
-            <h3 className="text-xl font-bold text-white mb-4">Contact Information</h3>
-            <div className="text-white/60 space-y-2">
-              <p>For refund-related queries, please contact us:</p>
-              <p>Email: <span className="text-blue-400">refunds@gameon.com</span></p>
-              <p>Support: <span className="text-blue-400">support@gameon.com</span></p>
-              <p>Phone: <span className="text-blue-400">+91-XXXX-XXXXXX</span></p>
-            </div>
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>In case you feel that the tournament experience is not as described on the site or as per your expectations, you must bring it to the notice of our customer service within 24 hours of the tournament completion. The Customer Service Team after looking into your complaint will take an appropriate decision.</p>
+              </li>
+
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>Refunds are NOT applicable in cases of user withdrawal, disqualification due to rule violations, late joining, or no-show for the scheduled tournament.</p>
+              </li>
+
+              <li className="flex items-start">
+                <span className="text-green-400 mr-3 mt-1.5">•</span>
+                <p>In case of any Refunds approved by VIVEK BADGUJAR, it’ll take 5–7 working days for the refund to be processed to the original payment method of the end customer.</p>
+              </li>
+            </ul>
           </div>
         </motion.div>
 
@@ -191,25 +102,27 @@ const RefundPolicy = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-8 flex flex-wrap gap-4 justify-center"
+          className="mt-12 flex flex-wrap gap-4 justify-center"
         >
           <Link 
             href="/terms" 
-            className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
+            className="text-white/40 hover:text-white transition-colors text-sm"
           >
             Terms & Conditions
           </Link>
+          <span className="text-white/20">•</span>
           <Link 
             href="/privacy" 
-            className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
+            className="text-white/40 hover:text-white transition-colors text-sm"
           >
             Privacy Policy
           </Link>
+          <span className="text-white/20">•</span>
           <Link 
-            href="/fairplay" 
-            className="glass-card px-6 py-3 text-white/80 hover:text-white transition-colors duration-300"
+            href="/refund" 
+            className="text-white/40 hover:text-white transition-colors text-sm font-semibold"
           >
-            Fair Play Policy
+            Refund Policy
           </Link>
         </motion.div>
       </div>
