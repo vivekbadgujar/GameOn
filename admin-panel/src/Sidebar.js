@@ -5,6 +5,7 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 const drawerWidth = 220;
 
@@ -27,6 +28,10 @@ const Sidebar = ({ onSelect, selected }) => (
         <ListItem button selected={selected === 'tournaments'} onClick={() => onSelect('tournaments')}>
           <ListItemIcon><SportsEsportsIcon /></ListItemIcon>
           <ListItemText primary="Tournaments" />
+        </ListItem>
+        <ListItem button selected={selected === 'payments'} onClick={() => onSelect('payments')}>
+          <ListItemIcon><VerifiedUserIcon /></ListItemIcon>
+          <ListItemText primary="Payment Verification" />
         </ListItem>
         <ListItem button selected={selected === 'notifications'} onClick={() => onSelect('notifications')}>
           <ListItemIcon><NotificationsIcon /></ListItemIcon>

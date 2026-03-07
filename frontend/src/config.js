@@ -28,10 +28,6 @@ const config = {
   FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://gameonesport.xyz',
   ADMIN_URL: process.env.NEXT_PUBLIC_ADMIN_URL || 'https://admin.gameonesport.xyz',
 
-  // Cashfree Configuration
-  CASHFREE_APP_ID: process.env.NEXT_PUBLIC_CASHFREE_APP_ID || process.env.REACT_APP_CASHFREE_APP_ID || 'your_cashfree_app_id_here',
-  CASHFREE_ENVIRONMENT: process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT || process.env.REACT_APP_CASHFREE_ENVIRONMENT || 'production',
-
   // App Configuration
   APP_NAME: 'GameOn',
   APP_VERSION: '1.0.0',

@@ -180,20 +180,23 @@ const TournamentDetails = () => {
       return;
     }
 
+    // if the tournament requires payment (entry fee > 0) redirect to manual payment
+    if (tournament.entryFee && tournament.entryFee > 0) {
+      router.push(`/manual-payment?tournamentId=${id}`);
+      return;
+    }
+
+    // for free tournaments, allow direct joining
     try {
       setJoining(true);
-      setError(''); // Clear previous errors
+      setError('');
       await joinTournament(id);
       
-      // Show success message
       showSuccess('Successfully joined tournament!');
-      
-      // Refresh tournament data to show updated participant count
       await fetchTournamentDetails();
     } catch (error) {
       console.error('Error joining tournament:', error);
       
-      // Handle different types of errors
       if (error.response?.status === 401) {
         const errorMessage = error.response?.data?.message;
         if (errorMessage === 'Token has expired') {

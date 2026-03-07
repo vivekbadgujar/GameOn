@@ -308,6 +308,17 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
       });
     }
 
+    // Paid tournaments must be processed via manual payment workflow.  Users
+    // cannot directly hit this endpoint for entry – an admin will add them
+    // after payment verification.  This keeps the old auto-join logic safe
+    // for free tournaments only.
+    if (tournament.entryFee && tournament.entryFee > 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Please complete manual payment and wait for admin approval before joining.'
+      });
+    }
+
     // Check if tournament is full
     if (tournament.currentParticipants >= tournament.maxParticipants) {
       return res.status(400).json({

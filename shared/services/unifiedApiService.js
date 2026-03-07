@@ -155,6 +155,8 @@ class UnifiedApiService {
   }
 
   async addMoney(amount, paymentMethod = 'cashfree') {
+    // wallet functionality is unchanged but gateway methods are deprecated.
+    // You may remove the `paymentMethod` argument if gateway support is removed
     const response = await this.api.post('/wallet/add-money', {
       amount,
       paymentMethod
@@ -164,6 +166,21 @@ class UnifiedApiService {
 
   async verifyPayment(paymentData) {
     const response = await this.api.post('/payments/verify', paymentData);
+    return response.data;
+  }
+
+  // Manual payment endpoints (new)
+  async submitManualPayment(formData) {
+    // formData should be a FormData object containing the fields defined
+    // in the spec as well as a screenshot file under key 'screenshot'.
+    const response = await this.api.post('/payments/manual/submit', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  }
+
+  async getManualPaymentStatus(tournamentId) {
+    const response = await this.api.get(`/payments/manual/status/${tournamentId}`);
     return response.data;
   }
 

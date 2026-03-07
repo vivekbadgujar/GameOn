@@ -57,50 +57,14 @@ const validateTournamentParticipation = async (req, res, next) => {
       });
     }
 
-    // Check for existing payments
-    const existingPayments = await Transaction.find({
-      user: userId,
-      tournament: tournamentId,
-      type: 'tournament_entry'
-    }).sort({ createdAt: -1 });
-
-    // Check for pending payments
-    const pendingPayment = existingPayments.find(p => p.status === 'pending');
-    if (pendingPayment) {
-      const paymentId = pendingPayment.cashfreePaymentId || pendingPayment.paymentGateway?.gatewayTransactionId || null;
-      const orderId = pendingPayment.cashfreeOrderId || pendingPayment.paymentGateway?.gatewayOrderId || null;
+    // if entry fee is charged we no longer allow the user to join directly
+    // via the normal participation endpoints; they must use the manual
+    // payment form and wait for an admin to approve their entry.
+    if (tournament.entryFee && tournament.entryFee > 0) {
       return res.status(400).json({
         success: false,
-        error: 'You have a pending payment for this tournament. Please complete or cancel it first.',
-        code: 'PAYMENT_PENDING',
-        data: {
-          paymentId,
-          orderId,
-          amount: pendingPayment.amount,
-          createdAt: pendingPayment.createdAt
-        }
-      });
-    }
-
-    // Check for completed payments without participation (inconsistent state)
-    const completedPayment = existingPayments.find(p => p.status === 'completed');
-    if (completedPayment && !existingParticipation) {
-      console.error('Inconsistent state detected:', {
-        userId: userId.toString(),
-        tournamentId,
-        paymentId: completedPayment._id,
-        message: 'Payment completed but no participation record found'
-      });
-      
-      return res.status(400).json({
-        success: false,
-        error: 'Payment already completed for this tournament. Please contact support.',
-        code: 'INCONSISTENT_STATE',
-        data: {
-          paymentId: completedPayment.cashfreePaymentId || completedPayment.paymentGateway?.gatewayTransactionId || null,
-          amount: completedPayment.amount,
-          completedAt: completedPayment.updatedAt
-        }
+        error: 'Tournament requires manual payment. Please submit details and wait for approval.',
+        code: 'MANUAL_PAYMENT_REQUIRED'
       });
     }
 

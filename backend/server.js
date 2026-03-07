@@ -322,7 +322,11 @@ app.set('pushNotificationService', pushNotificationService);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tournaments', require('./routes/tournaments'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/payments', require('./routes/payments-cashfree'));
+// manualPayments replaces the old gateway-based code. it includes the
+// tournament manual payment submission and status endpoints, along with
+// a small admin verification API.  any wallet / other payment routes are
+// now moved to their own modules (if needed) or can be added separately.
+app.use('/api/payments', require('./routes/manualPayments'));
 app.use('/api', require('./routes/notifications'));
 app.use('/api/media', require('./routes/media'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));

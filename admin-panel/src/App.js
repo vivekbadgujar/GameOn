@@ -30,6 +30,7 @@ import SearchFilter from './components/SearchExport/SearchFilter';
 import ExportData from './components/SearchExport/ExportData';
 import NotificationManager from './components/Notifications/NotificationManager';
 import TournamentVideoManager from './components/Videos/TournamentVideoManager';
+import PaymentVerification from './components/PaymentVerification';
 import DataTest from './components/Debug/DataTest';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -134,6 +135,16 @@ function AppRoutes() {
           <AdminLayout>
             <ErrorBoundary>
               <NotificationManager />
+            </ErrorBoundary>
+          </AdminLayout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/payment-verification" element={
+        <ProtectedRoute>
+          <AdminLayout>
+            <ErrorBoundary>
+              <PaymentVerification />
             </ErrorBoundary>
           </AdminLayout>
         </ProtectedRoute>
