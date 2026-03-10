@@ -330,59 +330,13 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
     // Get user ID from authenticated user
     const userId = req.user._id;
 
-    // Enhanced duplicate participation check using model method
+    // Duplicate participation check
     const existingParticipation = tournament.getUserParticipation(userId);
     if (existingParticipation) {
       return res.status(400).json({
         success: false,
         error: 'You have already joined this tournament',
-        code: 'ALREADY_JOINED',
-        data: {
-          joinedAt: existingParticipation.joinedAt,
-          slotNumber: existingParticipation.slotNumber,
-          paymentStatus: existingParticipation.paymentStatus || 'pending'
-        }
-      });
-    }
-
-    // Check for duplicate payment attempts with more detailed validation
-    const Transaction = require('../models/Transaction');
-    const existingPayments = await Transaction.find({
-      user: userId,
-      tournament: id,
-      type: 'tournament_entry'
-    }).sort({ createdAt: -1 });
-
-    // Check for pending payments
-    const pendingPayment = existingPayments.find(p => p.status === 'pending');
-    if (pendingPayment) {
-      const paymentId = pendingPayment.cashfreePaymentId || pendingPayment.paymentGateway?.gatewayTransactionId || null;
-      const orderId = pendingPayment.cashfreeOrderId || pendingPayment.paymentGateway?.gatewayOrderId || null;
-      return res.status(400).json({
-        success: false,
-        error: 'You have a pending payment for this tournament. Please complete or cancel it first.',
-        code: 'PAYMENT_PENDING',
-        data: {
-          paymentId,
-          orderId,
-          amount: pendingPayment.amount,
-          createdAt: pendingPayment.createdAt
-        }
-      });
-    }
-
-    // Check for completed payments
-    const completedPayment = existingPayments.find(p => p.status === 'completed');
-    if (completedPayment) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already paid for this tournament',
-        code: 'PAYMENT_COMPLETED',
-        data: {
-          paymentId: completedPayment.cashfreePaymentId || completedPayment.paymentGateway?.gatewayTransactionId || null,
-          amount: completedPayment.amount,
-          completedAt: completedPayment.updatedAt
-        }
+        code: 'ALREADY_JOINED'
       });
     }
 
@@ -394,7 +348,8 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
       user: userId,
       joinedAt: new Date(),
       slotNumber: slotNumber,
-      paymentData: paymentData || null
+      paymentStatus: 'completed',
+      paymentData: paymentData || { method: 'free' }
     });
 
     // Update participant count

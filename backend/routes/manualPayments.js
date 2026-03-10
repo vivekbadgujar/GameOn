@@ -77,9 +77,11 @@ router.post(
       }
 
       const screenshotUrl = file ? `/uploads/payments/${file.filename}` : '';
+      const userId = req.user._id;
 
       const payment = new Payment({
         tournament: tournamentId,
+        user: userId,
         playerName,
         email,
         phone,
@@ -163,7 +165,7 @@ async function addParticipantFromPayment(payment) {
 
   const slotNumber = tournament.currentParticipants + 1;
   tournament.participants.push({
-    user: null, // unknown user; can fill later if necessary
+    user: payment.user,
     joinedAt: new Date(),
     slotNumber,
     paymentStatus: 'completed',
