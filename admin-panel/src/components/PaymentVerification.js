@@ -28,7 +28,12 @@ import {
   GetApp as DownloadIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import config from '../../config';
+
+// API URL configuration - Support both React and Next.js environment variables
+const API_BASE_URL = (process.env.REACT_APP_API_URL ||
+                     process.env.NEXT_PUBLIC_API_URL || 
+                     process.env.NEXT_PUBLIC_API_BASE_URL || 
+                     'https://api.gameonesport.xyz/api').replace(/\/$/, '');
 
 export default function PaymentVerification() {
   const [payments, setPayments] = useState([]);
@@ -49,7 +54,7 @@ export default function PaymentVerification() {
       setError('');
       const token = localStorage.getItem('adminToken');
       const response = await fetch(
-        `${config.API_BASE_URL}/payments/admin/payments?status=${statusFilter}`,
+        `${API_BASE_URL}/payments/admin/payments?status=${statusFilter}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
@@ -84,7 +89,7 @@ export default function PaymentVerification() {
       setActionLoading(true);
       const token = localStorage.getItem('adminToken');
       const response = await fetch(
-        `${config.API_BASE_URL}/payments/admin/payments/${selectedPayment._id}/${action}`,
+        `${API_BASE_URL}/payments/admin/payments/${selectedPayment._id}/${action}`,
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -243,7 +248,7 @@ export default function PaymentVerification() {
                   </Typography>
                   <Box
                     component="img"
-                    src={`${config.API_BASE_URL}${selectedPayment.screenshotUrl}`}
+                    src={`${API_BASE_URL}${selectedPayment.screenshotUrl}`}
                     alt="Payment screenshot"
                     sx={{ width: '100%', maxHeight: 300, borderRadius: 1 }}
                   />
