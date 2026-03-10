@@ -39,7 +39,7 @@ import { useRouter } from 'next/router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import TournamentJoinFlow from '../components/Tournament/TournamentJoinFlow';
+
 import BGMIWaitingRoom from '../components/Tournament/BGMIWaitingRoom';
 import dayjs from 'dayjs';
 
@@ -50,7 +50,6 @@ const TournamentPage = () => {
   const { showSuccess, showError, showInfo } = useNotification();
 
   // State management
-  const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [userParticipation, setUserParticipation] = useState(null);
 
@@ -75,23 +74,39 @@ const TournamentPage = () => {
     }
   }, [tournament, user]);
 
-  // Handle successful join
-  const handleJoinSuccess = (paymentData) => {
-    setJoinDialogOpen(false);
-    refetch();
-    showSuccess('Successfully joined tournament!');
-    
-    // Switch to waiting room tab
-    setTimeout(() => {
-      setActiveTab(1);
-    }, 1000);
-  };
-
   // Handle leave tournament
   const handleLeaveTournament = () => {
     setUserParticipation(null);
     refetch();
     setActiveTab(0); // Switch back to overview
+  };
+
+  // Handle join (free or paid -> redirect to manual page)
+  const handleJoinTournament = async () => {
+    if (!user) {
+      showError('Please login to join tournaments');
+      router.push('/login');
+      return;
+    }
+    if (!tournamentData || !tournamentData._id) {
+      showError('Tournament data not available');
+      return;
+    }
+    // paid
+    if (tournamentData.entryFee && tournamentData.entryFee > 0) {
+      router.push(`/manual-payment?tournamentId=${tournamentData._id}`);
+      return;
+    }
+    // free
+    try {
+      await fetch(`/api/tournaments/${tournamentData._id}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      refetch();
+      showSuccess('Successfully joined tournament!');
+      setActiveTab(1);
+    } catch (error) {
+      console.error('Join error', error);
+      showError('Failed to join tournament.');
+    }
   };
 
   // Get tournament status info
@@ -211,7 +226,7 @@ const TournamentPage = () => {
                     variant="contained"
                     size="large"
                     startIcon={<Person />}
-                    onClick={() => setJoinDialogOpen(true)}
+                    onClick={handleJoinTournament}
                     sx={{ mb: 1 }}
                   >
                     Join Tournament
@@ -476,13 +491,7 @@ const TournamentPage = () => {
         )}
       </Box>
 
-      {/* Join Tournament Dialog */}
-      <TournamentJoinFlow
-        tournament={tournamentData}
-        open={joinDialogOpen}
-        onClose={() => setJoinDialogOpen(false)}
-        onSuccess={handleJoinSuccess}
-      />
+
     </Container>
   );
 };

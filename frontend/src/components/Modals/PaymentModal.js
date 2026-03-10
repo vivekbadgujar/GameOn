@@ -13,27 +13,19 @@ import {
   Lock
 } from 'lucide-react';
 import { acceptPolicies } from '../../services/api';
-import cashfreeService from '../../services/cashfreeService';
 import toast from 'react-hot-toast';
 
 const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) => {
-  const [selectedMethod, setSelectedMethod] = useState('cashfree');
+  const [selectedMethod, setSelectedMethod] = useState('upi');
   const [processing, setProcessing] = useState(false);
   const [paymentStep, setPaymentStep] = useState('method'); // method, processing, success
   const [agreeToPolicies, setAgreeToPolicies] = useState(false);
 
   const paymentMethods = [
     {
-      id: 'cashfree',
-      name: 'Cashfree Payments',
-      description: 'Credit/Debit Card, UPI, Net Banking',
-      icon: CreditCard,
-      color: 'blue'
-    },
-    {
       id: 'upi',
-      name: 'UPI',
-      description: 'Google Pay, PhonePe, Paytm',
+      name: 'UPI Transfer',
+      description: 'Use the manual UPI process',
       icon: Smartphone,
       color: 'green'
     },
@@ -56,43 +48,7 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
       setProcessing(true);
       setPaymentStep('processing');
 
-      if (selectedMethod === 'cashfree') {
-        // Use Cashfree service for wallet top-up
-        await cashfreeService.processWalletTopup(
-          amount,
-          async (result) => {
-            // Payment success
-            setPaymentStep('success');
-            
-            // Save policy acceptance for the user
-            try {
-              const user = JSON.parse(localStorage.getItem('user'));
-              if (user && user._id) {
-                await acceptPolicies(user._id, '1.0');
-              }
-            } catch (error) {
-              console.error('Error saving policy acceptance:', error);
-            }
-            
-            setTimeout(() => {
-              onSuccess({
-                paymentId: result.paymentDetails?.referenceId || `cf_${Date.now()}`,
-                orderId: result.paymentDetails?.orderId,
-                method: selectedMethod,
-                amount: amount,
-                cashfreeData: result
-              });
-            }, 1500);
-          },
-          (error) => {
-            // Payment failure
-            console.error('Cashfree payment error:', error);
-            toast.error('Payment failed. Please try again.');
-            setProcessing(false);
-            setPaymentStep('method');
-          }
-        );
-      } else if (selectedMethod === 'wallet') {
+      if (selectedMethod === 'wallet') {
         // Handle wallet payment
         setPaymentStep('success');
         
@@ -114,7 +70,7 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
           });
         }, 1500);
       } else {
-        // Mock payment success for other methods
+        // UPI / manual payment: simply show success and pass back minimal info
         setPaymentStep('success');
         
         // Save policy acceptance for the user
@@ -129,7 +85,7 @@ const PaymentModal = ({ isOpen, onClose, amount, onSuccess, tournamentName }) =>
         
         setTimeout(() => {
           onSuccess({
-            paymentId: `mock_${Date.now()}`,
+            paymentId: `upi_${Date.now()}`,
             method: selectedMethod,
             amount: amount
           });

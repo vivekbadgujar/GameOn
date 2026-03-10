@@ -27,12 +27,10 @@ import {
   Medal,
   Gift
 } from 'lucide-react';
-import { getTournamentById, joinTournament, createPaymentOrder } from '../services/api';
+import { getTournamentById, joinTournament } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { useWallet } from '../contexts/WalletContext';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import PaymentModal from '../components/Modals/PaymentModal';
 import SlotEditModal from '../components/Dashboard/SlotEditModal';
 import CountdownTimer from '../components/UI/CountdownTimer';
 import toast from 'react-hot-toast';
@@ -41,7 +39,6 @@ const TournamentDetailsRedesigned = () => {
   const router = useRouter();
   const { id } = router.query;
   const { user } = useAuth();
-  const { balance, hasSufficientBalance, deductFromWallet } = useWallet();
   const { showSuccess, showError, showWarning } = useNotification();
   
   // State management
@@ -50,7 +47,6 @@ const TournamentDetailsRedesigned = () => {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSlotEditModal, setShowSlotEditModal] = useState(false);
   const [userSlot, setUserSlot] = useState(null);
   const [showCredentials, setShowCredentials] = useState(false);
@@ -125,135 +121,60 @@ const TournamentDetailsRedesigned = () => {
   };
 
   const handleJoinTournament = async () => {
+    // Guard: Check user is logged in
     if (!user) {
-      showError('Please login to join tournaments');
-      router.push('/login');
+      showError('Please login to register for tournaments.');
       return;
     }
 
-    if (!tournament?._id) {
-      showError('Invalid tournament');
+    // Guard: Valid tournament ID
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+      showError('Invalid tournament ID. Please refresh the page.');
       return;
     }
 
-    if (!tournament) {
-      showError('Tournament data not available');
+    if (!tournament || typeof tournament !== 'object') {
+      showError('Tournament data is missing. Please refresh the page.');
       return;
     }
 
-    // Check if tournament is full
-    if (tournament.currentParticipants >= tournament.maxParticipants) {
-      showError('Tournament is full');
+    // Paid tournaments require manual payment
+    if (tournament.entryFee && tournament.entryFee > 0) {
+      router.push(`/manual-payment?tournamentId=${id}`);
       return;
     }
 
-    // Check if user is already joined
-    const isAlreadyJoined = tournament.participants?.some(p => 
-      p._id === user._id || p.userId === user._id
-    );
-    
-    if (isAlreadyJoined) {
-      showWarning('You are already registered for this tournament');
-      return;
-    }
-
-    // Free tournament: skip wallet/payment gateway
-    if (Number(tournament.entryFee) === 0) {
-      try {
-        setJoining(true);
-        const joinResponse = await joinTournament(tournament._id);
-
-        if (joinResponse?.success) {
-          showSuccess('Successfully joined tournament!');
-          await fetchTournamentDetails();
-          if (typeof window !== 'undefined') {
-            setTimeout(() => {
-              router.push(`/tournaments/${tournament._id}/room-lobby`);
-            }, 1000);
-          }
-          return;
-        }
-
-        showError(joinResponse?.message || 'Failed to join tournament');
-      } catch (error) {
-        console.error('Free join tournament error:', error);
-        showError(error?.response?.data?.message || error.message || 'Failed to join tournament');
-      } finally {
-        setJoining(false);
-      }
-      return;
-    }
-
-    // Paid tournament: check wallet balance
-    if (!hasSufficientBalance(tournament.entryFee)) {
-      showError(`Insufficient balance. Required: ₹${tournament.entryFee}`);
-      return;
-    }
-
+    // Free tournament: attempt direct join
     try {
       setJoining(true);
-      
-      // Create payment order
-      const orderResponse = await createPaymentOrder({
-        amount: tournament.entryFee,
-        tournamentId: tournament._id,
-        currency: 'INR'
-      });
-
-      if (!orderResponse.success) {
-        showError(orderResponse.message || 'Failed to create payment order');
-        return;
-      }
-
-      // Show payment modal with Cashfree integration
-      setShowPaymentModal(true);
-      
+      setError('');
+      await joinTournament(id);
+      showSuccess('Successfully joined tournament!');
+      await fetchTournamentDetails();
     } catch (error) {
-      console.error('Join tournament error:', error);
-      showError(error.message || 'Failed to join tournament');
+      console.error('Error joining tournament:', error);
+      if (error.response?.status === 401) {
+        const msg = error.response?.data?.message;
+        if (msg === 'Token has expired') {
+          showError('Your session has expired. Please login again.');
+          setTimeout(() => router.push('/login'), 2000);
+        } else {
+          showError('Authentication required. Please login again.');
+          setTimeout(() => router.push('/login'), 2000);
+        }
+      } else if (error.response?.status === 404) {
+        showError('Tournament not found or has been removed.');
+      } else if (error.response?.status === 400) {
+        showError(error.response?.data?.message || error.response?.data?.error || 'Unable to join tournament. Please try again.');
+      } else {
+        showError('Failed to join tournament. Please try again.');
+      }
     } finally {
       setJoining(false);
     }
   };
 
-  const handlePaymentSuccess = async (paymentData) => {
-    try {
-      // Join tournament after successful payment
-      const joinResponse = await joinTournament(tournament._id, {
-        paymentId: paymentData.paymentId,
-        orderId: paymentData.orderId
-      });
 
-      if (joinResponse.success) {
-        showSuccess('Successfully joined tournament!');
-        setShowPaymentModal(false);
-        
-        // Refresh tournament data
-        await fetchTournamentDetails();
-        
-        // Deduct from wallet
-        deductFromWallet(tournament.entryFee);
-        
-        // Redirect to room lobby if available
-        if (typeof window !== 'undefined') {
-          setTimeout(() => {
-            router.push(`/tournaments/${tournament._id}/room-lobby`);
-          }, 2000);
-        }
-      } else {
-        throw new Error(joinResponse.message || 'Failed to join tournament');
-      }
-    } catch (error) {
-      console.error('Payment success handling error:', error);
-      showError(error.message || 'Failed to complete tournament registration');
-    }
-  };
-
-  const handlePaymentFailure = (error) => {
-    console.error('Payment failed:', error);
-    showError(error.message || 'Payment failed. Please try again.');
-    setShowPaymentModal(false);
-  };
 
   const copyToClipboard = async (text, type) => {
     if (typeof window === 'undefined' || !navigator.clipboard) {
@@ -601,17 +522,7 @@ const TournamentDetailsRedesigned = () => {
         </div>
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          amount={tournament.entryFee}
-          tournamentId={tournament._id}
-          onSuccess={handlePaymentSuccess}
-          onFailure={handlePaymentFailure}
-        />
-      )}
+
 
       {/* Slot Edit Modal */}
       {showSlotEditModal && (
