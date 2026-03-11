@@ -11,8 +11,8 @@ async function createAdmin() {
     await mongoose.connect(uri);
     console.log('Connected to MongoDB');
     
-    const email = process.env.ADMIN_EMAIL || 'admin@gameonesport.xyz';
-    const password = process.env.ADMIN_PASSWORD || 'SecureAdminPassword123!';
+    const email = process.env.ADMIN_EMAIL || 'vivekbadgujar321@gmail.com';
+    const password = process.env.ADMIN_PASSWORD || 'Vivek@321';
     
     console.log('Creating admin user:', email);
     

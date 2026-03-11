@@ -12,7 +12,7 @@ async function testTokenValidation() {
     console.log('✅ Connected to MongoDB');
     
     // Find admin user
-    const admin = await Admin.findOne({ email: 'admin@gameon.com' });
+    const admin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' });
     if (!admin) {
       console.log('❌ Admin user not found');
       return;

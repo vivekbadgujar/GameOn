@@ -24,8 +24,8 @@ async function initAdmin() {
     // Create new admin user with minimal data
     const admin = new Admin({
       name: 'GameOn Admin',
-      email: process.env.ADMIN_EMAIL || 'gameonofficial04@gmail.com',
-      password: process.env.ADMIN_PASSWORD || 'GameOn@321',
+      email: process.env.ADMIN_EMAIL || 'vivekbadgujar321@gmail.com',
+      password: process.env.ADMIN_PASSWORD || 'Vivek@321',
       role: 'super_admin',
       status: 'active',
       isEmailVerified: true
@@ -35,7 +35,7 @@ async function initAdmin() {
 
     console.log('✅ Admin user created successfully:', admin.email);
     console.log('Email:', admin.email);
-    console.log('Password:', process.env.ADMIN_PASSWORD || 'GameOn@321');
+    console.log('Password:', process.env.ADMIN_PASSWORD || 'Vivek@321');
     console.log('Role:', admin.role);
     console.log('Permissions:', admin.permissions);
 

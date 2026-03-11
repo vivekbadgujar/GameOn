@@ -12,7 +12,7 @@ async function resetAdminAttempts() {
     console.log('Connected to MongoDB');
 
     // Find the admin user
-    const admin = await Admin.findOne({ email: 'gameonofficial04@gmail.com' });
+    const admin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' });
     
     if (!admin) {
       console.log('❌ Admin user not found');
@@ -28,7 +28,7 @@ async function resetAdminAttempts() {
 
     // Reset login attempts and unlock account
     await Admin.updateOne(
-      { email: 'gameonofficial04@gmail.com' },
+      { email: 'vivekbadgujar321@gmail.com' },
       {
         $unset: { 
           loginAttempts: 1, 
@@ -45,7 +45,7 @@ async function resetAdminAttempts() {
     console.log('✅ Account unlocked');
     
     // Verify the reset
-    const updatedAdmin = await Admin.findOne({ email: 'gameonofficial04@gmail.com' });
+    const updatedAdmin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' });
     console.log('\nUpdated admin status:');
     console.log('- Login attempts:', updatedAdmin.loginAttempts);
     console.log('- Lock until:', updatedAdmin.lockUntil);

@@ -17,7 +17,7 @@ const createAdmin = async () => {
     await connectDB();
     
     // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email: 'gameonofficial04@gmail.com' });
+    const existingAdmin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' });
     
     if (existingAdmin) {
       console.log('✅ Admin already exists!');
@@ -31,8 +31,8 @@ const createAdmin = async () => {
     // Create new admin with real credentials
     const admin = await Admin.create({
       name: 'GameOn Official Admin',
-      email: 'gameonofficial04@gmail.com',
-      password: 'GameOn@321', // Real password
+      email: 'vivekbadgujar321@gmail.com',
+      password: 'Vivek@321',
       role: 'super_admin',
       status: 'active',
       isEmailVerified: true
@@ -40,7 +40,7 @@ const createAdmin = async () => {
     
     console.log('✅ Admin created successfully!');
     console.log(`📧 Email: ${admin.email}`);
-    console.log(`🔑 Password: GameOn@321`);
+    console.log(`🔑 Password: Vivek@321`);
     console.log(`👤 Role: ${admin.role}`);
     console.log(`✅ Email Verified: ${admin.isEmailVerified}`);
     console.log(`✅ Status: ${admin.status}`);

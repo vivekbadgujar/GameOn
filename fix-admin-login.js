@@ -215,9 +215,9 @@ async function createAdminUser() {
     if (error.code === 11000) {
       console.log('💡 Admin user already exists. Trying to update password...');
       try {
-        const admin = await Admin.findOne({ email: 'admin@gameon.com' });
+        const admin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' });
         if (admin) {
-          admin.password = 'GameOn@2024!';
+          admin.password = 'Vivek@321';
           admin.status = 'active';
           admin.loginAttempts = 0;
           admin.lockUntil = undefined;

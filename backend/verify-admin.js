@@ -11,7 +11,7 @@ async function checkAdmin() {
     await mongoose.connect(uri);
     console.log('Connected to MongoDB');
     
-    const email = process.env.ADMIN_EMAIL || 'admin@gameonesport.xyz';
+    const email = process.env.ADMIN_EMAIL || 'vivekbadgujar321@gmail.com';
     console.log('Checking for admin email:', email);
     
     const admin = await Admin.findOne({ email: email.toLowerCase() });
@@ -22,7 +22,7 @@ async function checkAdmin() {
       console.log('Status:', admin.status);
       
       // Verify password
-      const password = process.env.ADMIN_PASSWORD || 'SecureAdminPassword123!';
+      const password = process.env.ADMIN_PASSWORD || 'Vivek@321';
       const isMatch = await admin.comparePassword(password);
       console.log('Password match with env password:', isMatch);
     } else {
