@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const Payment = require('../models/Payment');
 const Tournament = require('../models/Tournament');
@@ -13,11 +14,20 @@ const router = express.Router();
 // store screenshots in uploads/payments
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads/payments');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // allow custom base path via env (useful on serverless platforms where __dirname may be read-only)
+    // we always create/use a "payments" subdirectory inside the base directory
+    const baseDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR || path.join(__dirname, '../uploads');
+    const uploadDir = path.join(baseDir, 'payments');
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (err) {
+      // propagate filesystem errors to multer callback
+      console.error('Failed to create upload directory:', err);
+      cb(err);
     }
-    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -40,10 +50,23 @@ const upload = multer({
 /**
  * User submits manual payment information for a tournament entry
  */
+// wrap multer upload to intercept errors so they don't fall through to global handler
+function handleUpload(req, res, next) {
+  upload.single('screenshot')(req, res, (err) => {
+    if (err) {
+      // Multer errors are considered user mistakes, respond 400
+      console.error('Screenshot upload error:', err);
+      const msg = err.message || 'Screenshot upload failed';
+      return res.status(400).json({ success: false, message: msg });
+    }
+    next();
+  });
+}
+
 router.post(
   '/manual/submit',
   authenticateToken,
-  upload.single('screenshot'),
+  handleUpload,
   [
     body('tournamentId').notEmpty().withMessage('Tournament ID is required'),
     body('playerName').notEmpty().withMessage('Player name is required'),
@@ -54,6 +77,12 @@ router.post(
   ],
   async (req, res) => {
     try {
+      // ensure DB is connected before proceeding
+      if (mongoose.connection.readyState !== 1) {
+        console.error('MongoDB not connected when processing manual payment');
+        return res.status(503).json({ success: false, message: 'Database not available' });
+      }
+
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
@@ -61,6 +90,11 @@ router.post(
 
       const { tournamentId, playerName, email, phone, gameId, transactionId } = req.body;
       const file = req.file;
+
+      // fail early if screenshot not provided (schema also marks it required)
+      if (!file) {
+        return res.status(400).json({ success: false, message: 'Payment screenshot is required' });
+      }
 
       // ensure tournament exists
       const tournament = await Tournament.findById(tournamentId);
@@ -76,7 +110,7 @@ router.post(
         return res.status(400).json({ success: false, message: 'Duplicate payment record detected' });
       }
 
-      const screenshotUrl = file ? `/uploads/payments/${file.filename}` : '';
+      const screenshotUrl = `/uploads/payments/${file.filename}`;
       const userId = req.user._id;
 
       const payment = new Payment({
@@ -95,7 +129,23 @@ router.post(
 
       res.json({ success: true, message: 'Payment submitted successfully. Your payment is under verification.' });
     } catch (error) {
+      // log full error for debugging
       console.error('Manual payment submission error:', error);
+
+      // if mongoose validation error, send details back
+      if (error.name === 'ValidationError') {
+        const msgs = Object.values(error.errors).map(e => e.message).join('; ');
+        return res.status(400).json({ success: false, message: msgs });
+      }
+
+      // duplicate key (transaction/email) - mongo error code 11000
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Duplicate transaction ID or email already submitted for this tournament'
+        });
+      }
+
       res.status(500).json({ success: false, message: 'Failed to submit payment' });
     }
   }

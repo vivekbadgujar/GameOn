@@ -1,41 +1,36 @@
 const mongoose = require('mongoose');
 const Admin = require('./backend/models/Admin');
-require('dotenv').config({ path: './backend/.env' });
 
 async function createAdminUser() {
   try {
     // Connect to MongoDB
-    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect('mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority');
     
     console.log('Connected to MongoDB');
     
     // Check if admin already exists
-    const existingAdmin = await Admin.findOne({ email: 'admin@gameon.com' });
+    const existingAdmin = await Admin.findOne({ email: 'vivekbadgujar321@gmail.com' }) || await Admin.findOne({ email: 'admin@gameon.com' });
     
     if (existingAdmin) {
-      console.log('Admin user already exists:', {
+      console.log('Admin user found, updating credentials...', {
         id: existingAdmin._id,
         name: existingAdmin.name,
-        email: existingAdmin.email,
-        role: existingAdmin.role,
-        status: existingAdmin.status
+        email: existingAdmin.email
       });
       
-      // Update password if needed
-      existingAdmin.password = 'admin123';
+      // Update credentials
+      existingAdmin.email = 'vivekbadgujar321@gmail.com';
+      existingAdmin.password = 'Vivek@321';
       await existingAdmin.save();
-      console.log('Admin password updated to: admin123');
+      console.log('Admin credentials updated successfully');
       
     } else {
       // Create new admin user
       const adminUser = new Admin({
-        name: 'Super Admin',
-        username: 'admin',
-        email: 'admin@gameon.com',
-        password: 'admin123',
+        name: 'Vivek Badgujar',
+        username: 'vivek',
+        email: 'vivekbadgujar321@gmail.com',
+        password: 'Vivek@321',
         role: 'super_admin',
         status: 'active',
         isEmailVerified: true,
@@ -65,8 +60,8 @@ async function createAdminUser() {
     }
     
     console.log('\n🔑 Admin Login Credentials:');
-    console.log('Email: admin@gameon.com');
-    console.log('Password: admin123');
+    console.log('Email: vivekbadgujar321@gmail.com');
+    console.log('Password: Vivek@321');
     
   } catch (error) {
     console.error('❌ Error creating admin user:', error);

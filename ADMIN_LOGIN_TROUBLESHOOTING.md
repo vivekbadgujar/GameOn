@@ -48,8 +48,8 @@ REACT_APP_ENV=production
 curl -X POST https://gameon-backend.onrender.com/api/admin/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "admin@gameon.com",
-    "password": "GameOn@2024!"
+    "email": "vivekbadgujar321@gmail.com",
+    "password": "Vivek@321"
   }'
 ```
 
@@ -210,8 +210,8 @@ vercel env add REACT_APP_API_URL
 
 After running `fix-admin-login.js`, use these credentials:
 
-- **Email:** `admin@gameon.com`
-- **Password:** `GameOn@2024!`
+- **Email:** `vivekbadgujar321@gmail.com`
+- **Password:** `Vivek@321`
 
 ---
 
@@ -231,7 +231,7 @@ node fix-admin-login.js
 ```bash
 curl -X POST https://gameon-backend.onrender.com/api/admin/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@gameon.com","password":"GameOn@2024!"}'
+  -d '{"email":"vivekbadgujar321@gmail.com","password":"Vivek@321"}'
 ```
 
 ### 4. **Check Frontend Environment**

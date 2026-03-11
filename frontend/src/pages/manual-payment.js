@@ -129,23 +129,32 @@ export default function ManualPaymentPage() {
       fd.append('transactionId', formData.transactionId);
       fd.append('screenshot', formData.screenshot);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api'}/payments/manual/submit`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: fd
-        }
-      );
+      const apiUrl =
+        `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api'}`;
+      const response = await fetch(`${apiUrl}/payments/manual/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: fd
+      });
 
-      const data = await response.json();
-      if (!data.success) throw new Error(data.message || 'Failed to submit payment');
+      let data;
+      // try to parse JSON, fallback to status text
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+
+      if (!data.success) {
+        throw new Error(data.message || `Server error ${response.status}`);
+      }
 
       setStep(3);
     } catch (error) {
-      setErrors(prev => ({ ...prev, submit: error.message }));
+      console.error('Payment submission failed:', error);
+      setErrors(prev => ({ ...prev, submit: error.message || 'Unable to submit payment' }));
     } finally {
       setSubmitting(false);
     }

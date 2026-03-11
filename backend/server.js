@@ -247,7 +247,18 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('combined'));
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// static hosting for uploaded files; default directory is backend/uploads
+const defaultUploadDir = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(defaultUploadDir));
+// if the manual payment upload dir is overridden, serve that too so screenshots
+// remain accessible in the admin panel
+if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
+  const customDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR;
+  if (customDir !== defaultUploadDir) {
+    app.use('/uploads', express.static(customDir));
+    console.log('Serving manual payment files from custom directory:', customDir);
+  }
+}
 
 // Ensure MongoDB connection middleware (skip for health check)
 app.use('/api', async (req, res, next) => {
@@ -378,6 +389,17 @@ app.get('/api/health', async (req, res) => {
       dbConnected = false;
       mongoReady = 0;
     }
+
+    // also verify that the payments collection exists (useful during deploys)
+    let paymentsExists = false;
+    if (dbConnected) {
+      try {
+        const cols = await mongoose.connection.db.listCollections({ name: 'payments' }).toArray();
+        paymentsExists = cols.length > 0;
+      } catch (colErr) {
+        console.warn('Health check unable to list payments collection:', colErr.message);
+      }
+    }
     
     // Always respond 200 to keep uptime checks/frontends alive; expose db state in payload
     const statusCode = 200;
@@ -390,6 +412,7 @@ app.get('/api/health', async (req, res) => {
       uptime: process.uptime ? process.uptime() : 0,
       dbStatus: dbConnected ? 'connected' : 'disconnected',
       mongoReady: mongoReady,
+      paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless
     });
   } catch (err) {
@@ -422,15 +445,14 @@ app.use('*', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err);
   
-  // Don't leak error details in production
   const statusCode = err.status || err.statusCode || 500;
-  const message = process.env.NODE_ENV === 'production' 
-    ? 'Internal server error' 
-    : err.message;
+  // always send the original message; clients can decide how to display it
+  const message = err.message || 'Internal server error';
     
   res.status(statusCode).json({
     success: false,
     message,
+    // only expose stack trace when not in production
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
 });

@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 // Use your MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL || 'mongodb://localhost:27017/gameon';
+const MONGODB_URI = 'mongodb+srv://vivekbadgujar:Vivek321@cluster0.squjxrk.mongodb.net/gameon?retryWrites=true&w=majority';
 
 console.log('🔧 Fixing Admin Login Issues...\n');
 
@@ -83,16 +83,11 @@ adminSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Pre-save middleware to hash password
-adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+adminSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
   
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Login attempts methods
@@ -137,10 +132,7 @@ const Admin = mongoose.model('Admin', adminSchema);
 async function createAdminUser() {
   try {
     console.log('1. Connecting to MongoDB...');
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
     console.log('\n2. Checking for existing admin users...');
@@ -157,9 +149,9 @@ async function createAdminUser() {
     console.log('\n3. Creating/Updating admin user...');
     
     const adminData = {
-      name: 'GameOn Administrator',
-      email: 'admin@gameon.com',
-      password: 'GameOn@2024!', // This will be hashed automatically
+      name: 'Vivek Badgujar',
+      email: 'vivekbadgujar321@gmail.com',
+      password: 'Vivek@321', // This will be hashed automatically
       role: 'super_admin',
       status: 'active',
       isEmailVerified: true,
@@ -177,34 +169,44 @@ async function createAdminUser() {
       department: 'Administration'
     };
 
-    // Try to find and update existing admin, or create new one
-    const admin = await Admin.findOneAndUpdate(
-      { email: adminData.email },
-      adminData,
-      { 
-        upsert: true, 
-        new: true,
-        setDefaultsOnInsert: true
-      }
-    );
+    // Try to find existing admin (either new or old email)
+    let admin = await Admin.findOne({ 
+      $or: [{ email: adminData.email }, { email: 'admin@gameon.com' }] 
+    });
+
+    if (admin) {
+      console.log('Updating existing admin...');
+      Object.assign(admin, adminData);
+      // Force password modification to trigger hashing hook
+      admin.password = 'Vivek@321';
+      console.log('Password set to: Vivek@321 (will be hashed)');
+    } else {
+      console.log('Creating new admin...');
+      admin = new Admin(adminData);
+    }
+
+    await admin.save();
+    
+    // Reload admin to get hashed password for verification test
+    const reloadedAdmin = await Admin.findById(admin._id);
 
     console.log('✅ Admin user created/updated successfully!');
     console.log('Admin details:');
-    console.log(`  - ID: ${admin._id}`);
-    console.log(`  - Name: ${admin.name}`);
-    console.log(`  - Email: ${admin.email}`);
-    console.log(`  - Role: ${admin.role}`);
-    console.log(`  - Status: ${admin.status}`);
-    console.log(`  - Password: GameOn@2024!`);
+    console.log(`  - ID: ${reloadedAdmin._id}`);
+    console.log(`  - Name: ${reloadedAdmin.name}`);
+    console.log(`  - Email: ${reloadedAdmin.email}`);
+    console.log(`  - Role: ${reloadedAdmin.role}`);
+    console.log(`  - Status: ${reloadedAdmin.status}`);
+    console.log(`  - Password: Vivek@321`);
 
     console.log('\n4. Testing password verification...');
-    const isPasswordValid = await admin.comparePassword('GameOn@2024!');
+    const isPasswordValid = await reloadedAdmin.comparePassword('Vivek@321');
     console.log('Password verification:', isPasswordValid ? '✅ Valid' : '❌ Invalid');
 
     console.log('\n✅ Admin user setup complete!');
     console.log('\n📋 Login Credentials:');
-    console.log('  Email: admin@gameon.com');
-    console.log('  Password: GameOn@2024!');
+    console.log('  Email: vivekbadgujar321@gmail.com');
+    console.log('  Password: Vivek@321');
     console.log('\n🔗 You can now login to your admin panel');
 
   } catch (error) {
@@ -241,8 +243,8 @@ async function testAdminLogin() {
   
   try {
     const response = await axios.post(`${BACKEND_URL}/api/admin/auth/login`, {
-      email: 'admin@gameon.com',
-      password: 'GameOn@2024!'
+      email: 'vivekbadgujar321@gmail.com',
+      password: 'Vivek@321'
     }, {
       headers: {
         'Content-Type': 'application/json'

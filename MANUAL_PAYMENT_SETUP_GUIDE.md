@@ -205,6 +205,13 @@ No new environment variables required. The system uses your existing:
 - `NEXT_PUBLIC_API_BASE_URL`
 - JWT secret (from auth middleware)
 
+One optional variable lets you override where screenshots are stored:
+- `MANUAL_PAYMENT_UPLOAD_DIR` – **base directory** where payment files
+  should be stored.  The server will create/use a `payments` sub‑folder inside
+  this base.  Defaults to `backend/uploads` (which resolves to
+  `backend/uploads/payments`).  Useful on platforms where the application
+  directory is read‑only (e.g. Vercel serverless functions).
+
 ## Deployment Notes
 
 ### Before Deploying
