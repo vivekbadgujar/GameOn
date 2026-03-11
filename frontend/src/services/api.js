@@ -424,6 +424,19 @@ export const addMoneyToWallet = async (data) => {
 
 // Payment endpoints
 export const createPaymentOrder = (amount) => api.post('/payments/create-order', { amount });
+export const submitManualPayment = async (formData) => {
+  try {
+    const response = await api.post('/payments/manual/submit', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error submitting manual payment:', error);
+    throw error;
+  }
+};
 
 // YouTube API
 export const getYouTubeVideos = async (searchTerm = '') => {

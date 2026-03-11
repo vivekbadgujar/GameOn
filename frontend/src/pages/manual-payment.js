@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import {
@@ -11,14 +11,18 @@ import {
   Receipt,
   Upload,
   Copy,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react';
-import { getTournamentById } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { getTournamentById, submitManualPayment } from '../services/api';
+
+const ALLOWED_SCREENSHOT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function ManualPaymentPage() {
   const router = useRouter();
   const { tournamentId } = router.query;
-  
+  const { user, token, loading: authLoading } = useAuth();
+
   const [step, setStep] = useState(1);
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +32,7 @@ export default function ManualPaymentPage() {
     gameId: '',
     phone: '',
     transactionId: '',
-    screenshot: null
+    screenshot: null,
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -39,21 +43,128 @@ export default function ManualPaymentPage() {
     }
   }, [tournamentId]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      playerName: prev.playerName || user.displayName || user.username || '',
+      email: prev.email || user.email || '',
+      gameId: prev.gameId || user.gameProfile?.bgmiId || '',
+      phone: prev.phone || user.phone || '',
+    }));
+  }, [user]);
+
   const fetchTournament = async () => {
     try {
-      const data = await getTournamentById(tournamentId);
+      const resolvedTournamentId = Array.isArray(tournamentId) ? tournamentId[0] : tournamentId;
+      const data = await getTournamentById(resolvedTournamentId);
       setTournament(data);
-      setLoading(false);
     } catch (error) {
       console.error('Failed to fetch tournament:', error);
+    } finally {
       setLoading(false);
     }
-  }
+  };
 
   const UPI_ID = 'gameon@upi';
   const ENTRY_FEE = tournament?.entryFee || 0;
 
-  if (loading) {
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.playerName?.trim()) newErrors.playerName = 'Player name required';
+    if (!formData.email?.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) newErrors.email = 'Valid email required';
+    if (!formData.phone?.trim()) newErrors.phone = 'Phone required';
+    if (!formData.gameId?.trim()) newErrors.gameId = 'Game ID required';
+    if (!formData.transactionId?.trim()) newErrors.transactionId = 'Transaction ID required';
+    if (!formData.screenshot) newErrors.screenshot = 'Screenshot required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type } = e.target;
+
+    if (type === 'file') {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!ALLOWED_SCREENSHOT_TYPES.includes(file.type)) {
+        setErrors((prev) => ({ ...prev, screenshot: 'Only JPG, PNG, or WEBP allowed' }));
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({ ...prev, screenshot: 'File too large (max 5MB)' }));
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, [name]: file }));
+      setErrors((prev) => ({ ...prev, screenshot: '' }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    if (!token) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: 'Please login again before submitting payment details.',
+      }));
+      router.push('/login');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('tournamentId', Array.isArray(tournamentId) ? tournamentId[0] : tournamentId);
+      fd.append('playerName', formData.playerName.trim());
+      fd.append('email', formData.email.trim());
+      fd.append('phone', formData.phone.trim());
+      fd.append('gameId', formData.gameId.trim());
+      fd.append('transactionId', formData.transactionId.trim());
+      fd.append('screenshot', formData.screenshot);
+
+      const data = await submitManualPayment(fd);
+      if (!data?.success) {
+        throw new Error(data?.message || 'Unable to submit payment');
+      }
+
+      setStep(3);
+    } catch (error) {
+      console.error('Payment submission failed:', error);
+      const validationErrors = error.response?.data?.errors;
+      const validationMessage = Array.isArray(validationErrors)
+        ? validationErrors.map((item) => item.msg).join(', ')
+        : null;
+
+      setErrors((prev) => ({
+        ...prev,
+        submit:
+          validationMessage ||
+          error.response?.data?.message ||
+          error.message ||
+          'Unable to submit payment',
+      }));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(UPI_ID);
+  };
+
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
         <p className="text-white">Loading tournament details...</p>
@@ -80,91 +191,6 @@ export default function ManualPaymentPage() {
     );
   }
 
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.playerName?.trim()) newErrors.playerName = 'Player name required';
-    if (!formData.email?.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) newErrors.email = 'Valid email required';
-    if (!formData.phone?.trim()) newErrors.phone = 'Phone required';
-    if (!formData.gameId?.trim()) newErrors.gameId = 'Game ID required';
-    if (!formData.transactionId?.trim()) newErrors.transactionId = 'Transaction ID required';
-    if (!formData.screenshot) newErrors.screenshot = 'Screenshot required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type } = e.target;
-    if (type === 'file') {
-      const file = e.target.files?.[0];
-      if (file) {
-        if (!['image/jpeg', 'image/png'].includes(file.type)) {
-          setErrors(prev => ({ ...prev, screenshot: 'Only JPG/PNG allowed' }));
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          setErrors(prev => ({ ...prev, screenshot: 'File too large (max 5MB)' }));
-          return;
-        }
-        setFormData(prev => ({ ...prev, [name]: file }));
-        setErrors(prev => ({ ...prev, screenshot: '' }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-      if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    setSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append('tournamentId', tournamentId);
-      fd.append('playerName', formData.playerName);
-      fd.append('email', formData.email);
-      fd.append('phone', formData.phone);
-      fd.append('gameId', formData.gameId);
-      fd.append('transactionId', formData.transactionId);
-      fd.append('screenshot', formData.screenshot);
-
-      const apiUrl =
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api'}`;
-      const response = await fetch(`${apiUrl}/payments/manual/submit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: fd
-      });
-
-      let data;
-      // try to parse JSON, fallback to status text
-      try {
-        data = await response.json();
-      } catch (parseErr) {
-        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-      }
-
-      if (!data.success) {
-        throw new Error(data.message || `Server error ${response.status}`);
-      }
-
-      setStep(3);
-    } catch (error) {
-      console.error('Payment submission failed:', error);
-      setErrors(prev => ({ ...prev, submit: error.message || 'Unable to submit payment' }));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(UPI_ID);
-  };
-
-  // Step 1: Instructions
   if (step === 1) {
     return (
       <div className="min-h-screen pt-20 pb-8">
@@ -174,25 +200,23 @@ export default function ManualPaymentPage() {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card p-8"
           >
-            {/* Tournament info */}
             <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-2">{tournament?.title}</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">{tournament?.title || tournament?.name}</h2>
               <p className="text-gray-300 mb-4">{tournament?.description}</p>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-500 text-sm">Entry Fee</p>
-                  <p className="text-xl font-bold text-green-400">₹{ENTRY_FEE}</p>
+                  <p className="text-xl font-bold text-green-400">Rs {ENTRY_FEE}</p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-sm">Slots Remaining</p>
                   <p className="text-xl font-bold text-blue-400">
-                    {tournament?.maxParticipants - tournament?.currentParticipants}
+                    {(tournament?.maxParticipants || 0) - (tournament?.currentParticipants || 0)}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Payment instructions */}
             <div className="mb-8">
               <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Phone className="w-5 h-5 text-green-400" />
@@ -203,7 +227,6 @@ export default function ManualPaymentPage() {
                 UPI ID below, then submit your transaction details on the next page.
               </p>
 
-              {/* UPI ID */}
               <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-6 mb-6">
                 <p className="text-gray-300 text-sm mb-2">UPI Address</p>
                 <div className="flex items-center justify-between bg-black/40 rounded p-4">
@@ -218,7 +241,6 @@ export default function ManualPaymentPage() {
                 </div>
               </div>
 
-              {/* Instructions list */}
               <ol className="space-y-3 text-white/70">
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">1</span>
@@ -226,7 +248,7 @@ export default function ManualPaymentPage() {
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">2</span>
-                  <span>Send ₹{ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded">{UPI_ID}</code></span>
+                  <span>Send Rs {ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded">{UPI_ID}</code></span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">3</span>
@@ -243,11 +265,10 @@ export default function ManualPaymentPage() {
               </ol>
             </div>
 
-            {/* Info message */}
             <div className="bg-blue-600/10 border border-blue-600/30 rounded-lg p-4 mb-6 flex gap-3">
               <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-1" />
               <p className="text-white/70 text-sm">
-                Your payment will be verified by our admin team. Once approved, you'll be added to the tournament and can access the details.
+                Your payment will be verified by our admin team. Once approved, you&apos;ll be added to the tournament and can access the details.
               </p>
             </div>
 
@@ -264,7 +285,6 @@ export default function ManualPaymentPage() {
     );
   }
 
-  // Step 2: Form
   if (step === 2) {
     return (
       <div className="min-h-screen pt-20 pb-8">
@@ -284,7 +304,6 @@ export default function ManualPaymentPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Player Name */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <User className="w-4 h-4" />
@@ -301,7 +320,6 @@ export default function ManualPaymentPage() {
                 {errors.playerName && <p className="text-red-400 text-sm mt-1">{errors.playerName}</p>}
               </div>
 
-              {/* Email */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <Mail className="w-4 h-4" />
@@ -318,7 +336,6 @@ export default function ManualPaymentPage() {
                 {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
               </div>
 
-              {/* Game ID */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <Smartphone className="w-4 h-4" />
@@ -335,7 +352,6 @@ export default function ManualPaymentPage() {
                 {errors.gameId && <p className="text-red-400 text-sm mt-1">{errors.gameId}</p>}
               </div>
 
-              {/* Phone */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <Phone className="w-4 h-4" />
@@ -352,7 +368,6 @@ export default function ManualPaymentPage() {
                 {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Transaction ID */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <Receipt className="w-4 h-4" />
@@ -369,30 +384,28 @@ export default function ManualPaymentPage() {
                 {errors.transactionId && <p className="text-red-400 text-sm mt-1">{errors.transactionId}</p>}
               </div>
 
-              {/* Screenshot upload */}
               <div>
                 <label className="block text-white mb-2 font-medium flex items-center gap-2">
                   <Upload className="w-4 h-4" />
-                  Payment Screenshot (JPG/PNG)
+                  Payment Screenshot (JPG/PNG/WEBP)
                 </label>
                 <div className="relative">
                   <input
                     type="file"
                     name="screenshot"
-                    accept="image/jpeg,image/png"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleInputChange}
                     className="w-full"
                   />
                   {formData.screenshot && (
                     <p className="text-green-400 text-sm mt-2">
-                      ✓ {formData.screenshot.name}
+                      Selected: {formData.screenshot.name}
                     </p>
                   )}
                 </div>
                 {errors.screenshot && <p className="text-red-400 text-sm mt-1">{errors.screenshot}</p>}
               </div>
 
-              {/* Submit button */}
               <button
                 type="submit"
                 disabled={submitting}
@@ -415,7 +428,6 @@ export default function ManualPaymentPage() {
     );
   }
 
-  // Step 3: Confirmation
   return (
     <div className="min-h-screen pt-20 pb-8">
       <div className="container-custom max-w-2xl">
@@ -432,9 +444,9 @@ export default function ManualPaymentPage() {
 
           <div className="bg-white/5 border border-white/10 rounded-lg p-6 mb-8">
             <p className="text-white/60 text-sm mb-2">Payment Status</p>
-            <p className="text-2xl font-bold text-yellow-400">⏳ Pending Verification</p>
+            <p className="text-2xl font-bold text-yellow-400">Pending Verification</p>
             <p className="text-white/50 text-sm mt-2">
-              You'll receive a notification once your payment is approved.
+              You&apos;ll receive a notification once your payment is approved.
             </p>
           </div>
 
