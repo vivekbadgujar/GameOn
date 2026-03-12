@@ -424,6 +424,10 @@ export const addMoneyToWallet = async (data) => {
 
 // Payment endpoints
 export const createPaymentOrder = (amount) => api.post('/payments/create-order', { amount });
+export const getManualPaymentStatus = async (tournamentId) => {
+  const response = await api.get(`/payments/manual/status/${tournamentId}`);
+  return response.data;
+};
 export const submitManualPayment = async (formData) => {
   try {
     const response = await api.post('/payments/manual/submit', formData, {

@@ -11,6 +11,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { authenticateAdmin, requirePermission, auditLog } = require('../middleware/adminAuth');
 
 const router = express.Router();
+const PAYMENT_SCREENSHOT_SUBDIR = 'payment_screenshots';
 
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
@@ -26,13 +27,13 @@ const resolveManualPaymentBaseDir = () => {
   return path.join(__dirname, '../uploads');
 };
 
-// store screenshots in uploads/payments
+// store screenshots in uploads/payment_screenshots
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // allow custom base path via env (useful on serverless platforms where __dirname may be read-only)
     // we always create/use a "payments" subdirectory inside the base directory
     const baseDir = resolveManualPaymentBaseDir();
-    const uploadDir = path.join(baseDir, 'payments');
+    const uploadDir = path.join(baseDir, PAYMENT_SCREENSHOT_SUBDIR);
     try {
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
@@ -45,7 +46,7 @@ const storage = multer.diskStorage({
       }
 
       try {
-        const fallbackDir = path.join(os.tmpdir(), 'gameon-uploads', 'payments');
+        const fallbackDir = path.join(os.tmpdir(), 'gameon-uploads', PAYMENT_SCREENSHOT_SUBDIR);
         if (!fs.existsSync(fallbackDir)) {
           fs.mkdirSync(fallbackDir, { recursive: true });
         }
@@ -130,22 +131,54 @@ router.post(
         return res.status(404).json({ success: false, message: 'Tournament not found' });
       }
 
-      // check duplicate transaction id or email/tournament
+      const normalizedEmail = email.trim().toLowerCase();
+      const screenshotUrl = `/uploads/${PAYMENT_SCREENSHOT_SUBDIR}/${file.filename}`;
+      const userId = req.user._id;
       const existing = await Payment.findOne({
-        $or: [{ transactionId }, { tournament: tournamentId, email }]
+        $or: [
+          { transactionId },
+          { tournament: tournamentId, user: userId },
+          { tournament: tournamentId, email: normalizedEmail }
+        ]
       });
-      if (existing) {
-        return res.status(400).json({ success: false, message: 'Duplicate payment record detected' });
+
+      if (existing && existing.paymentStatus !== 'rejected') {
+        return res.status(409).json({
+          success: false,
+          message: existing.paymentStatus === 'approved'
+            ? 'You are already registered for this tournament.'
+            : 'Your payment has already been submitted and is pending verification.',
+          paymentStatus: existing.paymentStatus
+        });
       }
 
-      const screenshotUrl = `/uploads/payments/${file.filename}`;
-      const userId = req.user._id;
+      if (existing && existing.paymentStatus === 'rejected') {
+        existing.playerName = playerName;
+        existing.email = normalizedEmail;
+        existing.phone = phone;
+        existing.gameId = gameId;
+        existing.transactionId = transactionId;
+        existing.screenshotUrl = screenshotUrl;
+        existing.paymentStatus = 'pending';
+        existing.user = userId;
+        await existing.save();
+
+        return res.json({
+          success: true,
+          message: 'Payment resubmitted successfully. Your payment is under verification.',
+          data: {
+            paymentStatus: existing.paymentStatus,
+            paymentId: existing._id,
+            screenshotUrl: existing.screenshotUrl
+          }
+        });
+      }
 
       const payment = new Payment({
         tournament: tournamentId,
         user: userId,
         playerName,
-        email,
+        email: normalizedEmail,
         phone,
         gameId,
         transactionId,
@@ -155,7 +188,15 @@ router.post(
 
       await payment.save();
 
-      res.json({ success: true, message: 'Payment submitted successfully. Your payment is under verification.' });
+      res.json({
+        success: true,
+        message: 'Payment submitted successfully. Your payment is under verification.',
+        data: {
+          paymentStatus: payment.paymentStatus,
+          paymentId: payment._id,
+          screenshotUrl: payment.screenshotUrl
+        }
+      });
     } catch (error) {
       // log full error for debugging
       console.error('Manual payment submission error:', error);
@@ -185,14 +226,30 @@ router.post(
 router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) => {
   try {
     const { tournamentId } = req.params;
-    const userEmail = req.user.email;
+    const userEmail = req.user.email?.trim().toLowerCase();
+    const userId = req.user._id;
 
-    const payment = await Payment.findOne({ tournament: tournamentId, email: userEmail });
+    const payment = await Payment.findOne({
+      tournament: tournamentId,
+      $or: [
+        { user: userId },
+        ...(userEmail ? [{ email: userEmail }] : [])
+      ]
+    }).sort({ updatedAt: -1, createdAt: -1 });
     if (!payment) {
       return res.status(404).json({ success: false, message: 'No payment record found' });
     }
 
-    res.json({ success: true, data: { status: payment.paymentStatus } });
+    res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        status: payment.paymentStatus,
+        screenshotUrl: payment.screenshotUrl,
+        updatedAt: payment.updatedAt,
+        createdAt: payment.createdAt
+      }
+    });
   } catch (error) {
     console.error('Manual payment status error:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve payment status' });

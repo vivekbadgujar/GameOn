@@ -14,7 +14,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getTournamentById, submitManualPayment } from '../services/api';
+import { getManualPaymentStatus, getTournamentById, submitManualPayment } from '../services/api';
 
 const ALLOWED_SCREENSHOT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -36,12 +36,27 @@ export default function ManualPaymentPage() {
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [existingPayment, setExistingPayment] = useState(null);
+  const [allowResubmission, setAllowResubmission] = useState(false);
 
   useEffect(() => {
     if (tournamentId) {
       fetchTournament();
     }
   }, [tournamentId]);
+
+  useEffect(() => {
+    if (!tournamentId || authLoading) return;
+
+    if (!user || !token) {
+      setExistingPayment(null);
+      setStatusLoading(false);
+      return;
+    }
+
+    fetchExistingPaymentStatus();
+  }, [tournamentId, authLoading, token, user?._id, user?.email]);
 
   useEffect(() => {
     if (!user) return;
@@ -64,6 +79,27 @@ export default function ManualPaymentPage() {
       console.error('Failed to fetch tournament:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchExistingPaymentStatus = async () => {
+    try {
+      setStatusLoading(true);
+      const resolvedTournamentId = Array.isArray(tournamentId) ? tournamentId[0] : tournamentId;
+      const response = await getManualPaymentStatus(resolvedTournamentId);
+      if (response?.success && response?.data) {
+        setExistingPayment(response.data);
+        setAllowResubmission(false);
+      } else {
+        setExistingPayment(null);
+      }
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch manual payment status:', error);
+      }
+      setExistingPayment(null);
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -139,6 +175,11 @@ export default function ManualPaymentPage() {
         throw new Error(data?.message || 'Unable to submit payment');
       }
 
+      setExistingPayment({
+        ...data.data,
+        status: data?.data?.paymentStatus || 'pending',
+      });
+      setAllowResubmission(false);
       setStep(3);
     } catch (error) {
       console.error('Payment submission failed:', error);
@@ -164,10 +205,92 @@ export default function ManualPaymentPage() {
     navigator.clipboard.writeText(UPI_ID);
   };
 
-  if (loading || authLoading) {
+  const resolvedPaymentStatus = existingPayment?.status;
+  const showExistingPaymentState = existingPayment && !allowResubmission;
+
+  if (loading || authLoading || statusLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
         <p className="text-white">Loading tournament details...</p>
+      </div>
+    );
+  }
+
+  if (showExistingPaymentState) {
+    const statusConfig = {
+      pending: {
+        heading: 'Payment Status: Pending Verification',
+        statusLabel: 'Pending Verification',
+        statusClass: 'text-yellow-400',
+        borderClass: 'border-yellow-500/30',
+        bgClass: 'bg-yellow-500/10',
+        message: 'Your payment has been submitted and is currently under admin verification. Please wait for approval.',
+        actionLabel: 'Back to Tournaments',
+        action: () => router.push('/tournaments'),
+      },
+      approved: {
+        heading: 'Tournament Status',
+        statusLabel: 'Approved',
+        statusClass: 'text-green-400',
+        borderClass: 'border-green-500/30',
+        bgClass: 'bg-green-500/10',
+        message: 'You are successfully registered for this tournament.',
+        actionLabel: 'Back to Tournaments',
+        action: () => router.push('/tournaments'),
+      },
+      rejected: {
+        heading: 'Tournament Status',
+        statusLabel: 'Rejected',
+        statusClass: 'text-red-400',
+        borderClass: 'border-red-500/30',
+        bgClass: 'bg-red-500/10',
+        message: 'Your payment was rejected. Please submit payment again.',
+        actionLabel: 'Submit Payment Again',
+        action: () => {
+          setAllowResubmission(true);
+          setStep(2);
+        },
+      },
+    };
+
+    const currentStatus = statusConfig[resolvedPaymentStatus] || statusConfig.pending;
+
+    return (
+      <div className="min-h-screen pt-20 pb-8">
+        <div className="container-custom max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-8"
+          >
+            <h2 className="text-3xl font-bold text-white mb-6">{currentStatus.heading}</h2>
+
+            <div className={`rounded-lg border p-6 mb-6 ${currentStatus.bgClass} ${currentStatus.borderClass}`}>
+              <p className="text-white/60 text-sm mb-2">Payment Status</p>
+              <p className={`text-2xl font-bold ${currentStatus.statusClass}`}>{currentStatus.statusLabel}</p>
+            </div>
+
+            <p className="text-white/70 mb-8">{currentStatus.message}</p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={currentStatus.action}
+                className="w-full btn-primary"
+              >
+                {currentStatus.actionLabel}
+              </button>
+
+              {resolvedPaymentStatus === 'rejected' && (
+                <button
+                  onClick={() => router.push('/tournaments')}
+                  className="w-full btn-secondary"
+                >
+                  Back to Tournaments
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
       </div>
     );
   }

@@ -34,6 +34,7 @@ const API_BASE_URL = (process.env.REACT_APP_API_URL ||
                      process.env.NEXT_PUBLIC_API_URL || 
                      process.env.NEXT_PUBLIC_API_BASE_URL || 
                      'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+const API_ASSET_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 export default function PaymentVerification() {
   const [payments, setPayments] = useState([]);
@@ -43,6 +44,7 @@ export default function PaymentVerification() {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState('');
 
   useEffect(() => {
     fetchPayments();
@@ -71,6 +73,7 @@ export default function PaymentVerification() {
 
   const handlePreview = (payment) => {
     setSelectedPayment(payment);
+    setImageLoadError('');
     setPreviewOpen(true);
   };
 
@@ -106,6 +109,12 @@ export default function PaymentVerification() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const getScreenshotUrl = (screenshotUrl) => {
+    if (!screenshotUrl) return '';
+    if (/^https?:\/\//i.test(screenshotUrl)) return screenshotUrl;
+    return `${API_ASSET_BASE_URL}${screenshotUrl.startsWith('/') ? screenshotUrl : `/${screenshotUrl}`}`;
   };
 
   const getStatusChip = (status) => {
@@ -246,11 +255,17 @@ export default function PaymentVerification() {
                   <Typography variant="body2" sx={{ mb: 1 }}>
                     <strong>Payment Screenshot:</strong>
                   </Typography>
+                  {imageLoadError ? (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      {imageLoadError}
+                    </Alert>
+                  ) : null}
                   <Box
                     component="img"
-                    src={`${API_BASE_URL}${selectedPayment.screenshotUrl}`}
+                    src={getScreenshotUrl(selectedPayment.screenshotUrl)}
                     alt="Payment screenshot"
-                    sx={{ width: '100%', maxHeight: 300, borderRadius: 1 }}
+                    onError={() => setImageLoadError('Unable to load the uploaded screenshot. Check the stored file path and public uploads configuration.')}
+                    sx={{ width: '100%', maxHeight: 300, borderRadius: 1, objectFit: 'contain', backgroundColor: 'rgba(255,255,255,0.04)' }}
                   />
                 </Box>
               )}
