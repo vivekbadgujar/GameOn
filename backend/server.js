@@ -11,6 +11,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const os = require('os');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -248,7 +249,8 @@ app.use(morgan('combined'));
 
 // Serve static files from uploads directory
 // static hosting for uploaded files; default directory is backend/uploads
-const defaultUploadDir = path.join(__dirname, 'uploads');
+const defaultUploadDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR
+  || (isServerless ? path.join(os.tmpdir(), 'gameon-uploads') : path.join(__dirname, 'uploads'));
 app.use('/uploads', express.static(defaultUploadDir));
 // if the manual payment upload dir is overridden, serve that too so screenshots
 // remain accessible in the admin panel

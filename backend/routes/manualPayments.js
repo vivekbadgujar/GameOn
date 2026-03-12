@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
@@ -11,12 +12,26 @@ const { authenticateAdmin, requirePermission, auditLog } = require('../middlewar
 
 const router = express.Router();
 
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+const resolveManualPaymentBaseDir = () => {
+  if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
+    return process.env.MANUAL_PAYMENT_UPLOAD_DIR;
+  }
+
+  if (isServerless) {
+    return path.join(os.tmpdir(), 'gameon-uploads');
+  }
+
+  return path.join(__dirname, '../uploads');
+};
+
 // store screenshots in uploads/payments
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // allow custom base path via env (useful on serverless platforms where __dirname may be read-only)
     // we always create/use a "payments" subdirectory inside the base directory
-    const baseDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR || path.join(__dirname, '../uploads');
+    const baseDir = resolveManualPaymentBaseDir();
     const uploadDir = path.join(baseDir, 'payments');
     try {
       if (!fs.existsSync(uploadDir)) {
@@ -24,9 +39,22 @@ const storage = multer.diskStorage({
       }
       cb(null, uploadDir);
     } catch (err) {
-      // propagate filesystem errors to multer callback
-      console.error('Failed to create upload directory:', err);
-      cb(err);
+      if (!isServerless) {
+        console.error('Failed to create upload directory:', err);
+        return cb(err);
+      }
+
+      try {
+        const fallbackDir = path.join(os.tmpdir(), 'gameon-uploads', 'payments');
+        if (!fs.existsSync(fallbackDir)) {
+          fs.mkdirSync(fallbackDir, { recursive: true });
+        }
+        cb(null, fallbackDir);
+      } catch (fallbackErr) {
+        console.error('Failed to create upload directory:', err);
+        console.error('Failed to create fallback upload directory:', fallbackErr);
+        cb(fallbackErr);
+      }
     }
   },
   filename: (req, file, cb) => {
