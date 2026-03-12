@@ -261,9 +261,9 @@ export default function ManualPaymentPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8"
+            className="glass-card page-transition p-5 sm:p-8"
           >
-            <h2 className="text-3xl font-bold text-white mb-6">{currentStatus.heading}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6">{currentStatus.heading}</h2>
 
             <div className={`rounded-lg border p-6 mb-6 ${currentStatus.bgClass} ${currentStatus.borderClass}`}>
               <p className="text-white/60 text-sm mb-2">Payment Status</p>
@@ -299,7 +299,7 @@ export default function ManualPaymentPage() {
     return (
       <div className="min-h-screen pt-20 pb-8">
         <div className="container-custom max-w-2xl">
-          <motion.div className="glass-card p-8 text-center">
+          <motion.div className="glass-card p-6 sm:p-8 text-center">
             <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">Tournament Not Found</h2>
             <button
@@ -321,12 +321,12 @@ export default function ManualPaymentPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8"
+            className="glass-card page-transition p-5 sm:p-8"
           >
-            <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-lg">
-              <h2 className="text-2xl font-bold text-white mb-2">{tournament?.title || tournament?.name}</h2>
+            <div className="mb-8 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-lg">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">{tournament?.title || tournament?.name}</h2>
               <p className="text-gray-300 mb-4">{tournament?.description}</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-500 text-sm">Entry Fee</p>
                   <p className="text-xl font-bold text-green-400">Rs {ENTRY_FEE}</p>
@@ -350,16 +350,19 @@ export default function ManualPaymentPage() {
                 UPI ID below, then submit your transaction details on the next page.
               </p>
 
-              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-6 mb-6">
+              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-4 sm:p-6 mb-6">
                 <p className="text-gray-300 text-sm mb-2">UPI Address</p>
-                <div className="flex items-center justify-between bg-black/40 rounded p-4">
-                  <code className="text-white font-mono text-lg">{UPI_ID}</code>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between bg-black/40 rounded p-4">
+                  <code className="text-white font-mono text-base sm:text-lg break-all">{UPI_ID}</code>
                   <button
                     onClick={copyToClipboard}
-                    className="p-2 hover:bg-white/10 rounded transition"
+                    className="btn-secondary w-full sm:w-auto px-4 py-2"
                     title="Copy UPI ID"
                   >
-                    <Copy className="w-5 h-5 text-green-400" />
+                    <span className="flex items-center justify-center gap-2">
+                      <Copy className="w-5 h-5 text-green-400" />
+                      <span>Copy</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -371,7 +374,7 @@ export default function ManualPaymentPage() {
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">2</span>
-                  <span>Send Rs {ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded">{UPI_ID}</code></span>
+                  <span>Send Rs {ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded break-all">{UPI_ID}</code></span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">3</span>
@@ -415,7 +418,7 @@ export default function ManualPaymentPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8"
+            className="glass-card page-transition p-5 sm:p-8"
           >
             <h2 className="text-2xl font-bold text-white mb-6">Submit Payment Details</h2>
 
@@ -437,7 +440,7 @@ export default function ManualPaymentPage() {
                   name="playerName"
                   value={formData.playerName}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/20 rounded px-4 py-2 text-white placeholder:text-gray-500 focus:border-blue-400/50 focus:outline-none"
+                  className="input-field w-full"
                   placeholder="Your full name"
                 />
                 {errors.playerName && <p className="text-red-400 text-sm mt-1">{errors.playerName}</p>}
@@ -453,7 +456,7 @@ export default function ManualPaymentPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/20 rounded px-4 py-2 text-white placeholder:text-gray-500 focus:border-blue-400/50 focus:outline-none"
+                  className="input-field w-full"
                   placeholder="your@email.com"
                 />
                 {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
@@ -469,7 +472,7 @@ export default function ManualPaymentPage() {
                   name="gameId"
                   value={formData.gameId}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/20 rounded px-4 py-2 text-white placeholder:text-gray-500 focus:border-blue-400/50 focus:outline-none"
+                  className="input-field w-full"
                   placeholder="Your in-game ID"
                 />
                 {errors.gameId && <p className="text-red-400 text-sm mt-1">{errors.gameId}</p>}
@@ -485,7 +488,7 @@ export default function ManualPaymentPage() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/20 rounded px-4 py-2 text-white placeholder:text-gray-500 focus:border-blue-400/50 focus:outline-none"
+                  className="input-field w-full"
                   placeholder="10-digit phone number"
                 />
                 {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone}</p>}
@@ -501,7 +504,7 @@ export default function ManualPaymentPage() {
                   name="transactionId"
                   value={formData.transactionId}
                   onChange={handleInputChange}
-                  className="w-full bg-white/5 border border-white/20 rounded px-4 py-2 text-white placeholder:text-gray-500 focus:border-blue-400/50 focus:outline-none"
+                  className="input-field w-full"
                   placeholder="Reference ID from your UPI app"
                 />
                 {errors.transactionId && <p className="text-red-400 text-sm mt-1">{errors.transactionId}</p>}
@@ -518,7 +521,7 @@ export default function ManualPaymentPage() {
                     name="screenshot"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleInputChange}
-                    className="w-full"
+                    className="input-field w-full file:mr-3"
                   />
                   {formData.screenshot && (
                     <p className="text-green-400 text-sm mt-2">
@@ -557,7 +560,7 @@ export default function ManualPaymentPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-8 text-center"
+          className="glass-card page-transition p-6 sm:p-8 text-center"
         >
           <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
           <h2 className="text-3xl font-bold text-white mb-2">Payment Submitted!</h2>

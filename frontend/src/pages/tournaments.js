@@ -218,11 +218,11 @@ const Tournaments = () => {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <div className="text-center mb-8 px-1">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
               <span className="text-gradient">Tournaments</span>
             </h1>
-            <p className="text-white/60 text-lg max-w-3xl mx-auto">
+            <p className="text-white/60 text-base sm:text-lg max-w-3xl mx-auto">
               Join live tournaments and compete with the best players
             </p>
           </div>
@@ -235,14 +235,14 @@ const Tournaments = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mb-8"
         >
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  className={`flex min-h-[48px] items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                     activeTab === tab.id
                       ? 'bg-blue-500 text-white shadow-lg'
                       : 'glass-card text-white/70 hover:text-white hover:bg-white/10'
@@ -286,7 +286,7 @@ const Tournaments = () => {
             {/* Filter Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="btn-secondary flex items-center space-x-2"
+              className="btn-secondary flex items-center justify-center space-x-2 md:w-auto"
             >
               <Filter className="w-4 h-4" />
               <span>Filters</span>
@@ -303,25 +303,25 @@ const Tournaments = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mt-4 glass-card p-6"
+                className="mt-4 glass-card p-4 sm:p-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Game Filter */}
                   <div>
                     <label className="block text-white font-semibold mb-3">Game</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {games.map((game) => (
                         <button
                           key={game.id}
                           onClick={() => setSelectedGame(game.id)}
-                          className={`flex items-center space-x-2 p-3 rounded-xl transition-all duration-300 ${
+                          className={`flex min-h-[48px] items-center space-x-2 p-3 rounded-xl text-left transition-all duration-300 ${
                             selectedGame === game.id
                               ? 'bg-blue-500 text-white'
                               : 'bg-white/5 text-white/70 hover:bg-white/10'
                           }`}
                         >
                           <span className="text-lg">{game.icon}</span>
-                          <span className="font-medium">{game.name}</span>
+                          <span className="min-w-0 truncate font-medium">{game.name}</span>
                         </button>
                       ))}
                     </div>
@@ -349,10 +349,10 @@ const Tournaments = () => {
                 </div>
 
                 {/* Clear Filters */}
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-start sm:justify-end">
                   <button
                     onClick={clearFilters}
-                    className="flex items-center space-x-2 text-white/60 hover:text-white transition-colors duration-300"
+                    className="flex min-h-[44px] items-center space-x-2 text-white/60 hover:text-white transition-colors duration-300"
                   >
                     <X className="w-4 h-4" />
                     <span>Clear Filters</span>
@@ -408,7 +408,7 @@ const Tournaments = () => {
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           {filteredTournaments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredTournaments.map((tournament, index) => (
                 <motion.div
                   key={tournament._id}
@@ -425,7 +425,7 @@ const Tournaments = () => {
               ))}
             </div>
           ) : (
-            <div className="glass-card p-12 text-center">
+            <div className="glass-card p-8 sm:p-12 text-center">
               <Trophy className="w-16 h-16 text-white/40 mx-auto mb-6" />
               <h3 className="text-2xl font-bold text-white mb-4">No Tournaments Found</h3>
               <p className="text-white/60 mb-6">

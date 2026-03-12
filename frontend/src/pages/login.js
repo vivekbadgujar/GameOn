@@ -160,12 +160,12 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="w-full max-w-md"
+          className="w-full max-w-md page-transition"
         >
           <div className="lg:hidden text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -175,7 +175,7 @@ const Login = () => {
             <p className="text-white/60">Welcome back, gamer!</p>
           </div>
 
-          <div className="glass-card p-8">
+          <div className="glass-card p-5 sm:p-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">
                 Login to GameOn
@@ -195,7 +195,7 @@ const Login = () => {
               </motion.div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
               <div>
                 <label className="block text-white font-semibold mb-3">
                   Email Address
@@ -241,7 +241,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -252,7 +252,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-300"
+                  className="text-left sm:text-right text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors duration-300"
                 >
                   Forgot password?
                 </button>

@@ -10,7 +10,6 @@ import {
   CheckCircle,
   AlertCircle,
   Lock,
-  Edit,
   Settings
 } from 'lucide-react';
 import { useTournamentParticipation } from '../../hooks/useTournamentParticipation';
@@ -19,8 +18,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
   // Use the participation hook to check if user has joined
   const {
     hasJoined,
-    paymentStatus,
-    canJoin
+    paymentStatus
   } = useTournamentParticipation(tournament?._id);
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -81,7 +79,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
     <motion.div
       whileHover={{ scale: 1.02, y: -5 }}
       whileTap={{ scale: 0.98 }}
-      className="tournament-card group"
+      className="tournament-card group page-transition h-full"
     >
       {/* Status Badge */}
       <div className="absolute top-4 right-4 z-10">
@@ -92,13 +90,14 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
       </div>
 
       {/* Tournament Image/Game Icon */}
-      <div className="relative h-48 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 rounded-t-2xl overflow-hidden">
+      <div className="relative h-44 sm:h-48 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 rounded-t-2xl overflow-hidden">
         {tournament.poster || tournament.posterUrl || tournament.image ? (
           <>
             <img 
               src={tournament.poster || tournament.posterUrl || tournament.image} 
               alt={tournament.title || tournament.name || 'Tournament'}
               className="w-full h-full object-cover"
+              loading="lazy"
               onError={(e) => {
                 e.target.style.display = 'none';
                 e.target.nextSibling.style.display = 'flex';
@@ -132,8 +131,8 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
       </div>
 
       {/* Tournament Info */}
-      <div className="p-6">
-        <h3 className="text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors duration-300">
+      <div className="flex flex-col p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors duration-300">
           {tournament.title || tournament.name || 'Unnamed Tournament'}
         </h3>
         
@@ -143,8 +142,8 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
 
         {/* Tournament Stats */}
         <div className="space-y-3 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center space-x-2">
               <Trophy className="w-4 h-4 text-yellow-400" />
               <span className="text-white/80 text-sm">Prize Pool</span>
             </div>
@@ -153,8 +152,8 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
             </span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center space-x-2">
               <Users className="w-4 h-4 text-blue-400" />
               <span className="text-white/80 text-sm">Participants</span>
             </div>
@@ -163,8 +162,8 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
             </span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center space-x-2">
               <Target className="w-4 h-4 text-purple-400" />
               <span className="text-white/80 text-sm">Entry Fee</span>
             </div>
@@ -173,12 +172,12 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
             </span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center space-x-2">
               <Clock className="w-4 h-4 text-cyan-400" />
               <span className="text-white/80 text-sm">Start Time</span>
             </div>
-            <span className="text-white font-semibold text-sm">
+            <span className="max-w-[9rem] text-right text-white font-semibold text-sm">
               {formatDate(tournament.startDate || tournament.startTime)}
             </span>
           </div>
@@ -207,6 +206,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
         )}
 
         {/* Action Button */}
+        <div className="mt-auto">
         {isAuthenticated ? (
           hasJoined ? (
             <div className="space-y-2">
@@ -217,10 +217,10 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
                 </div>
               </div>
               {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Link
                     href={`/tournaments/${tournament._id}/room-lobby`}
-                    className="flex-1 bg-blue-500/20 border border-blue-500/30 rounded-xl py-2 px-3 text-center hover:bg-blue-500/30 transition-all duration-300"
+                    className="flex-1 min-h-[44px] bg-blue-500/20 border border-blue-500/30 rounded-xl py-3 px-3 text-center hover:bg-blue-500/30 transition-all duration-300"
                   >
                     <div className="flex items-center justify-center space-x-2 text-blue-400 font-semibold text-sm">
                       <Settings className="w-4 h-4" />
@@ -229,7 +229,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
                   </Link>
                   <Link
                     href={`/tournaments/${tournament._id}`}
-                    className="bg-purple-500/20 border border-purple-500/30 rounded-xl py-2 px-3 hover:bg-purple-500/30 transition-all duration-300"
+                    className="flex min-h-[44px] items-center justify-center bg-purple-500/20 border border-purple-500/30 rounded-xl py-3 px-3 hover:bg-purple-500/30 transition-all duration-300"
                     title="View Details"
                   >
                     <Trophy className="w-4 h-4 text-purple-400" />
@@ -273,6 +273,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
             <span>Login to Join</span>
           </button>
         )}
+        </div>
       </div>
 
       {/* Hover Effect Overlay */}

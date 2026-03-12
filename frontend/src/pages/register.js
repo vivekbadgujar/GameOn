@@ -199,12 +199,12 @@ const RegisterComponent = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="w-full max-w-md"
+          className="w-full max-w-md page-transition"
         >
           <div className="lg:hidden text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -214,7 +214,7 @@ const RegisterComponent = () => {
             <p className="text-white/60">Create your account</p>
           </div>
 
-          <div className="glass-card p-8">
+          <div className="glass-card p-5 sm:p-8">
             {success ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -251,7 +251,7 @@ const RegisterComponent = () => {
                   </motion.div>
                 )}
 
-                <form onSubmit={handleRegister} className="space-y-6">
+                <form onSubmit={handleRegister} className="space-y-5 sm:space-y-6">
                   <div>
                     <label className="block text-white font-semibold mb-3">
                       Username

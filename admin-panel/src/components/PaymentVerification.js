@@ -22,6 +22,8 @@ import {
   IconButton,
   Alert
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
@@ -37,6 +39,8 @@ const API_BASE_URL = (process.env.REACT_APP_API_URL ||
 const API_ASSET_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 export default function PaymentVerification() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -160,7 +164,7 @@ export default function PaymentVerification() {
             backgroundColor: 'rgba(255,255,255,0.1)',
             color: '#fff',
             '& .MuiOutlinedInput-root': { color: '#fff' },
-            minWidth: 200
+            minWidth: { xs: '100%', sm: 200 }
           }}
         >
           <MenuItem value="pending">Pending</MenuItem>
@@ -169,8 +173,8 @@ export default function PaymentVerification() {
         </TextField>
       </Box>
 
-      <TableContainer component={Paper} sx={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ backgroundColor: 'rgba(255,255,255,0.05)', overflowX: 'auto' }}>
+        <Table sx={{ minWidth: 760 }}>
           <TableHead>
             <TableRow sx={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
               <TableCell sx={{ color: '#fff' }}>Player Name</TableCell>
@@ -215,7 +219,13 @@ export default function PaymentVerification() {
       )}
 
       {/* Preview Dialog */}
-      <Dialog open={previewOpen} onClose={() => !actionLoading && setPreviewOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={previewOpen}
+        onClose={() => !actionLoading && setPreviewOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ backgroundColor: '#1a1a2e', color: '#fff' }}>
           Payment Details
           <IconButton
@@ -229,7 +239,7 @@ export default function PaymentVerification() {
 
         <DialogContent sx={{ backgroundColor: '#0f3460', color: '#fff', pt: 2 }}>
           {selectedPayment && (
-            <Box sx={{ space: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 <strong>Player Name:</strong> {selectedPayment.playerName}
               </Typography>
@@ -265,7 +275,7 @@ export default function PaymentVerification() {
                     src={getScreenshotUrl(selectedPayment.screenshotUrl)}
                     alt="Payment screenshot"
                     onError={() => setImageLoadError('Unable to load the uploaded screenshot. Check the stored file path and public uploads configuration.')}
-                    sx={{ width: '100%', maxHeight: 300, borderRadius: 1, objectFit: 'contain', backgroundColor: 'rgba(255,255,255,0.04)' }}
+                    sx={{ width: '100%', maxHeight: { xs: 240, sm: 300 }, borderRadius: 1, objectFit: 'contain', backgroundColor: 'rgba(255,255,255,0.04)' }}
                   />
                 </Box>
               )}
@@ -273,8 +283,8 @@ export default function PaymentVerification() {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ backgroundColor: '#1a1a2e', p: 2 }}>
-          <Button onClick={() => setPreviewOpen(false)} disabled={actionLoading} sx={{ color: '#fff' }}>
+        <DialogActions sx={{ backgroundColor: '#1a1a2e', p: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+          <Button onClick={() => setPreviewOpen(false)} disabled={actionLoading} sx={{ color: '#fff', width: { xs: '100%', sm: 'auto' } }}>
             Close
           </Button>
           {selectedPayment?.paymentStatus === 'pending' && (
@@ -285,6 +295,7 @@ export default function PaymentVerification() {
                 color="error"
                 variant="contained"
                 startIcon={<CancelIcon />}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 Reject
               </Button>
@@ -294,6 +305,7 @@ export default function PaymentVerification() {
                 color="success"
                 variant="contained"
                 startIcon={<CheckCircleIcon />}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 Approve
               </Button>

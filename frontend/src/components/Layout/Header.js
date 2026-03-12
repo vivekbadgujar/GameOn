@@ -14,11 +14,9 @@ import {
   Play,
   HelpCircle,
   Home,
-  Video,
   CreditCard,
   LogIn,
   UserPlus,
-  Image,
   ChevronDown,
   Users
 } from 'lucide-react';
@@ -44,7 +42,6 @@ const Header = () => {
   const { 
     isAuthModalOpen, 
     authModalTab, 
-    openAuthModal, 
     closeAuthModal, 
     openLoginModal, 
     openRegisterModal 
@@ -71,6 +68,19 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsNotificationOpen(false);
+    setIsProfileOpen(false);
+  }, [router.asPath]);
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   // Socket listeners for real-time updates
   useEffect(() => {
@@ -164,9 +174,9 @@ const Header = () => {
       className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10"
     >
       <div className="container-custom">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex min-h-16 items-center justify-between gap-3 py-2">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex min-w-0 items-center">
             <Logo size="md" showText={true} />
           </Link>
 
@@ -194,7 +204,7 @@ const Header = () => {
           </nav>
 
           {/* Right Section */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {isAuthenticated ? (
               <>
                 {/* Wallet Balance */}
@@ -212,7 +222,7 @@ const Header = () => {
                       setIsNotificationOpen(!isNotificationOpen);
                       if (!isNotificationOpen) markNotificationsAsRead();
                     }}
-                    className="relative p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
+                    className="relative min-h-[44px] min-w-[44px] rounded-xl p-2 hover:bg-white/10 transition-colors duration-300"
                   >
                     <Bell className="w-5 h-5 text-white/70" />
                     {unreadCount > 0 && (
@@ -229,7 +239,7 @@ const Header = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-80 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+                        className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1rem))] bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
                       >
                         <div className="p-4 border-b border-white/10">
                           <h3 className="text-white font-semibold">Notifications</h3>
@@ -267,7 +277,7 @@ const Header = () => {
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-2 p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
+                    className="flex min-h-[44px] items-center space-x-2 rounded-xl p-2 hover:bg-white/10 transition-colors duration-300"
                   >
                     <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
                       <User className="w-3.5 h-3.5 text-white" />
@@ -339,7 +349,7 @@ const Header = () => {
                 <div className="relative" ref={profileRef}>
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    className="hidden min-h-[44px] items-center space-x-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-white shadow-lg transition-all duration-300 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl sm:flex"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span className="font-medium text-sm">Join GameOn</span>
@@ -412,7 +422,9 @@ const Header = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl hover:bg-white/10 transition-colors duration-300"
+              className="md:hidden min-h-[44px] min-w-[44px] rounded-xl p-2 hover:bg-white/10 transition-colors duration-300"
+              aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? (
                 <X className="w-5 h-5 text-white" />
@@ -427,14 +439,105 @@ const Header = () => {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="md:hidden mobile-nav-content absolute top-full left-0 right-0 z-40 shadow-2xl border border-white/10"
-          >
-            <nav className="space-y-2">
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close navigation overlay"
+            />
+            <motion.div
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 24 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="mobile-sheet md:hidden"
+            >
+              <div className="flex h-full flex-col">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+                  <div className="min-w-0">
+                    <p className="text-sm uppercase tracking-[0.2em] text-white/40">Navigation</p>
+                    <p className="truncate text-lg font-semibold text-white">
+                      {isAuthenticated ? (user?.username || 'Player') : 'Welcome to GameOn'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="min-h-[44px] min-w-[44px] rounded-xl p-2 hover:bg-white/10 transition-colors duration-300"
+                    aria-label="Close navigation menu"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
+
+                <nav className="mobile-nav-content flex-1 space-y-2 overflow-y-auto border-0">
+                  {!isAuthenticated && (
+                    <div className="mb-4 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/15 to-cyan-500/5 p-4">
+                      <p className="text-sm text-white/60">Compete in daily esports tournaments.</p>
+                      <div className="mt-4 grid grid-cols-1 gap-3">
+                        <button
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            openLoginModal();
+                          }}
+                          className="btn-primary flex items-center justify-center gap-2"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          <span>Login</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            openRegisterModal();
+                          }}
+                          className="btn-secondary flex items-center justify-center gap-2"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          <span>Create Account</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isAuthenticated && (
+                    <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-white">{user?.username || 'User'}</p>
+                          <p className="truncate text-sm text-white/50">{user?.email}</p>
+                        </div>
+                        <div className="rounded-xl bg-green-500/10 px-3 py-2 text-right">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">Wallet</p>
+                          <p className="text-sm font-semibold text-green-400">{formatBalance(balance)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="btn-secondary flex items-center justify-center gap-2 px-3 text-sm"
+                        >
+                          <User className="w-4 h-4" />
+                          <span>Profile</span>
+                        </Link>
+                        <Link
+                          href="/wallet"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="btn-secondary flex items-center justify-center gap-2 px-3 text-sm"
+                        >
+                          <Wallet className="w-4 h-4" />
+                          <span>Wallet</span>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = router.pathname === item.path;
@@ -444,7 +547,7 @@ const Header = () => {
                     key={item.path}
                     href={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                    className={`flex min-h-[48px] items-center space-x-3 rounded-xl px-4 py-3 transition-all duration-300 ${
                       isActive 
                         ? 'bg-white/10 text-blue-400' 
                         : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -455,19 +558,54 @@ const Header = () => {
                   </Link>
                 );
               })}
-              
-              {/* Mobile Wallet Balance */}
-              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/10">
-                <div className="flex items-center space-x-3">
-                  <Wallet className="w-5 h-5 text-green-400" />
-                  <span className="font-medium">Wallet Balance</span>
+                  </div>
+
+                  {isAuthenticated && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          setIsNotificationOpen(true);
+                          markNotificationsAsRead();
+                        }}
+                        className="flex min-h-[48px] w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-left text-white/80 transition-all duration-300 hover:bg-white/10"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Bell className="w-5 h-5 text-white/70" />
+                          <span className="font-medium">Notifications</span>
+                        </span>
+                        {unreadCount > 0 && (
+                          <span className="rounded-full bg-red-500 px-2 py-1 text-xs font-semibold text-white">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-red-400 transition-all duration-300 hover:bg-red-500/10"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        <span className="font-medium">Logout</span>
+                      </button>
+                    </>
+                  )}
+
+                  {!isAuthenticated && (
+                    <div className="rounded-xl bg-white/5 px-4 py-3 text-sm text-white/55">
+                      Tournament flow, payment submission, and account access remain unchanged. This menu only adapts navigation for mobile screens.
+                    </div>
+                  )}
+                </nav>
+
+                <div className="border-t border-white/10 px-4 py-4 text-xs text-white/40">
+                  Modern esports layout tuned for touch interactions.
                 </div>
-                <span className="font-bold text-green-400">
-                  {formatBalance(balance)}
-                </span>
               </div>
-            </nav>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

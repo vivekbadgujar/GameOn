@@ -392,13 +392,13 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             {/* Close Button */}
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-white transition-colors duration-300"
+              className="absolute top-3 right-3 z-10 min-h-[44px] min-w-[44px] p-2 text-gray-400 hover:text-white transition-colors duration-300"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Header */}
-            <div className="p-6 pb-0">
+            <div className="p-4 sm:p-6 pb-0">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white mb-2">
                   {activeTab === 'login' ? 'Welcome Back!' : 'Join GameOn'}
@@ -418,7 +418,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     setActiveTab('login');
                     resetForm();
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 min-h-[44px] py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
                     activeTab === 'login'
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'text-gray-400 hover:text-white'
@@ -431,7 +431,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                     setActiveTab('register');
                     resetForm();
                   }}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 min-h-[44px] py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
                     activeTab === 'register'
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'text-gray-400 hover:text-white'
@@ -443,7 +443,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             </div>
 
             {/* Content */}
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6">
               {success ? (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -770,14 +770,14 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
                 onClick={() => setShowBgmiHelp(false)}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/50 p-6 max-w-md w-full"
+                  className="modal-panel bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/50 p-4 sm:p-6 max-w-md w-full"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between mb-4">

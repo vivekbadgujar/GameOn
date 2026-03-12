@@ -280,16 +280,16 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="modal-shell">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.2 }}
-          className="bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md"
+          className="modal-panel bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-800">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-800">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <Mail className="w-4 h-4 text-white" />
@@ -307,7 +307,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
