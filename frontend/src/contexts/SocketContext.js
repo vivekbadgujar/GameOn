@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-import config from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 
@@ -42,6 +42,12 @@ export const SocketProvider = ({ children }) => {
     // Guard: Only initialize socket if backend supports it and we're in browser
     if (typeof window === 'undefined') {
       console.log('[Socket] Skipping socket initialization (server-side)');
+      return;
+    }
+
+    if (!isSocketFeatureEnabled()) {
+      console.log('[Socket] Skipping socket initialization (feature disabled)');
+      setSyncStatus('disconnected');
       return;
     }
 
@@ -134,7 +140,11 @@ export const SocketProvider = ({ children }) => {
       console.error('❌ Socket connection error:', error);
       setIsConnected(false);
       setSyncStatus('disconnected');
-      // Don't retry - WebSocket is likely not available
+      disableSocketFeatureForSession();
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
     // Unified Platform Sync Events
