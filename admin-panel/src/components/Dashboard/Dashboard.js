@@ -100,11 +100,18 @@ const Dashboard = () => {
     refetch();
   };
 
+  useEffect(() => {
+    if (dashboardData) {
+      console.log('Admin dashboard data:', dashboardData);
+    }
+  }, [dashboardData]);
+
   // Real data from API
-  const userGrowthData = dashboardData?.data?.userGrowth || [];
-  const tournamentStats = dashboardData?.data?.gameDistribution || [];
-  const revenueData = dashboardData?.data?.revenueData || [];
-  const recentActivities = dashboardData?.data?.recentActivities || [];
+  const stats = dashboardData?.data || {};
+  const userGrowthData = stats.userGrowth || [];
+  const tournamentStats = stats.gameDistribution || [];
+  const revenueData = stats.revenueData || [];
+  const recentActivities = stats.recentActivities || [];
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -178,7 +185,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={isLoading ? "..." : (dashboardData?.data?.totalUsers || "0")}
+            value={isLoading ? "..." : (stats.totalUsers || "0")}
             change={null}
             icon={<People />}
             color="primary"
@@ -188,7 +195,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Tournaments"
-            value={isLoading ? "..." : (dashboardData?.data?.activeTournaments || "0")}
+            value={isLoading ? "..." : (stats.activeTournaments || "0")}
             change={null}
             icon={<EmojiEvents />}
             color="secondary"
@@ -198,7 +205,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-            value={isLoading ? "..." : `₹${(dashboardData?.data?.totalRevenue || 0).toLocaleString()}`}
+            value={isLoading ? "..." : `₹${(stats.totalRevenue || 0).toLocaleString()}`}
             change={null}
             icon={<Payment />}
             color="success"
@@ -208,7 +215,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Tournaments"
-            value={isLoading ? "..." : (dashboardData?.data?.totalTournaments || "0")}
+            value={isLoading ? "..." : (stats.totalTournaments || "0")}
             change={null}
             icon={<EmojiEvents />}
             color="info"
@@ -418,4 +425,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

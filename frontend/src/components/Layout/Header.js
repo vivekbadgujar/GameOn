@@ -6,6 +6,7 @@ import {
   Bell, 
   User, 
   Wallet, 
+  Lock,
   Settings, 
   LogOut, 
   Menu, 
@@ -22,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
-import { useWallet } from '../../contexts/WalletContext';
 import AuthModal from '../Auth/AuthModal';
 import { useAuthModal } from '../../hooks/useAuthModal';
 import Logo from '../UI/Logo';
@@ -36,7 +36,6 @@ const Header = () => {
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const { socket } = useSocket();
-  const { balance, formatBalance } = useWallet();
   const profileRef = useRef(null);
   
   const { 
@@ -46,6 +45,7 @@ const Header = () => {
     openLoginModal, 
     openRegisterModal 
   } = useAuthModal();
+  const lockedNavItems = new Set(['/friends', '/wallet']);
 
   // Navigation items
   const navItems = [
@@ -167,6 +167,26 @@ const Header = () => {
     return null;
   }
 
+  const renderLockedBadge = () => (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">
+      <Lock className="w-3 h-3" />
+      <span>Soon</span>
+    </span>
+  );
+
+  const renderDisabledWalletButton = (className = '') => (
+    <button
+      type="button"
+      disabled
+      title="Wallet feature coming soon"
+      className={className}
+    >
+      <Lock className="w-4 h-4" />
+      <span className="font-medium text-sm">Wallet</span>
+      <span className="text-white/70">(Soon)</span>
+    </button>
+  );
+
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -185,16 +205,36 @@ const Header = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = router.pathname === item.path;
+              const isLocked = lockedNavItems.has(item.path);
+              const className = `flex items-center space-x-2 px-3 py-2 rounded-xl transition-all duration-300 ${
+                isLocked
+                  ? 'cursor-not-allowed opacity-55 text-white/50'
+                  : isActive
+                    ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-400/30'
+                    : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`;
               
+              if (isLocked) {
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    disabled
+                    title="Feature coming soon"
+                    className={className}
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span className="font-medium text-sm">{item.label}</span>
+                    {renderLockedBadge()}
+                  </button>
+                );
+              }
+
               return (
                 <Link
                   key={item.path}
                   href={item.path}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-400/30' 
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
-                  }`}
+                  className={className}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="font-medium text-sm">{item.label}</span>
@@ -207,13 +247,9 @@ const Header = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             {isAuthenticated ? (
               <>
-                {/* Wallet Balance */}
-                <div className="hidden sm:flex items-center space-x-2 glass-card px-3 py-1.5">
-                  <Wallet className="w-4 h-4 text-green-400" />
-                  <span className="font-semibold text-green-400 text-sm">
-                    {formatBalance(balance)}
-                  </span>
-                </div>
+                {renderDisabledWalletButton(
+                  'hidden sm:flex items-center space-x-2 glass-card px-3 py-1.5 opacity-60 cursor-not-allowed text-white/60'
+                )}
 
                 {/* Notifications */}
                 <div className="relative">
@@ -311,14 +347,15 @@ const Header = () => {
                         <span>Profile</span>
                       </Link>
                       
-                      <Link
-                        href="/wallet"
-                        onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors duration-300"
+                      <button
+                        type="button"
+                        disabled
+                        title="Wallet feature coming soon"
+                        className="flex items-center space-x-3 px-4 py-2 rounded-lg w-full text-left opacity-60 cursor-not-allowed"
                       >
-                        <Wallet className="w-4 h-4" />
-                        <span>Wallet</span>
-                      </Link>
+                        <Lock className="w-4 h-4" />
+                        <span>Wallet (Soon)</span>
+                      </button>
                       
                       <button
                         onClick={() => setIsProfileOpen(false)}
@@ -510,9 +547,9 @@ const Header = () => {
                           <p className="truncate font-semibold text-white">{user?.username || 'User'}</p>
                           <p className="truncate text-sm text-white/50">{user?.email}</p>
                         </div>
-                        <div className="rounded-xl bg-green-500/10 px-3 py-2 text-right">
+                        <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-right opacity-60">
                           <p className="text-[11px] uppercase tracking-[0.18em] text-white/40">Wallet</p>
-                          <p className="text-sm font-semibold text-green-400">{formatBalance(balance)}</p>
+                          <p className="text-sm font-semibold text-white/70">Coming Soon</p>
                         </div>
                       </div>
 
@@ -525,14 +562,15 @@ const Header = () => {
                           <User className="w-4 h-4" />
                           <span>Profile</span>
                         </Link>
-                        <Link
-                          href="/wallet"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                          className="btn-secondary flex items-center justify-center gap-2 px-3 text-sm"
+                        <button
+                          type="button"
+                          disabled
+                          title="Wallet feature coming soon"
+                          className="btn-secondary flex items-center justify-center gap-2 px-3 text-sm opacity-60 cursor-not-allowed"
                         >
-                          <Wallet className="w-4 h-4" />
-                          <span>Wallet</span>
-                        </Link>
+                          <Lock className="w-4 h-4" />
+                          <span>Wallet (Soon)</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -541,17 +579,37 @@ const Header = () => {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = router.pathname === item.path;
+                const isLocked = lockedNavItems.has(item.path);
+                const className = `flex min-h-[48px] items-center space-x-3 rounded-xl px-4 py-3 transition-all duration-300 ${
+                  isLocked
+                    ? 'cursor-not-allowed opacity-55 text-white/50'
+                    : isActive
+                      ? 'bg-white/10 text-blue-400'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                }`;
+
+                if (isLocked) {
+                  return (
+                    <button
+                      key={item.path}
+                      type="button"
+                      disabled
+                      title="Feature coming soon"
+                      className={`${className} w-full`}
+                    >
+                      <Lock className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                      <span className="ml-auto">{renderLockedBadge()}</span>
+                    </button>
+                  );
+                }
                 
                 return (
                   <Link
                     key={item.path}
                     href={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex min-h-[48px] items-center space-x-3 rounded-xl px-4 py-3 transition-all duration-300 ${
-                      isActive 
-                        ? 'bg-white/10 text-blue-400' 
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={className}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{item.label}</span>

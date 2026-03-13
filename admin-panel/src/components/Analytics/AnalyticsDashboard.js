@@ -80,10 +80,18 @@ const AnalyticsDashboard = () => {
     refetchInterval: 30000,
   });
 
+  const stats = analyticsData?.data || {};
+
+  React.useEffect(() => {
+    if (analyticsData) {
+      console.log('Admin analytics dashboard data:', analyticsData);
+    }
+  }, [analyticsData]);
+
   // Real data from API
-  const userGrowthData = analyticsData?.data?.userGrowth || [];
-  const gameDistribution = analyticsData?.data?.gameDistribution || [];
-  const revenueData = analyticsData?.data?.revenueData || [];
+  const userGrowthData = stats.userGrowth || [];
+  const gameDistribution = stats.gameDistribution || [];
+  const revenueData = stats.revenueData || [];
   
   // Get participation data from tournament stats
   const participationData = tournamentStatsData?.data?.participationByType || [];
@@ -226,27 +234,27 @@ const AnalyticsDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={isLoading ? "..." : ((analyticsData?.data?.totalUsers || 0).toLocaleString())}
+            value={isLoading ? "..." : ((stats.totalUsers || 0).toLocaleString())}
             change={null}
             icon={<People />}
             color="primary"
-            subtitle={`${analyticsData?.data?.activeUsersToday || 0} active today`}
+            subtitle={`${stats.activeUsersToday || 0} active today`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Tournaments"
-            value={isLoading ? "..." : (analyticsData?.data?.activeTournaments || "0")}
+            value={isLoading ? "..." : (stats.activeTournaments || "0")}
             change={null}
             icon={<EmojiEvents />}
             color="secondary"
-            subtitle={`${analyticsData?.data?.upcomingTournaments || 0} upcoming`}
+            subtitle={`${stats.upcomingTournaments || 0} upcoming`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Revenue"
-            value={isLoading ? "..." : `₹${(analyticsData?.data?.totalRevenue || 0).toLocaleString()}`}
+            value={isLoading ? "..." : `₹${(stats.totalRevenue || 0).toLocaleString()}`}
             change={null}
             icon={<Payment />}
             color="success"
@@ -256,11 +264,11 @@ const AnalyticsDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Player Registrations"
-            value={isLoading ? "..." : (analyticsData?.data?.playerRegistrations || 0).toLocaleString()}
+            value={isLoading ? "..." : (stats.playerRegistrations || 0).toLocaleString()}
             change={null}
             icon={<Group />}
             color="info"
-            subtitle={`${analyticsData?.data?.totalWins || 0} total wins`}
+            subtitle={`${stats.totalWins || 0} total wins`}
           />
         </Grid>
       </Grid>
@@ -631,4 +639,4 @@ const AnalyticsDashboard = () => {
   );
 };
 
-export default AnalyticsDashboard; 
+export default AnalyticsDashboard;

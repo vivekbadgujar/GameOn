@@ -29,6 +29,7 @@ import { useRouter } from 'next/router';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
 import { RoomSlotLayout } from './Room';
+import { buildSlotMovePayload } from '../../utils/slotMove';
 
 const RoomLobby = ({
   tournamentId,
@@ -186,13 +187,21 @@ const RoomLobby = ({
 
     try {
       setSlotChangeLoading(true);
+      const payload = buildSlotMovePayload({
+        tournamentId,
+        playerId: user?._id,
+        fromSlot: playerSlot,
+        toTeam,
+        toSlot
+      });
+
       const response = await fetch(`/api/room-slots/tournament/${tournamentId}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ toTeam, toSlot })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {

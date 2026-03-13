@@ -1,61 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { 
-  Trophy, 
-  Clock, 
-  Users, 
-  MapPin,
+import {
+  Trophy,
+  Clock,
+  Users,
   Target,
   CheckCircle,
   AlertCircle,
   Eye,
   Copy,
   Check,
-  Edit,
-  Settings
+  Edit
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { getTournaments } from '../../services/api';
-import toast from 'react-hot-toast';
-import SlotEditModal from './SlotEditModal';
 
 const TournamentSlots = () => {
+  const router = useRouter();
   const { user } = useAuth();
   const { lastMessage } = useSocket();
   const [joinedTournaments, setJoinedTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedCredentials, setCopiedCredentials] = useState({});
-  const [slotEditModal, setSlotEditModal] = useState({
-    open: false,
-    tournamentId: null
-  });
 
   useEffect(() => {
     fetchJoinedTournaments();
   }, [user]);
 
-  // Real-time updates via socket
   useEffect(() => {
     if (!lastMessage) return;
-    
-    console.log('TournamentSlots: Received socket message:', lastMessage);
-    
-    // Handle both old and new message formats
+
     const messageType = lastMessage.type || lastMessage;
     const messageData = lastMessage.data || lastMessage;
-    
+
     if (messageType === 'tournamentJoined') {
-      console.log('TournamentSlots: Processing tournamentJoined event');
-      // Refetch tournaments to show the newly joined tournament
       fetchJoinedTournaments();
     } else if (messageType === 'tournamentUpdated') {
-      console.log('TournamentSlots: Processing tournamentUpdated event');
-      // Update existing tournament data
-      setJoinedTournaments(prev => 
-        prev.map(t => 
-          t._id === messageData._id ? { ...t, ...messageData } : t
-        )
+      setJoinedTournaments((prev) =>
+        prev.map((t) => (t._id === messageData._id ? { ...t, ...messageData } : t))
       );
     }
   }, [lastMessage]);
@@ -64,66 +48,30 @@ const TournamentSlots = () => {
     try {
       setLoading(true);
       const response = await getTournaments();
-      
-      // Handle API response structure
       const tournaments = response?.tournaments || [];
-      
-      console.log('TournamentSlots: API response:', response);
-      console.log('TournamentSlots: Tournaments array:', tournaments);
-      console.log('TournamentSlots: Current user ID:', user?._id);
-      console.log('TournamentSlots: Is tournaments array?', Array.isArray(tournaments));
-      
-      // Ensure tournaments is an array before filtering
+
       if (!Array.isArray(tournaments)) {
-        console.error('TournamentSlots: tournaments is not an array:', tournaments);
         setJoinedTournaments([]);
         return;
       }
-      
-      // Filter tournaments where user is a participant with comprehensive matching
-      const userTournaments = tournaments.filter(tournament => {
-        if (!tournament.participants || !Array.isArray(tournament.participants)) {
+
+      const userTournaments = tournaments.filter((tournament) => {
+        if (!Array.isArray(tournament.participants)) {
           return false;
         }
-        
-        const isParticipant = tournament.participants.some(p => {
-          // Log participant structure for debugging
-          console.log('TournamentSlots: Checking participant:', p);
-          
-          // Multiple ways to match user ID based on different possible structures
-          const participantUserId = p.user?._id || p.user || p.userId || p._id;
-          const currentUserId = user?._id;
-          
-          // Convert to strings for comparison to handle ObjectId vs string
-          const participantIdStr = participantUserId?.toString();
-          const currentUserIdStr = currentUserId?.toString();
-          
-          const isMatch = participantIdStr === currentUserIdStr;
-          
-          if (isMatch) {
-            console.log('TournamentSlots: Found match!', {
-              participantUserId: participantIdStr,
-              currentUserId: currentUserIdStr,
-              tournament: tournament.title
-            });
-          }
-          
-          return isMatch;
-        });
-        
-        return isParticipant;
-      });
-      
-      console.log('TournamentSlots: Filtered user tournaments:', userTournaments.length);
-      
-      // Add real slot numbers and credentials from tournament data
-      const tournamentsWithSlots = userTournaments.map((tournament) => {
-        // Find user's participant data to get real slot number
-        const userParticipant = tournament.participants.find(p => {
+
+        return tournament.participants.some((p) => {
           const participantUserId = p.user?._id || p.user || p.userId || p._id;
           return participantUserId?.toString() === user?._id?.toString();
         });
-        
+      });
+
+      const tournamentsWithSlots = userTournaments.map((tournament) => {
+        const userParticipant = tournament.participants.find((p) => {
+          const participantUserId = p.user?._id || p.user || p.userId || p._id;
+          return participantUserId?.toString() === user?._id?.toString();
+        });
+
         return {
           ...tournament,
           userSlot: userParticipant?.slotNumber || Math.floor(Math.random() * 100) + 1,
@@ -133,8 +81,7 @@ const TournamentSlots = () => {
           }
         };
       });
-      
-      console.log('TournamentSlots: Final tournaments with slots:', tournamentsWithSlots);
+
       setJoinedTournaments(tournamentsWithSlots);
     } catch (error) {
       console.error('Error fetching joined tournaments:', error);
@@ -146,19 +93,17 @@ const TournamentSlots = () => {
   const copyToClipboard = async (text, tournamentId, type) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedCredentials(prev => ({ 
-        ...prev, 
-        [`${tournamentId}_${type}`]: true 
+      setCopiedCredentials((prev) => ({
+        ...prev,
+        [`${tournamentId}_${type}`]: true
       }));
-      toast.success(`${type === 'roomId' ? 'Room ID' : 'Password'} copied!`);
       setTimeout(() => {
-        setCopiedCredentials(prev => ({ 
-          ...prev, 
-          [`${tournamentId}_${type}`]: false 
+        setCopiedCredentials((prev) => ({
+          ...prev,
+          [`${tournamentId}_${type}`]: false
         }));
       }, 2000);
-    } catch (err) {
-      toast.error('Failed to copy');
+    } catch (_) {
     }
   };
 
@@ -181,8 +126,7 @@ const TournamentSlots = () => {
   const shouldShowCredentials = (tournament) => {
     const startTime = new Date(tournament.startTime || tournament.scheduledAt);
     const now = new Date();
-    const timeDiff = startTime.getTime() - now.getTime();
-    return timeDiff <= 30 * 60 * 1000; // 30 minutes before start
+    return startTime.getTime() - now.getTime() <= 30 * 60 * 1000;
   };
 
   const formatDate = (dateString) => {
@@ -197,42 +141,18 @@ const TournamentSlots = () => {
   };
 
   const handleEditSlot = (tournament) => {
-    console.log('Opening slot edit modal for tournament:', tournament.title);
-    setSlotEditModal({
-      open: true,
-      tournamentId: tournament._id
-    });
-  };
-
-  const handleCloseSlotEdit = () => {
-    setSlotEditModal({
-      open: false,
-      tournamentId: null
-    });
-    // Refresh tournaments to get updated slot info
-    fetchJoinedTournaments();
+    router.push(`/tournaments/${tournament._id}?editSlot=1`);
   };
 
   const canEditSlot = (tournament) => {
-    // Allow slot editing for upcoming and live tournaments
     const allowedStatuses = ['upcoming', 'live', 'registration'];
     const hasValidStatus = allowedStatuses.includes(tournament.status?.toLowerCase());
-    
-    // Check if user is actually a participant
-    const isParticipant = tournament.participants && tournament.participants.some(p => {
+
+    const isParticipant = tournament.participants && tournament.participants.some((p) => {
       const participantUserId = p.user?._id || p.user || p.userId || p._id;
-      const currentUserId = user?._id;
-      return participantUserId?.toString() === currentUserId?.toString();
+      return participantUserId?.toString() === user?._id?.toString();
     });
-    
-    console.log('canEditSlot check:', {
-      tournamentId: tournament._id,
-      status: tournament.status,
-      hasValidStatus,
-      isParticipant,
-      participantsCount: tournament.participants?.length || 0
-    });
-    
+
     return hasValidStatus && isParticipant;
   };
 
@@ -241,8 +161,8 @@ const TournamentSlots = () => {
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="glass-card p-6 animate-pulse">
-            <div className="h-4 bg-white/10 rounded w-3/4 mb-4"></div>
-            <div className="h-3 bg-white/10 rounded w-1/2"></div>
+            <div className="h-4 bg-white/10 rounded w-3/4 mb-4" />
+            <div className="h-3 bg-white/10 rounded w-1/2" />
           </div>
         ))}
       </div>
@@ -276,7 +196,6 @@ const TournamentSlots = () => {
             className="glass-card p-6 hover:bg-white/10 transition-all duration-300"
           >
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-              {/* Tournament Info */}
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-3">
                   <h3 className="text-xl font-bold text-white">
@@ -303,7 +222,7 @@ const TournamentSlots = () => {
                   <div className="flex items-center space-x-2">
                     <Trophy className="w-4 h-4 text-yellow-400" />
                     <span className="text-white/80 text-sm">
-                      ₹{(tournament.prizePool || 0).toLocaleString('en-IN')}
+                      {(tournament.prizePool || 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -315,9 +234,7 @@ const TournamentSlots = () => {
                 </div>
               </div>
 
-              {/* Slot Info & Edit Button */}
               <div className="lg:ml-6 min-w-[200px] space-y-3">
-                {/* Current Slot Display */}
                 <div className="glass-card p-3 bg-green-500/10 border-green-500/20 ring-1 ring-green-500/30">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-white/90 text-sm font-medium">Your Slot</span>
@@ -336,7 +253,6 @@ const TournamentSlots = () => {
                   )}
                 </div>
 
-                {/* Edit Slot Button */}
                 {canEditSlot(tournament) && (
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -353,7 +269,6 @@ const TournamentSlots = () => {
                   </motion.button>
                 )}
 
-                {/* Slot Locked Message */}
                 {!canEditSlot(tournament) && tournament.status === 'completed' && (
                   <div className="glass-card p-3 bg-gray-500/10 border-gray-500/20">
                     <div className="flex items-center justify-center space-x-2">
@@ -365,7 +280,6 @@ const TournamentSlots = () => {
               </div>
             </div>
 
-            {/* Match Credentials */}
             {shouldShowCredentials(tournament) && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -433,7 +347,6 @@ const TournamentSlots = () => {
               </motion.div>
             )}
 
-            {/* Countdown for credentials */}
             {!shouldShowCredentials(tournament) && tournament.status === 'upcoming' && (
               <div className="mt-6 pt-6 border-t border-white/10">
                 <div className="text-center">
@@ -447,17 +360,6 @@ const TournamentSlots = () => {
           </motion.div>
         ))}
       </div>
-
-      {/* Slot Edit Modal */}
-      <SlotEditModal
-        open={slotEditModal.open}
-        onClose={handleCloseSlotEdit}
-        tournamentId={slotEditModal.tournamentId}
-        user={user}
-        showSuccess={(message) => toast.success(message)}
-        showError={(message) => toast.error(message)}
-        showInfo={(message) => toast(message, { icon: 'ℹ️' })}
-      />
     </div>
   );
 };

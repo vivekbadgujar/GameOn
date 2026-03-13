@@ -130,7 +130,11 @@ export const userAPI = {
 
 // Analytics APIs
 export const analyticsAPI = {
-  getDashboard: () => api.get('/admin/analytics/dashboard'),
+  getDashboard: async (params = {}) => {
+    const response = await api.get('/admin/analytics/dashboard', { params });
+    console.log('Analytics dashboard payload:', response.data);
+    return response.data;
+  },
   getTournamentStats: async (params = {}) => {
     try {
       const response = await api.get('/admin/analytics/tournaments', { params });
@@ -293,4 +297,4 @@ export const notificationAPI = {
   send: (id) => api.post(`/admin/notifications/${id}/send`),
 };
 
-export default api; 
+export default api;

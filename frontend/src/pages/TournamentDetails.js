@@ -53,6 +53,16 @@ const TournamentDetails = () => {
     fetchTournamentDetails();
   }, [id]);
 
+  useEffect(() => {
+    if (!router.isReady || router.query.editSlot !== '1') {
+      return;
+    }
+
+    if (hasJoined && paymentStatus === 'completed') {
+      setSlotEditModal(true);
+    }
+  }, [router.isReady, router.query.editSlot, hasJoined, paymentStatus]);
+
   // Notification helpers
   const showSuccess = (message) => {
     setNotifications(prev => ({ ...prev, success: message, error: '', info: '' }));
@@ -76,6 +86,9 @@ const TournamentDetails = () => {
 
   const handleCloseSlotEdit = () => {
     setSlotEditModal(false);
+    if (router.query.editSlot) {
+      router.replace(`/tournaments/${id}`, undefined, { shallow: true });
+    }
   };
 
   const handleOpenFullLobby = () => {

@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const { body, validationResult } = require('express-validator');
 const RoomSlot = require('../models/RoomSlot');
 const Tournament = require('../models/Tournament');
 const { authenticateToken } = require('../middleware/auth');
@@ -108,27 +107,82 @@ router.get('/tournament/:tournamentId', authenticateToken, requireTournamentPart
 // Move player to a different slot
 router.post('/tournament/:tournamentId/move', [
   authenticateToken,
-  validateSlotEditPermissions,
-  body('toTeam').isInt({ min: 1 }).withMessage('Valid team number required'),
-  body('toSlot').isInt({ min: 1, max: 4 }).withMessage('Valid slot number required')
+  validateSlotEditPermissions
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { tournamentId } = req.params;
+    const playerId = req.user._id;
+    const payload = req.body || {};
+    const requestedPlayerId = payload.playerId;
+    const requestedTournamentId = payload.tournamentId;
+    const requestedFromSlot = payload.fromSlot || null;
+    const toTeam = Number(payload.toTeam ?? payload.toSlot?.teamNumber);
+    const toSlot = Number(
+      typeof payload.toSlot === 'object' ? payload.toSlot?.slotNumber : payload.toSlot
+    );
+    const validationContext = {
+      tournamentId,
+      authPlayerId: playerId.toString(),
+      requestedPlayerId,
+      requestedTournamentId,
+      requestedFromSlot,
+      requestedToSlot: payload.toSlot,
+      requestedToTeam: payload.toTeam
+    };
+
+    if (requestedTournamentId && requestedTournamentId.toString() !== tournamentId.toString()) {
+      console.warn('Slot move rejected: tournamentId mismatch', validationContext);
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: 'Tournament ID mismatch',
+        details: {
+          expectedTournamentId: tournamentId,
+          receivedTournamentId: requestedTournamentId
+        }
       });
     }
-    
-    const { tournamentId } = req.params;
-    const { toTeam, toSlot } = req.body;
-    const playerId = req.user._id;
+
+    if (requestedPlayerId && requestedPlayerId.toString() !== playerId.toString()) {
+      console.warn('Slot move rejected: playerId mismatch', validationContext);
+      return res.status(400).json({
+        success: false,
+        error: 'Player ID mismatch',
+        details: {
+          authenticatedPlayerId: playerId.toString(),
+          receivedPlayerId: requestedPlayerId
+        }
+      });
+    }
+
+    if (!Number.isInteger(toTeam) || toTeam < 1) {
+      console.warn('Slot move rejected: invalid destination team', validationContext);
+      return res.status(400).json({
+        success: false,
+        error: 'Valid destination team is required',
+        details: {
+          toSlot: payload.toSlot,
+          toTeam: payload.toTeam
+        }
+      });
+    }
+
+    if (!Number.isInteger(toSlot) || toSlot < 1 || toSlot > 4) {
+      console.warn('Slot move rejected: invalid destination slot', validationContext);
+      return res.status(400).json({
+        success: false,
+        error: 'Valid destination slot is required',
+        details: {
+          toSlot: payload.toSlot
+        }
+      });
+    }
     
     console.log('Player slot move request:', {
       tournamentId,
       playerId: playerId.toString(),
+      requestedPlayerId,
+      requestedTournamentId,
+      requestedFromSlot,
       toTeam,
       toSlot
     });
@@ -170,9 +224,34 @@ router.post('/tournament/:tournamentId/move', [
     // Get current player slot
     const currentSlot = roomSlot.getPlayerSlot(playerId);
     if (!currentSlot) {
+      console.warn('Slot move rejected: player not assigned', validationContext);
       return res.status(400).json({
         success: false,
         error: 'Player not found in any slot'
+      });
+    }
+
+    if (
+      requestedFromSlot &&
+      (
+        Number(requestedFromSlot.teamNumber) !== currentSlot.teamNumber ||
+        Number(requestedFromSlot.slotNumber) !== currentSlot.slotNumber
+      )
+    ) {
+      console.warn('Slot move rejected: fromSlot mismatch', {
+        ...validationContext,
+        actualFromSlot: currentSlot
+      });
+      return res.status(400).json({
+        success: false,
+        error: 'Current slot does not match request payload',
+        details: {
+          expectedFromSlot: {
+            teamNumber: currentSlot.teamNumber,
+            slotNumber: currentSlot.slotNumber
+          },
+          receivedFromSlot: requestedFromSlot
+        }
       });
     }
     
@@ -239,6 +318,8 @@ router.post('/tournament/:tournamentId/move', [
       .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
       .populate('teams.captain', 'username displayName gameProfile.bgmiName');
     
+    const updatedPlayerSlot = updatedRoomSlot.getPlayerSlot(playerId);
+
     // Emit real-time update
     const io = req.app.get('io');
     if (io) {
@@ -250,7 +331,8 @@ router.post('/tournament/:tournamentId/move', [
         fromSlot: currentSlot.slotNumber,
         toTeam,
         toSlot,
-        roomSlot: updatedRoomSlot
+        roomSlot: updatedRoomSlot,
+        playerSlot: updatedPlayerSlot
       });
 
       // Emit to admin panel for live updates
@@ -262,23 +344,57 @@ router.post('/tournament/:tournamentId/move', [
         toTeam,
         toSlot,
         roomSlot: updatedRoomSlot,
+        playerSlot: updatedPlayerSlot,
         timestamp: new Date()
       });
     }
+
+    console.log('Slot move saved successfully:', {
+      tournamentId,
+      playerId: playerId.toString(),
+      previousPosition: {
+        teamNumber: currentSlot.teamNumber,
+        slotNumber: currentSlot.slotNumber
+      },
+      newPosition: updatedPlayerSlot
+    });
     
     res.json({
       success: true,
-      message: 'Slot changed successfully',
+      message: 'Slot moved successfully',
       data: {
         roomSlot: updatedRoomSlot,
-        playerSlot: updatedRoomSlot.getPlayerSlot(playerId)
+        playerSlot: updatedPlayerSlot,
+        previousPosition: {
+          teamNumber: currentSlot.teamNumber,
+          slotNumber: currentSlot.slotNumber
+        },
+        newPosition: updatedPlayerSlot
       }
     });
   } catch (error) {
-    console.error('Error moving player slot:', error);
-    res.status(500).json({
+    console.error('Error moving player slot:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+      params: req.params,
+      userId: req.user?._id?.toString()
+    });
+
+    const knownClientErrors = new Map([
+      ['Source team not found', 400],
+      ['Player not found in source slot', 400],
+      ['Destination team not found', 400],
+      ['Destination slot not found', 400],
+      ['Destination slot is occupied', 409],
+      ['Destination slot is locked', 403]
+    ]);
+    const statusCode = knownClientErrors.get(error.message) || 500;
+
+    res.status(statusCode).json({
       success: false,
-      error: error.message || 'Failed to move player slot'
+      error: error.message || 'Failed to move player slot',
+      message: error.message || 'Failed to move player slot'
     });
   }
 });

@@ -53,6 +53,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import io from 'socket.io-client';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import { buildSlotMovePayload } from '../utils/slotMove';
 
 dayjs.extend(duration);
 
@@ -243,13 +244,20 @@ const RoomLobby = () => {
     try {
       setSlotChangeLoading(true);
       const token = localStorage.getItem('token');
+      const payload = buildSlotMovePayload({
+        tournamentId,
+        playerId: user?._id,
+        fromSlot: playerSlot,
+        toTeam,
+        toSlot
+      });
       const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ toTeam, toSlot })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {

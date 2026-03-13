@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const User = require('../../models/User');
 const Tournament = require('../../models/Tournament');
 const Transaction = require('../../models/Transaction');
+const Payment = require('../../models/Payment');
 const Notification = require('../../models/Notification');
 const AIFlag = require('../../models/AIFlag');
 const Media = require('../../models/Media');
@@ -57,6 +58,14 @@ const getDateRange = (timeRange) => {
 // Get Dashboard Analytics
 router.get('/dashboard', authenticateAdmin, async (req, res) => {
   try {
+    console.log('[Admin Analytics] Dashboard request received', {
+      adminId: req.admin?._id?.toString(),
+      timeRange: req.query?.timeRange || 'default',
+      dbName: mongoose.connection?.name || 'unknown',
+      dbHost: mongoose.connection?.host || 'unknown',
+      readyState: mongoose.connection?.readyState
+    });
+
     const cacheKey = 'dashboard';
     let dashboardData = getCachedData(cacheKey);
     
@@ -64,22 +73,29 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
       // Get real data from database
       const totalTournaments = await Tournament.countDocuments();
       const activeTournaments = await Tournament.countDocuments({ 
-        status: { $in: ['upcoming', 'live'] } 
+        $or: [
+          { status: { $in: ['upcoming', 'active', 'live'] } },
+          { startDate: { $gte: new Date() } }
+        ]
       });
       const completedTournaments = await Tournament.countDocuments({ status: 'completed' });
       const upcomingTournaments = await Tournament.countDocuments({ status: 'upcoming' });
       
       const totalUsers = await User.countDocuments();
+      const activeUsers = await User.countDocuments({ status: 'active' });
       const activeUsersToday = await User.countDocuments({
         'security.lastLogin': { 
           $gte: new Date(new Date().setHours(0, 0, 0, 0)) 
         }
       });
+      const totalPayments = await Payment.countDocuments();
+      const approvedPayments = await Payment.countDocuments({ paymentStatus: 'approved' });
       
       const totalRevenue = await Transaction.aggregate([
         { $match: { type: 'tournament_entry' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
+      const totalTransactions = await Transaction.countDocuments();
 
       // Get game distribution from tournaments
       const gameDistribution = await Tournament.aggregate([
@@ -202,19 +218,46 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
         completedTournaments,
         upcomingTournaments,
         totalUsers,
+        activeUsers,
         activeUsersToday,
         totalRevenue: totalRevenue[0]?.total || 0,
         playerRegistrations: playerRegistrations[0]?.total || 0,
+        registeredPlayers: playerRegistrations[0]?.total || 0,
+        totalPayments,
+        approvedPayments,
+        totalTransactions,
         totalWins,
         totalKills,
         gameDistribution: gameDistributionWithPercentage,
         userGrowth: userGrowthData,
         tournamentStats,
         revenueData,
-        recentActivities: recentActivity
+        recentActivities: recentActivity,
+        dbInfo: {
+          name: mongoose.connection?.name || 'unknown',
+          host: mongoose.connection?.host || 'unknown',
+          readyState: mongoose.connection?.readyState
+        }
       };
+
+      console.log('[Admin Analytics] Dashboard stats computed', {
+        totalUsers,
+        activeUsers,
+        totalTournaments,
+        activeTournaments,
+        playerRegistrations: playerRegistrations[0]?.total || 0,
+        totalPayments,
+        approvedPayments,
+        totalTransactions,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        dbName: mongoose.connection?.name || 'unknown'
+      });
       
       setCachedData(cacheKey, dashboardData);
+    } else {
+      console.log('[Admin Analytics] Returning cached dashboard data', {
+        dbName: mongoose.connection?.name || 'unknown'
+      });
     }
 
     res.json({
@@ -555,4 +598,4 @@ router.get('/participation', authenticateAdmin, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

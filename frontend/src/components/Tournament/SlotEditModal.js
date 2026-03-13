@@ -32,6 +32,7 @@ import { RoomSlotLayout } from './Room';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
 import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import { buildSlotMovePayload } from '../../utils/slotMove';
 
 const SlotEditModal = ({ 
   open, 
@@ -194,13 +195,21 @@ const SlotEditModal = ({
 
     try {
       setSlotChangeLoading(true);
+      const payload = buildSlotMovePayload({
+        tournamentId,
+        playerId: user?._id,
+        fromSlot: playerSlot,
+        toTeam,
+        toSlot
+      });
+
       const response = await fetch(`${config.API_BASE_URL}/room-slots/tournament/${tournamentId}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ toTeam, toSlot })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {

@@ -34,6 +34,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import io from 'socket.io-client';
 import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import { buildSlotMovePayload } from '../../utils/slotMove';
 
 const BGMIRoomLobby = ({ tournament, onClose }) => {
   const theme = useTheme();
@@ -187,16 +188,20 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
 
     try {
       setMovingSlot(true);
+      const payload = buildSlotMovePayload({
+        tournamentId: tournament._id,
+        playerId: user?._id,
+        fromSlot: roomData?.playerSlot,
+        toTeam,
+        toSlot
+      });
       const response = await fetch(`/api/room-slots/tournament/${tournament._id}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({
-          toTeam,
-          toSlot
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
