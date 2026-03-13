@@ -113,6 +113,16 @@ export const tournamentAPI = {
   postResult: (id, result) => api.post(`/admin/tournaments/${id}/results`, result),
   getParticipants: (id) => api.get(`/admin/tournaments/${id}/participants`),
   releaseCredentials: (id) => api.post(`/admin/tournaments/${id}/release-credentials`),
+  uploadPaymentQr: (file) => {
+    const formData = new FormData();
+    formData.append('upiQrImage', file);
+
+    return api.post('/admin/tournaments/payment-qr-upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };
 
 // User APIs

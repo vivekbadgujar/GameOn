@@ -115,6 +115,8 @@ router.get('/', async (req, res) => {
       scheduledAt: tournament.startDate,
       poster: tournament.poster || '',
       posterUrl: tournament.posterUrl || '',
+      upiId: tournament.upiId || '',
+      upiQrImage: tournament.upiQrImage || '',
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
       createdAt: tournament.createdAt
     }));
@@ -250,6 +252,8 @@ router.get('/:id', async (req, res) => {
       endDate: tournament.endDate,
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
       roomDetails: tournament.roomDetails,
+      upiId: tournament.upiId || '',
+      upiQrImage: tournament.upiQrImage || '',
       createdAt: tournament.createdAt
     };
 

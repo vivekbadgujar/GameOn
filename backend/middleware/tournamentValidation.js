@@ -67,7 +67,17 @@ const validateTournament = [
     .optional()
     .isArray().withMessage('Rules must be an array')
     .custom(value => value.every(rule => typeof rule === 'string' && rule.length <= 200))
-    .withMessage('Each rule must be a string of max 200 characters')
+    .withMessage('Each rule must be a string of max 200 characters'),
+
+  body('upiId')
+    .optional()
+    .trim()
+    .isLength({ max: 100 }).withMessage('UPI ID cannot exceed 100 characters'),
+
+  body('upiQrImage')
+    .optional()
+    .trim()
+    .isLength({ max: 300 }).withMessage('UPI QR image URL cannot exceed 300 characters')
 ];
 
 // Validation for room details
@@ -123,4 +133,4 @@ module.exports = {
   validateTournament,
   validateRoomDetails,
   validateWinnerDistribution
-}; 
+};

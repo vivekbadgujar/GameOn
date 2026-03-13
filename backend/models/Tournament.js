@@ -22,6 +22,14 @@ const TournamentSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  upiId: {
+    type: String,
+    default: ''
+  },
+  upiQrImage: {
+    type: String,
+    default: ''
+  },
   game: {
     type: String,
     required: true

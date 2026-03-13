@@ -4,6 +4,10 @@
  */
 
 const express = require('express');
+const fs = require('fs');
+const multer = require('multer');
+const os = require('os');
+const path = require('path');
 const { validationResult } = require('express-validator');
 const Tournament = require('../../models/Tournament');
 const User = require('../../models/User');
@@ -11,6 +15,55 @@ const Transaction = require('../../models/Transaction');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');
 const { validateTournament, validateRoomDetails, validateWinnerDistribution } = require('../../middleware/tournamentValidation');
 const router = express.Router();
+const PAYMENT_QR_SUBDIR = 'payment_qr';
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+const resolveUploadBaseDir = () => {
+  if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
+    return process.env.MANUAL_PAYMENT_UPLOAD_DIR;
+  }
+
+  if (isServerless) {
+    return path.join(os.tmpdir(), 'gameon-uploads');
+  }
+
+  return path.join(__dirname, '../../uploads');
+};
+
+const paymentQrStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(resolveUploadBaseDir(), PAYMENT_QR_SUBDIR);
+
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `upi-qr-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const paymentQrUpload = multer({
+  storage: paymentQrStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+
+    cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
+  }
+});
 
 // Debug route - no authentication required (must be before middleware)
 router.get('/debug', async (req, res) => {
@@ -42,6 +95,40 @@ router.get('/debug', async (req, res) => {
 
 // Middleware to protect all admin tournament routes
 router.use(authenticateAdmin);
+
+router.post(
+  '/payment-qr-upload',
+  requirePermission('tournaments_manage'),
+  auditLog('upload_tournament_payment_qr'),
+  (req, res, next) => {
+    paymentQrUpload.single('upiQrImage')(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: error.message || 'QR upload failed'
+        });
+      }
+
+      next();
+    });
+  },
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'UPI QR image is required'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'UPI QR image uploaded successfully',
+      data: {
+        url: `/uploads/${PAYMENT_QR_SUBDIR}/${req.file.filename}`
+      }
+    });
+  }
+);
 
 // Get all tournaments with filtering and pagination
 router.get('/', 
@@ -300,7 +387,9 @@ router.post('/',
         isVisible: req.body.isVisible !== undefined ? req.body.isVisible : true,
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true,
         poster: req.body.poster || req.body.posterUrl || req.body.image || '',
-        posterUrl: req.body.posterUrl || req.body.poster || req.body.image || ''
+        posterUrl: req.body.posterUrl || req.body.poster || req.body.image || '',
+        upiId: typeof req.body.upiId === 'string' ? req.body.upiId.trim() : (req.body.upi_id || ''),
+        upiQrImage: req.body.upiQrImage || req.body.upi_qr_image || ''
       };
 
       console.log('Creating tournament with data:', JSON.stringify(tournamentData, null, 2));
@@ -403,13 +492,28 @@ router.put('/:id',
 
       // If tournament is live, only allow updating certain fields
       if (tournament.status === 'live') {
-        const allowedUpdates = ['endDate', 'rules', 'roomDetails'];
+        const allowedUpdates = ['endDate', 'rules', 'roomDetails', 'upiId', 'upiQrImage'];
         Object.keys(updates).forEach(key => {
           if (!allowedUpdates.includes(key)) {
             delete updates[key];
           }
         });
       }
+
+      if (typeof updates.upiId === 'string') {
+        updates.upiId = updates.upiId.trim();
+      }
+
+      if (updates.upi_id && !updates.upiId) {
+        updates.upiId = updates.upi_id;
+      }
+
+      if (updates.upi_qr_image && !updates.upiQrImage) {
+        updates.upiQrImage = updates.upi_qr_image;
+      }
+
+      delete updates.upi_id;
+      delete updates.upi_qr_image;
 
       Object.assign(tournament, updates);
       await tournament.save();

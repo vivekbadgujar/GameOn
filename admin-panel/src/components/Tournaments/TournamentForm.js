@@ -70,6 +70,8 @@ const TournamentForm = () => {
     allowSpectators: true,
     requireScreenshots: true,
     autoStart: false,
+    upiId: '',
+    upiQrImage: '',
     prizeDistribution: [
       { position: 1, percentage: 50, amount: 0 },
       { position: 2, percentage: 30, amount: 0 },
@@ -85,6 +87,9 @@ const TournamentForm = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [imageError, setImageError] = useState('');
+  const [upiQrFile, setUpiQrFile] = useState(null);
+  const [upiQrPreview, setUpiQrPreview] = useState('');
+  const [upiQrError, setUpiQrError] = useState('');
 
   // Fetch tournament data if editing
   const { data: tournament, isLoading: isLoadingTournament } = useQuery({
@@ -177,6 +182,8 @@ const TournamentForm = () => {
         allowSpectators: data.allowSpectators ?? true,
         requireScreenshots: data.requireScreenshots ?? true,
         autoStart: data.autoStart ?? false,
+        upiId: data.upiId || '',
+        upiQrImage: data.upiQrImage || '',
         prizeDistribution: data.prizeDistribution || [
           { position: 1, percentage: 50, amount: 0 },
           { position: 2, percentage: 30, amount: 0 },
@@ -189,6 +196,9 @@ const TournamentForm = () => {
       });
       if (data.image) {
         setImagePreview(data.image);
+      }
+      if (data.upiQrImage) {
+        setUpiQrPreview(data.upiQrImage);
       }
     }
   }, [tournament, isEditing]);
@@ -236,6 +246,31 @@ const TournamentForm = () => {
     }
   };
 
+  const validateImageFile = (file) => {
+    if (!file) {
+      return '';
+    }
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'Invalid file type. Please upload JPEG, PNG, or WebP images only.';
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
+    }
+
+    return '';
+  };
+
+  const loadPreview = (file, onLoad) => {
+    const reader = new FileReader();
+    reader.onload = (e) => onLoad(e.target.result);
+    reader.readAsDataURL(file);
+  };
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (!file) {
@@ -243,18 +278,9 @@ const TournamentForm = () => {
       return;
     }
 
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setImageError('Invalid file type. Please upload JPEG, PNG, or WebP images only.');
-      setImageFile(null);
-      setImagePreview('');
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      setImageError(`File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setImageError(validationError);
       setImageFile(null);
       setImagePreview('');
       return;
@@ -262,9 +288,27 @@ const TournamentForm = () => {
 
     setImageError('');
     setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target.result);
-    reader.readAsDataURL(file);
+    loadPreview(file, setImagePreview);
+  };
+
+  const handleUpiQrChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      setUpiQrError('');
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setUpiQrError(validationError);
+      setUpiQrFile(null);
+      setUpiQrPreview('');
+      return;
+    }
+
+    setUpiQrError('');
+    setUpiQrFile(file);
+    loadPreview(file, setUpiQrPreview);
   };
 
   const validateForm = () => {
@@ -371,6 +415,8 @@ const TournamentForm = () => {
       status: 'upcoming',
       isVisible: true,
       isPublic: true,
+      upiId: formData.upiId.trim(),
+      upiQrImage: formData.upiQrImage || '',
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
@@ -406,6 +452,21 @@ const TournamentForm = () => {
     if (imagePreview && !submitData.poster) {
       submitData.poster = imagePreview;
       submitData.posterUrl = imagePreview;
+    }
+
+    if (upiQrFile) {
+      try {
+        const uploadResponse = await tournamentAPI.uploadPaymentQr(upiQrFile);
+        if (uploadResponse.data?.success) {
+          submitData.upiQrImage = uploadResponse.data.data?.url || '';
+        }
+      } catch (uploadError) {
+        console.error('UPI QR upload failed:', uploadError);
+        setUpiQrError(uploadError.response?.data?.message || 'Failed to upload UPI QR image');
+        return;
+      }
+    } else if (upiQrPreview && !submitData.upiQrImage) {
+      submitData.upiQrImage = upiQrPreview;
     }
 
     console.log('Calling mutation.mutate...');
@@ -823,6 +884,74 @@ const TournamentForm = () => {
               </CardContent>
             </Card>
 
+            <Card sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Payment Settings
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="UPI ID"
+                      value={formData.upiId}
+                      onChange={(e) => handleChange('upiId', e.target.value)}
+                      placeholder="gameon@upi"
+                      helperText="Shown on the manual payment page"
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <input
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      id="upi-qr-image"
+                      type="file"
+                      onChange={handleUpiQrChange}
+                    />
+                    <label htmlFor="upi-qr-image">
+                      <Button
+                        variant="outlined"
+                        component="span"
+                        startIcon={<Payment />}
+                        fullWidth
+                      >
+                        Upload UPI QR Code
+                      </Button>
+                    </label>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                      Stored in uploads/payment_qr and shown to players during join payment.
+                    </Typography>
+                    {upiQrError && (
+                      <FormHelperText error sx={{ mt: 1 }}>
+                        {upiQrError}
+                      </FormHelperText>
+                    )}
+                  </Grid>
+
+                  {upiQrPreview && (
+                    <Grid item xs={12}>
+                      <Box sx={{ mt: 1, textAlign: 'center' }}>
+                        <img
+                          src={upiQrPreview}
+                          alt="UPI QR"
+                          style={{
+                            width: '100%',
+                            maxHeight: 240,
+                            objectFit: 'contain',
+                            borderRadius: 8,
+                            background: '#111827',
+                            padding: 12
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+            </Card>
+
             {/* Tournament Image */}
             <Card sx={{ mt: 3 }}>
               <CardContent>
@@ -967,4 +1096,4 @@ const TournamentForm = () => {
   );
 };
 
-export default TournamentForm; 
+export default TournamentForm;

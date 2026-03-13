@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import config from '../config';
 import { getManualPaymentStatus, getTournamentById, submitManualPayment } from '../services/api';
 
 const ALLOWED_SCREENSHOT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -103,7 +104,16 @@ export default function ManualPaymentPage() {
     }
   };
 
-  const UPI_ID = 'gameon@upi';
+  const getAssetUrl = (assetPath) => {
+    if (!assetPath) return '';
+    if (/^https?:\/\//i.test(assetPath)) return assetPath;
+
+    const origin = config.API_BASE_URL.replace(/\/api\/?$/, '');
+    return `${origin}${assetPath.startsWith('/') ? assetPath : `/${assetPath}`}`;
+  };
+
+  const UPI_ID = tournament?.upiId?.trim() || 'gameon@upi';
+  const UPI_QR_IMAGE = getAssetUrl(tournament?.upiQrImage);
   const ENTRY_FEE = tournament?.entryFee || 0;
 
   const validate = () => {
@@ -202,6 +212,7 @@ export default function ManualPaymentPage() {
   };
 
   const copyToClipboard = () => {
+    if (!UPI_ID) return;
     navigator.clipboard.writeText(UPI_ID);
   };
 
@@ -346,11 +357,24 @@ export default function ManualPaymentPage() {
                 Payment Instructions
               </h3>
               <p className="text-white/70 mb-6">
-                Please complete the payment using any UPI app (Google Pay, PhonePe, Paytm) to the
-                UPI ID below, then submit your transaction details on the next page.
+                Please complete the payment using any UPI app. You can either scan the QR code or
+                pay directly to the UPI ID below, then submit your transaction details on the next page.
               </p>
 
               <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-600/30 rounded-lg p-4 sm:p-6 mb-6">
+                {UPI_QR_IMAGE && (
+                  <div className="mb-6">
+                    <p className="text-gray-300 text-sm mb-3">Scan & Pay</p>
+                    <div className="flex justify-center rounded-xl bg-black/40 p-4">
+                      <img
+                        src={UPI_QR_IMAGE}
+                        alt="UPI QR code"
+                        className="w-full max-w-xs rounded-lg object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-gray-300 text-sm mb-2">UPI Address</p>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between bg-black/40 rounded p-4">
                   <code className="text-white font-mono text-base sm:text-lg break-all">{UPI_ID}</code>
@@ -374,7 +398,10 @@ export default function ManualPaymentPage() {
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">2</span>
-                  <span>Send Rs {ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded break-all">{UPI_ID}</code></span>
+                  <span>
+                    {UPI_QR_IMAGE ? 'Scan the QR code or ' : ''}
+                    send Rs {ENTRY_FEE} to <code className="text-green-400 bg-black/40 px-2 py-1 rounded break-all">{UPI_ID}</code>
+                  </span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-600/20 text-green-400 flex items-center justify-center text-sm font-bold">3</span>

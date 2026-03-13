@@ -4,25 +4,18 @@ import {
   Trophy, 
   Wallet, 
   Play, 
-  Eye, 
   TrendingUp, 
-  Users, 
   Calendar,
-  Star,
   ArrowRight,
   Crown,
   Target,
-  Zap,
   Clock,
-  LogIn,
-  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import { getTournaments, getWalletBalance, getUserStats } from '../services/api';
+import { getTournaments, getUserStats } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import TournamentCard from '../components/UI/TournamentCard';
-import LeaderboardSlider from '../components/UI/LeaderboardSlider';
 import AuthModal from '../components/Auth/AuthModal';
 import TournamentSlots from '../components/Dashboard/TournamentSlots';
 import { useAuthModal } from '../hooks/useAuthModal';
@@ -34,15 +27,12 @@ const Dashboard = () => {
     isAuthModalOpen, 
     authModalTab, 
     openAuthModal, 
-    closeAuthModal, 
-    openLoginModal, 
-    openRegisterModal 
+    closeAuthModal
   } = useAuthModal();
   
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     tournaments: [],
-    walletBalance: 0,
     userStats: {},
     recentActivity: []
   });
@@ -89,11 +79,6 @@ const Dashboard = () => {
           t._id === messageData._id ? messageData : t
         )
       }));
-    } else if (messageType === 'walletUpdated') {
-      setDashboardData(prev => ({
-        ...prev,
-        walletBalance: messageData.balance
-      }));
     } else if (messageType === 'statsUpdated') {
       setDashboardData(prev => ({
         ...prev,
@@ -109,17 +94,11 @@ const Dashboard = () => {
       // Always fetch tournaments - get all statuses for better visibility
       const tournamentsRes = await getTournaments({ limit: 6 });
       
-      // Only fetch wallet and stats if user is authenticated
-      let walletRes = { balance: 0 };
+      // Only fetch user stats if authenticated
       let statsRes = {};
       
       if (isAuthenticated) {
-        const [walletResponse, statsResponse] = await Promise.all([
-          getWalletBalance().catch(() => ({ balance: 0 })),
-          getUserStats().catch(() => ({}))
-        ]);
-        walletRes = walletResponse;
-        statsRes = statsResponse;
+        statsRes = await getUserStats().catch(() => ({}));
       }
 
       // Handle new API response structure
@@ -135,7 +114,6 @@ const Dashboard = () => {
       
       setDashboardData({
         tournaments: uniqueTournaments,
-        walletBalance: walletRes.balance || 0,
         userStats: statsRes || {},
         recentActivity: statsRes.recentActivity || []
       });
@@ -328,18 +306,6 @@ const Dashboard = () => {
               </Link>
             </div>
           )}
-        </div>
-
-        {/* Leaderboard */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Top Players This Month</h2>
-            <div className="flex items-center space-x-2 text-white/60">
-              <Star className="w-4 h-4" />
-              <span className="text-sm">Live Rankings</span>
-            </div>
-          </div>
-          <LeaderboardSlider />
         </div>
 
         {/* Recent Activity */}

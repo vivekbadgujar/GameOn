@@ -174,19 +174,6 @@ const Header = () => {
     </span>
   );
 
-  const renderDisabledWalletButton = (className = '') => (
-    <button
-      type="button"
-      disabled
-      title="Wallet feature coming soon"
-      className={className}
-    >
-      <Lock className="w-4 h-4" />
-      <span className="font-medium text-sm">Wallet</span>
-      <span className="text-white/70">(Soon)</span>
-    </button>
-  );
-
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -247,10 +234,6 @@ const Header = () => {
           <div className="flex items-center gap-2 sm:gap-4">
             {isAuthenticated ? (
               <>
-                {renderDisabledWalletButton(
-                  'hidden sm:flex items-center space-x-2 glass-card px-3 py-1.5 opacity-60 cursor-not-allowed text-white/60'
-                )}
-
                 {/* Notifications */}
                 <div className="relative">
                   <button
