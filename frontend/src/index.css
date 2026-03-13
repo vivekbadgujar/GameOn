@@ -357,7 +357,11 @@ body {
 }
 
 .mobile-nav-content {
-  @apply bg-white/10 backdrop-blur-md m-4 rounded-2xl p-6;
+  @apply h-full bg-transparent p-4;
+}
+
+.mobile-sheet {
+  @apply fixed left-0 top-0 z-[80] h-screen w-[82vw] max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border-r border-white/10 shadow-2xl;
 }
 
 /* Auth Modal Positioning */

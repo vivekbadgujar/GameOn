@@ -387,11 +387,11 @@ a {
 }
 
 .mobile-nav-content {
-  @apply bg-black/80 backdrop-blur-xl border-t border-white/10 shadow-2xl p-4;
+  @apply h-full bg-transparent p-4;
 }
 
 .mobile-sheet {
-  @apply fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-slate-950/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl;
+  @apply fixed left-0 top-0 z-[80] h-screen w-[82vw] max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border-r border-white/10 shadow-2xl;
 }
 
 .modal-shell {
