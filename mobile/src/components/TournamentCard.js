@@ -9,14 +9,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { Card, Button, Chip, ProgressBar } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 // import FastImage from 'react-native-fast-image';
-
-const { width } = Dimensions.get('window');
 
 const TournamentCard = ({ tournament, onPress, style }) => {
   const getStatusColor = (status) => {
@@ -230,25 +227,32 @@ const TournamentCard = ({ tournament, onPress, style }) => {
 const styles = StyleSheet.create({
   container: {
     marginVertical: 6,
+    width: '100%',
+    alignSelf: 'stretch',
   },
   card: {
     backgroundColor: 'transparent',
     elevation: 4,
+    width: '100%',
+    overflow: 'hidden',
   },
   cardContent: {
     padding: 16,
     borderRadius: 12,
+    width: '100%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
+    gap: 8,
   },
   gameInfo: {
     flexDirection: 'row',
     flex: 1,
     alignItems: 'center',
+    minWidth: 0,
   },
   gameIconContainer: {
     width: 40,
@@ -261,6 +265,7 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     color: '#FFFFFF',
@@ -274,6 +279,9 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     height: 28,
+    alignSelf: 'flex-start',
+    flexShrink: 1,
+    maxWidth: '42%',
   },
   statusText: {
     color: '#FFFFFF',
@@ -285,19 +293,23 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 12,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    minWidth: 0,
+    width: '50%',
+    marginBottom: 8,
+    paddingRight: 8,
   },
   detailText: {
     color: '#FFFFFF',
     fontSize: 12,
     marginLeft: 4,
     fontWeight: '600',
+    flexShrink: 1,
   },
   participationContainer: {
     marginBottom: 12,
@@ -323,11 +335,13 @@ const styles = StyleSheet.create({
   },
   metaInfo: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
   },
   typeChip: {
     backgroundColor: '#333',
     height: 24,
+    marginRight: 8,
+    marginBottom: 8,
   },
   typeText: {
     color: '#FFFFFF',
@@ -336,6 +350,7 @@ const styles = StyleSheet.create({
   mapChip: {
     backgroundColor: '#444',
     height: 24,
+    marginBottom: 8,
   },
   mapText: {
     color: '#FFFFFF',

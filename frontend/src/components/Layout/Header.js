@@ -215,12 +215,12 @@ const Header = () => {
   };
 
   return (
-    <motion.header
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10"
-    >
-      <div className="container-custom">
+    <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
+      <motion.div
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className="container-custom"
+      >
         <div className="hidden min-h-16 items-center justify-between gap-3 py-2 md:flex">
           {/* Logo */}
           <Link href="/" className="flex min-w-0 items-center">
@@ -574,7 +574,7 @@ const Header = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-64 glass-card backdrop-blur-xl border border-white/15 shadow-2xl overflow-hidden z-50"
+                        className="absolute right-0 mt-2 w-[min(18rem,calc(100vw-1rem))] rounded-2xl border border-white/15 bg-slate-950/92 backdrop-blur-2xl shadow-2xl overflow-hidden z-50"
                       >
                         <div className="space-y-2">
                           <div className="px-4 py-3 border-b border-white/10">
@@ -634,7 +634,7 @@ const Header = () => {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -793,7 +793,7 @@ const Header = () => {
         onClose={closeAuthModal} 
         defaultTab={authModalTab} 
       />
-    </motion.header>
+    </header>
   );
 };
 
