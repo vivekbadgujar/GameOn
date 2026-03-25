@@ -75,9 +75,22 @@ const Header = () => {
   }, [router.asPath]);
 
   useEffect(() => {
-    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
     return () => {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [isMobileMenuOpen]);
 
@@ -215,8 +228,9 @@ const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-xl border-b border-white/10">
-      <motion.div
+    <>
+      <header className="sticky top-0 z-50 w-full bg-black/80 backdrop-blur-xl border-b border-white/10">
+        <motion.div
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         className="container-custom"
@@ -635,6 +649,7 @@ const Header = () => {
           </div>
         </div>
       </motion.div>
+    </header>
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -793,7 +808,7 @@ const Header = () => {
         onClose={closeAuthModal} 
         defaultTab={authModalTab} 
       />
-    </header>
+    </>
   );
 };
 

@@ -387,7 +387,7 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="auth-modal bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden"
+              className="auth-modal bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-700/50 overflow-y-auto overflow-x-hidden"
             >
             {/* Close Button */}
             <button

@@ -2,6 +2,7 @@
     "roo-cline.preventCompletionWithOpenTodos": true,
     "CodeGPT.apiKey": "CodeGPT Plus Beta",
     "git.ignoreLimitWarning": true,
+    "css.lint.unknownAtRules": "ignore",
     "zencoder.mcpServers": {
         "playwright": {
             "command": "npx",
