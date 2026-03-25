@@ -202,6 +202,11 @@ class PushNotificationService {
         title: '💰 Payment Received',
         body: `You received ₹${data.amount} for ${data.tournamentTitle}`,
         icon: '/money-icon.png'
+      },
+      'room_credentials_released': {
+        title: '🔑 Room Details Released',
+        body: `Room ID and Password for ${data.tournamentTitle} are now available!`,
+        icon: '/logo192.png'
       }
     };
 

@@ -16,7 +16,8 @@ import {
   Award,
   TrendingUp,
   Camera,
-  Upload
+  Upload,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -24,7 +25,7 @@ import LoadingSpinner from '../components/UI/LoadingSpinner';
 import config from '../config';
 
 const Profile = () => {
-  const { user, updateUser, token, loading: authLoading } = useAuth();
+  const { user, updateUser, token, loading: authLoading, logout } = useAuth();
   const { showError, showInfo } = useNotification();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -166,14 +167,14 @@ const Profile = () => {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      alert('Only JPG/PNG files are allowed');
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
       return;
     }
 
@@ -311,13 +312,25 @@ const Profile = () => {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">Profile Information</h3>
                 {!editing ? (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-300"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    <span>Edit</span>
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setEditing(true)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-300"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (logout) logout();
+                        if (typeof window !== 'undefined') window.location.href = '/';
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/40 rounded-lg transition-colors duration-300"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex space-x-2">
                     <button
@@ -399,7 +412,7 @@ const Profile = () => {
                       <input
                         id="photo-upload"
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg, image/png, image/jpg"
                         onChange={handlePhotoUpload}
                         className="hidden"
                         disabled={photoUploading}

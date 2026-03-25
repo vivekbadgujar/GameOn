@@ -10,14 +10,17 @@ import { NotificationProvider } from '../contexts/NotificationContext';
 // Layout Components
 import Header from '../components/Layout/Header';
 import Footer from '../components/Layout/Footer';
-import SupportChat from '../components/UI/SupportChat';
-import NotificationSystem from '../components/UI/NotificationSystem';
-import NotificationToast from '../components/UI/NotificationToast';
-import GlobalNotifications from '../components/UI/GlobalNotifications';
-import ModernBackground from '../components/UI/ModernBackground';
 import ClientOnly from '../components/ClientOnly';
 import Router from 'next/router';
 import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
+
+// Dynamically import heavy and background components to reduce initial bundle size
+const SupportChat = dynamic(() => import('../components/UI/SupportChat'), { ssr: false });
+const NotificationSystem = dynamic(() => import('../components/UI/NotificationSystem'), { ssr: false });
+const NotificationToast = dynamic(() => import('../components/UI/NotificationToast'), { ssr: false });
+const GlobalNotifications = dynamic(() => import('../components/UI/GlobalNotifications'), { ssr: false });
+const ModernBackground = dynamic(() => import('../components/UI/ModernBackground'), { ssr: false });
 
 // Import styles
 import '../styles/globals.css';

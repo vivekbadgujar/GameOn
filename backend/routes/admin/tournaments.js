@@ -686,6 +686,22 @@ router.post('/:id/set-room',
           message: 'Room credentials are now available!'
         });
       }
+
+      // Automatically trigger Push Notifications for participants when Room details are released
+      const pushNotificationService = req.app.get('pushNotificationService');
+      if (pushNotificationService && tournament.participants && tournament.participants.length > 0) {
+        const userIds = tournament.participants.map(p => p.user);
+        pushNotificationService.sendTournamentNotification(
+          tournamentId,
+          userIds,
+          'room_credentials_released',
+          {
+            tournamentTitle: tournament.title,
+            roomId,
+            password
+          }
+        );
+      }
       
       res.json({
         success: true,

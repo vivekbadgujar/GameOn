@@ -193,6 +193,19 @@ export const AuthProvider = ({ children }) => {
       // Don't verify immediately - let the user proceed with stored data
       // Verification will happen on profile fetch or when needed
       console.log('AuthContext: Login successful');
+
+      // Request Push Notification permission safely for Firebase Cloud Messaging
+      if ('Notification' in window && navigator.serviceWorker) {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            console.log('[Push] Notification permission granted.');
+            // Note: Once Firebase config is added, call getToken() here and 
+            // send the resulting FCM token to backend via: api.post('/users/register-device', { token })
+          } else {
+            console.log('[Push] Notification permission denied.');
+          }
+        });
+      }
       
       // Fetch wallet balance in background (don't block login)
       fetchWalletBalance(authToken).catch((err) => {
