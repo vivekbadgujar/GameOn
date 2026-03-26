@@ -77,6 +77,7 @@ export const SocketProvider = ({ children }) => {
     
     const newSocket = io(config.WS_URL, {
       transports: ['polling', 'websocket'],
+      path: '/api/socket.io',
       reconnectionAttempts: 0, // We'll handle reconnection manually
       autoConnect: true,
       forceNew: true,

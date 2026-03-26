@@ -29,6 +29,7 @@ export const SocketProvider = ({ children }) => {
     }
     
     const newSocket = io(WS_URL, {
+      path: '/api/socket.io',
       transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       autoConnect: true,

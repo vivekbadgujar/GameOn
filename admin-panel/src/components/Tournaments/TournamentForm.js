@@ -52,9 +52,14 @@ const TournamentForm = () => {
 
   const getAssetUrl = (path) => {
     if (!path) return '';
-    if (path.startsWith('http') || path.startsWith('data:')) return path;
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-    return apiUrl.replace('/api', '') + (path.startsWith('/') ? '' : '/') + path;
+    if (path.startsWith('data:')) return path;
+    
+    // Scrub legacy localhost paths
+    let cleanPath = path.replace('http://localhost:5000', 'https://api.gameonesport.xyz');
+    if (cleanPath.startsWith('http') && !cleanPath.includes('localhost:5000')) return cleanPath;
+    
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api';
+    return apiUrl.replace('/api', '') + (cleanPath.startsWith('/') ? '' : '/') + cleanPath;
   };
 
   const [formData, setFormData] = useState({
@@ -443,11 +448,11 @@ const TournamentForm = () => {
         formDataImage.append('type', 'tournament');
         
         // Upload image and get URL
-        const uploadResponse = await mediaAPI.upload(imageFile, 'tournament');
+        const uploadResponse = await mediaAPI.upload(imageFile, { type: 'poster' });
         if (uploadResponse.data.success) {
-          submitData.poster = uploadResponse.data.url;
-          submitData.posterUrl = uploadResponse.data.url;
-          console.log('Image uploaded successfully:', uploadResponse.data.url);
+          submitData.poster = uploadResponse.data.data?.url || '';
+          submitData.posterUrl = uploadResponse.data.data?.url || '';
+          console.log('Image uploaded successfully:', uploadResponse.data.data?.url);
         }
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
