@@ -345,6 +345,29 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+// Socket.IO route handler for serverless environment
+app.get('/socket.io/*', (req, res) => {
+  res.status(503).json({
+    success: false,
+    message: 'Socket.IO is not available in serverless environment',
+    error: 'REALTIME_DISABLED'
+  });
+});
+
+app.post('/socket.io/*', (req, res) => {
+  res.status(503).json({
+    success: false,
+    message: 'Socket.IO is not available in serverless environment',
+    error: 'REALTIME_DISABLED'
+  });
+});
+
+// Serve Socket.IO serverless fix script
+app.get('/socket.io-serverless-fix.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, 'public', 'socket.io-serverless-fix.js'));
+});
+
 // Make Socket.IO and services available to routes
 app.set('io', io);
 app.set('syncService', syncService);
