@@ -16,7 +16,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Check if we're in a serverless environment (Vercel)
-const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isServerless = (!!process.env.VERCEL && !process.env.RENDER) || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 if (isServerless) {
   console.log('[Server] Running in serverless mode (Socket.IO disabled)');
