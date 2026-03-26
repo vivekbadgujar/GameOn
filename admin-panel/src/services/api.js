@@ -117,11 +117,7 @@ export const tournamentAPI = {
     const formData = new FormData();
     formData.append('upiQrImage', file);
 
-    return api.post('/admin/tournaments/payment-qr-upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/admin/tournaments/payment-qr-upload', formData);
   },
 };
 
@@ -186,11 +182,11 @@ export const mediaAPI = {
       formData.append(key, metadata[key]);
     });
     
-    return api.post('/admin/media/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/admin/media/upload', formData);
+
+
+
+
   },
   update: (id, data) => api.put(`/admin/media/${id}`, data),
   delete: (id) => api.delete(`/admin/media/${id}`),

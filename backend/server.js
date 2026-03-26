@@ -49,7 +49,7 @@ if (!isServerless) {
   
   server = createServer(app);
   io = new Server(server, {
-    path: '/api/socket.io',
+    path: '/socket.io',
     cors: {
       origin: allowedOrigins,
       credentials: true

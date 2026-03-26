@@ -443,8 +443,8 @@ const TournamentForm = () => {
     if (imageFile) {
       try {
         console.log('Uploading tournament image...');
-        const formDataImage = new FormData();
-        formDataImage.append('file', imageFile);
+
+
         formDataImage.append('type', 'tournament');
         
         // Upload image and get URL
