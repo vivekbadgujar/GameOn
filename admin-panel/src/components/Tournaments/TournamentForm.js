@@ -444,9 +444,6 @@ const TournamentForm = () => {
       try {
         console.log('Uploading tournament image...');
 
-
-        formDataImage.append('type', 'tournament');
-        
         // Upload image and get URL
         const uploadResponse = await mediaAPI.upload(imageFile, { type: 'poster' });
         if (uploadResponse.data.success) {
