@@ -36,6 +36,22 @@ const Dashboard = () => {
     userStats: {},
     recentActivity: []
   });
+  const [activeTournamentIndex, setActiveTournamentIndex] = useState(0);
+  const [activeActivityIndex, setActiveActivityIndex] = useState(0);
+
+  const handleTournamentScroll = (e) => {
+    const scrollPosition = e.target.scrollLeft;
+    const childWidth = e.target.children[0]?.offsetWidth || e.target.clientWidth;
+    const newIndex = Math.round(scrollPosition / childWidth);
+    if (newIndex !== activeTournamentIndex) setActiveTournamentIndex(newIndex);
+  };
+
+  const handleActivityScroll = (e) => {
+    const scrollPosition = e.target.scrollLeft;
+    const childWidth = e.target.children[0]?.offsetWidth || e.target.clientWidth;
+    const newIndex = Math.round(scrollPosition / childWidth);
+    if (newIndex !== activeActivityIndex) setActiveActivityIndex(newIndex);
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -284,16 +300,35 @@ const Dashboard = () => {
           </div>
           
           {dashboardData.tournaments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {dashboardData.tournaments.map((tournament, index) => (
-                <div key={tournament._id}>
-                  <TournamentCard 
-                    tournament={tournament} 
-                    isAuthenticated={isAuthenticated}
-                    onRequireAuth={openAuthModal}
+            <div className="relative">
+              {/* Carousel Container */}
+              <div 
+                className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-6 md:pb-0"
+                onScroll={handleTournamentScroll}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {dashboardData.tournaments.map((tournament, index) => (
+                  <div key={tournament._id} className="snap-center shrink-0 w-[85vw] md:w-auto">
+                    <TournamentCard 
+                      tournament={tournament} 
+                      isAuthenticated={isAuthenticated}
+                      onRequireAuth={openAuthModal}
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Mobile Pagination Dots */}
+              <div className="flex justify-center flex-wrap gap-2 mt-2 md:hidden">
+                {dashboardData.tournaments.map((_, index) => (
+                  <div 
+                    key={index}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === activeTournamentIndex ? 'w-6 bg-blue-500' : 'w-2 bg-white/20'
+                    }`}
                   />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           ) : (
             <div className="glass-card p-8 text-center">
@@ -311,25 +346,43 @@ const Dashboard = () => {
         {/* Recent Activity */}
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 md:p-6 pb-6 md:pb-6">
             {dashboardData.recentActivity.length > 0 ? (
-              <div className="space-y-4">
-                {dashboardData.recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                      <Trophy className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white font-medium">{activity.description}</p>
-                      <p className="text-white/60 text-sm">{activity.timestamp}</p>
-                    </div>
-                    {activity.amount && (
-                      <div className="text-green-400 font-semibold">
-                        +₹{activity.amount.toLocaleString()}
+              <div className="relative">
+                <div 
+                  className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar gap-4 md:flex-col md:space-y-4 md:gap-0 md:overflow-visible pb-2 md:pb-0"
+                  onScroll={handleActivityScroll}
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {dashboardData.recentActivity.map((activity, index) => (
+                    <div key={index} className="snap-center shrink-0 w-[85vw] md:w-auto flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/5 md:border-transparent">
+                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-blue-400" />
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="flex-1 truncate">
+                        <p className="text-white font-medium truncate">{activity.description}</p>
+                        <p className="text-white/60 text-sm">{activity.timestamp}</p>
+                      </div>
+                      {activity.amount && (
+                        <div className="text-green-400 font-semibold shrink-0">
+                          +₹{activity.amount.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Mobile Pagination Dots */}
+                <div className="flex justify-center flex-wrap gap-2 mt-4 md:hidden">
+                  {dashboardData.recentActivity.map((_, index) => (
+                    <div 
+                      key={index}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        index === activeActivityIndex ? 'w-6 bg-blue-500' : 'w-2 bg-white/20'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="text-center py-8">

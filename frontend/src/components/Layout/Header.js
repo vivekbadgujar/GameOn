@@ -48,7 +48,7 @@ const Header = () => {
 
   // Navigation items
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
+    { path: '/', label: 'Home', icon: Home },
     { path: '/tournaments', label: 'Tournaments', icon: Trophy },
     { path: '/friends', label: 'Friends', icon: Users },
     { path: '/media', label: 'Videos & Gallery', icon: Play },
@@ -562,16 +562,30 @@ const Header = () => {
         className="fixed inset-y-0 left-0 z-[80] w-[82vw] max-w-[360px] bg-slate-950/95 backdrop-blur-2xl border-r border-white/10 shadow-2xl md:hidden overflow-hidden"
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-            <div className="min-w-0">
-              <p className="text-sm uppercase tracking-[0.2em] text-white/40">Navigation</p>
-              <p className="truncate text-lg font-semibold text-white">
-                {isAuthenticated ? (user?.username || 'Player') : 'Welcome to GameOn'}
-              </p>
-            </div>
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-5 bg-gradient-to-r from-blue-900/40 to-purple-900/40">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center flex-shrink-0 shadow-lg border border-white/10">
+                   {user?.profilePhoto ? (
+                     <img src={user.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                   ) : (
+                     <User className="w-6 h-6 text-white" />
+                   )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-[17px] text-white tracking-wide">{user?.username || 'Player'}</p>
+                  <p className="truncate text-[13px] text-white/60 mt-0.5">{user?.email || 'No email provided'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.2em] text-cyan-400 font-bold mb-1">Navigation</p>
+                <p className="truncate text-lg font-bold text-white">Welcome to GameOn</p>
+              </div>
+            )}
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-colors duration-300 hover:bg-white/10"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 transition-colors duration-300 hover:bg-white/10 self-start ml-2"
               aria-label="Close navigation menu"
             >
               <X className="w-5 h-5 text-white" />
@@ -580,7 +594,7 @@ const Header = () => {
 
           <nav className="mobile-nav-content flex-1 overflow-y-auto border-0">
             {!isAuthenticated && (
-              <div className="mb-5 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/15 to-cyan-500/5 p-4">
+              <div className="mb-5 mt-4 mx-4 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/15 to-cyan-500/5 p-4">
                 <p className="text-sm text-white/60">Compete in daily esports tournaments.</p>
                 <div className="mt-4 grid grid-cols-1 gap-3">
                   <button
@@ -607,26 +621,8 @@ const Header = () => {
               </div>
             )}
 
-            {isAuthenticated && (
-              <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-white">{user?.username || 'User'}</p>
-                  <p className="truncate text-sm text-white/50">{user?.email}</p>
-                </div>
-                <Link
-                  href="/profile"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="btn-secondary min-h-[36px] px-4 py-2 text-sm shrink-0"
-                >
-                  Profile
-                </Link>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              {navItems
-                .filter((item) => item.path !== '/')
-                .map((item) => renderMobileDrawerItem(item))}
+            <div className="space-y-2 px-3 mt-4">
+              {navItems.map((item) => renderMobileDrawerItem(item))}
             </div>
 
             {isAuthenticated && (

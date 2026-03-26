@@ -280,7 +280,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
 
   return (
     <AnimatePresence>
-      <div className="modal-shell">
+      <div className="modal-shell !z-[10000]">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
