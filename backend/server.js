@@ -345,21 +345,55 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
+// Additional favicon handler for admin subdomain
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // Socket.IO route handler for serverless environment
 app.get('/socket.io/*', (req, res) => {
+  // Set headers to indicate Socket.IO is disabled
+  res.set({
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  
+  // Return a specific response that tells Socket.IO client to stop polling
   res.status(503).json({
     success: false,
     message: 'Socket.IO is not available in serverless environment',
-    error: 'REALTIME_DISABLED'
+    error: 'REALTIME_DISABLED',
+    code: 3, // Socket.IO disconnect code
+    type: 'TransportError'
   });
 });
 
 app.post('/socket.io/*', (req, res) => {
+  res.set({
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  
   res.status(503).json({
     success: false,
     message: 'Socket.IO is not available in serverless environment',
-    error: 'REALTIME_DISABLED'
+    error: 'REALTIME_DISABLED',
+    code: 3,
+    type: 'TransportError'
   });
+});
+
+app.options('/socket.io/*', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  res.status(503).end();
 });
 
 // Serve Socket.IO serverless fix script
