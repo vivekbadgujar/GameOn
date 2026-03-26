@@ -351,14 +351,19 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // Socket.IO route handler for serverless environment
-app.get('/socket.io/*', (req, res) => {
-  // Set headers to indicate Socket.IO is disabled
+const setSocketCorsHeaders = (req, res) => {
+  const origin = req.headers.origin || '*';
   res.set({
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true'
   });
+};
+
+app.get('/socket.io/*', (req, res) => {
+  setSocketCorsHeaders(req, res);
   
   // Return a specific response that tells Socket.IO client to stop polling
   res.status(503).json({
@@ -371,12 +376,7 @@ app.get('/socket.io/*', (req, res) => {
 });
 
 app.post('/socket.io/*', (req, res) => {
-  res.set({
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  });
+  setSocketCorsHeaders(req, res);
   
   res.status(503).json({
     success: false,
@@ -388,11 +388,7 @@ app.post('/socket.io/*', (req, res) => {
 });
 
 app.options('/socket.io/*', (req, res) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  });
+  setSocketCorsHeaders(req, res);
   res.status(503).end();
 });
 
