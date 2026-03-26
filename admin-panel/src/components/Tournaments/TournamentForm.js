@@ -50,6 +50,13 @@ const TournamentForm = () => {
   const { showTournamentSuccess, showTournamentError } = useNotification();
   const isEditing = Boolean(id);
 
+  const getAssetUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return apiUrl.replace('/api', '') + (path.startsWith('/') ? '' : '/') + path;
+  };
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -934,7 +941,7 @@ const TournamentForm = () => {
                     <Grid item xs={12}>
                       <Box sx={{ mt: 1, textAlign: 'center' }}>
                         <img
-                          src={upiQrPreview}
+                          src={getAssetUrl(upiQrPreview)}
                           alt="UPI QR"
                           style={{
                             width: '100%',
@@ -980,7 +987,7 @@ const TournamentForm = () => {
                 {imagePreview && (
                   <Box sx={{ mt: 2, textAlign: 'center' }}>
                     <img
-                      src={imagePreview}
+                      src={getAssetUrl(imagePreview)}
                       alt="Tournament"
                       style={{
                         width: '100%',
@@ -1097,3 +1104,4 @@ const TournamentForm = () => {
 };
 
 export default TournamentForm;
+

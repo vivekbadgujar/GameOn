@@ -276,18 +276,24 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
     </div>
   );
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="modal-shell !z-[10000]">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
-          className="modal-panel bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md"
-        >
+      {isOpen && (
+        <div className="fixed inset-0 z-[10000] overflow-y-auto w-full flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={handleClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="relative bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl w-full max-w-md z-10"
+          >
           {/* Header */}
           <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-800">
             <div className="flex items-center space-x-3">
@@ -344,8 +350,9 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
               </motion.div>
             </AnimatePresence>
           </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      )}
     </AnimatePresence>
   );
 };

@@ -1409,4 +1409,63 @@ router.patch('/:id/status',
   }
 );
 
+// POST results for a tournament
+router.post(
+  '/:id/results',
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { winners } = req.body;
+
+      if (!winners || !Array.isArray(winners)) {
+        return res.status(400).json({ success: false, message: 'Invalid winners data' });
+      }
+
+      const tournament = await Tournament.findById(id);
+      if (!tournament) {
+        return res.status(404).json({ success: false, message: 'Tournament not found' });
+      }
+
+      if (tournament.status !== 'completed') {
+        return res.status(400).json({ success: false, message: 'Results can only be posted for completed tournaments' });
+      }
+
+      // Format winners for DB
+      const formattedWinners = winners.map(winner => ({
+        user: winner.participantId,
+        position: winner.position,
+        prize: winner.prize || 0,
+        kills: winner.kills || 0,
+        rank: winner.position
+      }));
+
+      tournament.winners = formattedWinners;
+      await tournament.save();
+
+      // Emit Socket.IO event
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('tournamentResultsPublished', { 
+          tournamentId: id, 
+          winners: formattedWinners 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Results published successfully', 
+        data: tournament.winners 
+      });
+    } catch (error) {
+      console.error('Error posting tournament results:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to post results',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
+  }
+);
+
 module.exports = router;

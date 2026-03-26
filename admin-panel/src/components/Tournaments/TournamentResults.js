@@ -51,7 +51,13 @@ const TournamentResults = ({ tournamentId, embedded = false, onSuccess }) => {
   });
 
   const tournamentData = tournament?.data?.data || tournament?.data;
-  const participantsData = participants?.data?.data || participants?.data || [];
+  const rawData = participants?.data?.data || participants?.data;
+  const participantsList = rawData?.participants || [];
+  const participantsData = participantsList.map(p => ({
+    id: p.user?._id || p._id,
+    name: p.user?.gameProfile?.bgmiName || p.user?.username || 'Unknown',
+    joinedAt: p.joinedAt
+  }));
 
   const postResultMutation = useMutation({
     mutationFn: ({ id, result }) => tournamentAPI.postResult(id, result),

@@ -288,11 +288,11 @@ const ModernParticipationTable = ({ tournamentId }) => {
     <Card>
       <CardContent>
         {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2} mb={3}>
           <Typography variant="h6" color="primary">
             Tournament Participants ({filteredParticipants.length})
           </Typography>
-          <Box display="flex" alignItems="center" gap={1}>
+          <Box display="flex" flexWrap="wrap" alignItems="center" gap={1}>
             <Box
               sx={{
                 width: 8,
@@ -381,8 +381,8 @@ const ModernParticipationTable = ({ tournamentId }) => {
         </Box>
 
         {/* Table */}
-        <TableContainer component={Paper} variant="outlined">
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
+          <Table sx={{ whiteSpace: 'nowrap' }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: 'grey.50' }}>
                 <TableCell><strong>Team</strong></TableCell>

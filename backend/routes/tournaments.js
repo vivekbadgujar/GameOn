@@ -1577,4 +1577,65 @@ router.post('/:id/move-slot', authenticateToken, async (req, res) => {
   }
 });
 
+// Get tournament results
+router.get('/:id/results', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const tournament = await Tournament.findById(id)
+      .populate('winners.user', 'username displayName avatar email gameProfile')
+      .populate('participants.user', 'username displayName avatar email gameProfile')
+      .lean();
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament not found'
+      });
+    }
+
+    if (tournament.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        error: 'Results are only available for completed tournaments'
+      });
+    }
+
+    // Prepare match summary
+    const totalPrizeDistributed = tournament.winners?.reduce((sum, w) => sum + (w.prize || 0), 0) || 0;
+    const totalKills = tournament.participants?.reduce((sum, p) => sum + (p.kills || 0), 0) || 0;
+    const uniqueTeams = new Set(tournament.participants?.map(p => p.teamNumber).filter(Boolean)).size || 0;
+
+    const resultsData = {
+      winners: tournament.winners || [],
+      participants: tournament.participants?.map(p => ({
+        user: p.user,
+        rank: p.rank,
+        kills: p.kills,
+        points: p.points || (p.kills || 0) * 10,
+        teamNumber: p.teamNumber,
+        slotNumber: p.slotNumber
+      })) || [],
+      matchSummary: {
+        totalKills,
+        totalTeams: uniqueTeams,
+        totalPrizeDistributed,
+        matchDuration: '~30-45 mins'
+      }
+    };
+
+    res.json({
+      success: true,
+      data: resultsData
+    });
+
+  } catch (error) {
+    console.error('Error fetching tournament results:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tournament results'
+    });
+  }
+});
+
 module.exports = router;

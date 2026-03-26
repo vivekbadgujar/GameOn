@@ -321,7 +321,7 @@ const RoomCredentialsManager = ({ tournament, onUpdate }) => {
                 <Box display="flex" alignItems="center" gap={1}>
                   <Typography variant="body2">Room ID:</Typography>
                   <Chip 
-                    label={tournament.roomDetails.roomId} 
+                    label={tournament?.roomDetails?.roomId} 
                     size="small" 
                     variant="outlined"
                   />
@@ -354,7 +354,7 @@ const RoomCredentialsManager = ({ tournament, onUpdate }) => {
         {/* Participant Count */}
         <Box mt={2}>
           <Typography variant="body2" color="text.secondary">
-            {tournament.currentParticipants} confirmed players will receive the credentials
+            {tournament?.currentParticipants || 0} confirmed players will receive the credentials
           </Typography>
         </Box>
 
