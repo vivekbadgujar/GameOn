@@ -13,9 +13,17 @@ router.use(authenticateAdmin);
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/media');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Handle serverless environment
+    const os = require('os');
+    const path = require('path');
+    const isServerless = !!process.env.VERCEL;
+    
+    const uploadDir = isServerless 
+      ? path.join(os.tmpdir(), 'gameon-uploads', 'media')
+      : path.join(__dirname, '../../uploads/media');
+    
+    if (!require('fs').existsSync(uploadDir)) {
+      require('fs').mkdirSync(uploadDir, { recursive: true });
     }
     cb(null, uploadDir);
   },
@@ -28,7 +36,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit for tournament images
+    fileSize: 10 * 1024 * 1024, // Increased to 10MB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx/;
@@ -106,7 +114,7 @@ router.post('/upload',
         if (err.code === 'LIMIT_FILE_SIZE') {
           return res.status(413).json({
             success: false,
-            message: 'File size exceeds 5MB limit. Please upload a smaller image.'
+            message: 'File size exceeds 10MB limit. Please upload a smaller image.'
           });
         }
         return res.status(400).json({

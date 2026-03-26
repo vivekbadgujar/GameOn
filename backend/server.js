@@ -216,6 +216,9 @@ const corsOptions = {
       return callback(null, origin);
     }
     
+    // Log rejected origins for debugging
+    console.log(`CORS blocked origin: ${origin}`);
+    
     // Reject origin not in allowed list
     return callback(null, false);
   },
@@ -223,7 +226,9 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Set-Cookie', 'Content-Type'],
-  maxAge: 86400
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -232,8 +237,8 @@ app.use(cors(corsOptions));
 app.use(cookieParser());
 
 // Body parsing middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Logging middleware
 app.use(morgan('combined'));
@@ -242,13 +247,31 @@ app.use(morgan('combined'));
 // static hosting for uploaded files; default directory is backend/uploads
 const defaultUploadDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR
   || (isServerless ? path.join(os.tmpdir(), 'gameon-uploads') : path.join(__dirname, 'uploads'));
-app.use('/uploads', express.static(defaultUploadDir));
-// if the manual payment upload dir is overridden, serve that too so screenshots
+
+// Enhanced static file serving with CORS headers
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers for static files
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+}, express.static(defaultUploadDir, {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true
+}));
+
+// if manual payment upload dir is overridden, serve that too so screenshots
 // remain accessible in the admin panel
 if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
   const customDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR;
   if (customDir !== defaultUploadDir) {
-    app.use('/uploads', express.static(customDir));
+    app.use('/uploads', (req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      next();
+    }, express.static(customDir));
     console.log('Serving manual payment files from custom directory:', customDir);
   }
 }
@@ -315,6 +338,11 @@ app.get('/', (req, res) => {
       health: 'GET /api/health'
     }
   });
+});
+
+// Favicon route to prevent 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
 });
 
 // Make Socket.IO and services available to routes
