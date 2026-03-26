@@ -38,42 +38,32 @@ const isAllowedOrigin = (origin) => {
 
 // Import unified platform services
 let syncService, pushNotificationService;
-let server, io;
 
-// Only initialize Socket.IO and HTTP server if NOT in serverless mode
-if (!isServerless) {
-  const { createServer } = require('http');
-  const { Server } = require('socket.io');
+// Always create HTTP Server + Socket.IO unconditionally
+// isServerless only prevents listen() — Socket.IO must always be mounted
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true
+});
+
+try {
   const SyncServiceClass = require('./services/syncService');
   const PushNotificationServiceClass = require('./services/pushNotificationService');
-  
-  server = createServer(app);
-  io = new Server(server, {
-    path: '/socket.io',
-    cors: {
-      origin: allowedOrigins,
-      credentials: true
-    },
-    transports: ['polling', 'websocket'],
-    allowEIO3: true
-  });
-
-  // Initialize unified platform services
   syncService = new SyncServiceClass(io);
   pushNotificationService = new PushNotificationServiceClass();
-} else {
-  // Serverless mode: create stub services for serverless
-  syncService = {
-    syncTournamentUpdate: () => {},
-    syncUserUpdate: () => {},
-    unregisterUser: () => {},
-    updateLastSeen: () => {},
-    cleanup: () => {}
-  };
-  const PushNotificationServiceClass = require('./services/pushNotificationService');
-  pushNotificationService = new PushNotificationServiceClass();
-  io = null; // Socket.IO not available in serverless
-  server = null; // HTTP server not available in serverless
+  console.log('[Server] Platform services initialized');
+} catch (svcErr) {
+  console.warn('[Server] Platform services unavailable:', svcErr.message);
+  syncService = { syncTournamentUpdate: () => {}, syncUserUpdate: () => {}, unregisterUser: () => {}, updateLastSeen: () => {}, cleanup: () => {} };
+  pushNotificationService = { sendPushNotification: () => {} };
 }
 
 // Use environment PORT for deployment (Render/Vercel) or default to 5000
@@ -416,7 +406,8 @@ app.get('/api/health', async (req, res) => {
       dbStatus: dbConnected ? 'connected' : 'disconnected',
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
-      serverless: isServerless
+      serverless: isServerless,
+      socketEnabled: true
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash
@@ -925,9 +916,8 @@ app.set('emitToAdmins', emitToAdmins);
 
 
 
-// For local development or production runtime (Render/EC2), start server
-// NEVER start server in serverless mode (Vercel/Lambda)
-if (!isServerless && require.main === module && server) {
+// Start HTTP server — always on Render/EC2; skipped on Vercel (serverless)
+if (!isServerless && server) {
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);

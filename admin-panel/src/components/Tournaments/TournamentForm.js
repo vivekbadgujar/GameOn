@@ -50,16 +50,21 @@ const TournamentForm = () => {
   const { showTournamentSuccess, showTournamentError } = useNotification();
   const isEditing = Boolean(id);
 
-  const getAssetUrl = (path) => {
-    if (!path) return '';
-    if (path.startsWith('data:')) return path;
-    
-    // Scrub legacy localhost paths
-    let cleanPath = path.replace('http://localhost:5000', 'https://api.gameonesport.xyz');
-    if (cleanPath.startsWith('http') && !cleanPath.includes('localhost:5000')) return cleanPath;
-    
-    const apiUrl = process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api';
-    return apiUrl.replace('/api', '') + (cleanPath.startsWith('/') ? '' : '/') + cleanPath;
+  const getAssetUrl = (filePath) => {
+    if (!filePath) return '';
+    if (filePath.startsWith('data:')) return filePath;
+
+    // Scrub legacy localhost paths to production
+    let cleanPath = filePath.replace(/https?:\/\/localhost:\d+/g, 'https://api.gameonesport.xyz');
+
+    // Already an absolute URL — return as-is (after localhost scrub)
+    if (cleanPath.startsWith('http')) return cleanPath;
+
+    // Build base URL from API env var — strip trailing /api path (not the domain!)
+    const apiUrl = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+    const baseUrl = apiUrl.replace(/\/api$/, ''); // only removes trailing '/api' not 'api.' in domain
+
+    return baseUrl + (cleanPath.startsWith('/') ? '' : '/') + cleanPath;
   };
 
   const [formData, setFormData] = useState({
