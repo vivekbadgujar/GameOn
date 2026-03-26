@@ -406,7 +406,7 @@ const TournamentParticipants = ({ tournamentId }) => {
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="participants">
                 {(provided) => (
-                  <TableContainer>
+                  <TableContainer sx={{ overflowX: 'auto' }}>
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>

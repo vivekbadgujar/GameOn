@@ -528,7 +528,7 @@ const BroadcastMessage = () => {
               Message History
             </Typography>
             
-            <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+            <TableContainer component={Paper} sx={{ boxShadow: 'none', overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -604,7 +604,7 @@ const BroadcastMessage = () => {
               Scheduled Messages
             </Typography>
             
-            <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+            <TableContainer component={Paper} sx={{ boxShadow: 'none', overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>

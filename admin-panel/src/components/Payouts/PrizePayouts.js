@@ -330,7 +330,7 @@ const PrizePayouts = () => {
       {/* Payouts Table */}
       <Card>
         <CardContent sx={{ p: 0 }}>
-          <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+          <TableContainer component={Paper} sx={{ boxShadow: 'none', overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>

@@ -494,7 +494,7 @@ const UserManagement = () => {
             <LinearProgress />
           ) : (
             <>
-              <TableContainer>
+              <TableContainer sx={{ overflowX: 'auto' }}>
                 <Table>
                   <TableHead>
                     <TableRow>

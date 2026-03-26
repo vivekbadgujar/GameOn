@@ -330,7 +330,7 @@ const AdminLayout = ({ children }) => {
         }}
       >
         <Toolbar />
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
           {children}
         </Box>
       </Box>

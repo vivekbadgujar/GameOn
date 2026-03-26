@@ -23,7 +23,10 @@ export const SocketProvider = ({ children }) => {
                          process.env.NEXT_PUBLIC_API_URL || 
                          process.env.NEXT_PUBLIC_API_BASE_URL || 
                          'https://api.gameonesport.xyz/api').replace(/\/$/, '');
-    const WS_URL = API_BASE_URL.replace('/api', '');
+    let WS_URL = API_BASE_URL;
+    if (WS_URL.endsWith('/api')) {
+      WS_URL = WS_URL.substring(0, WS_URL.length - 4);
+    }
     
     const newSocket = io(WS_URL, {
       transports: ['polling', 'websocket'],

@@ -283,7 +283,7 @@ const NotificationManager = () => {
       {/* Notifications Table */}
       <Card>
         <CardContent>
-          <TableContainer component={Paper} elevation={0}>
+          <TableContainer component={Paper} elevation={0} sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>

@@ -61,11 +61,7 @@ const TournamentList = () => {
     return Boolean(
       tournament &&
       tournament.status !== 'completed' &&
-      tournament.status !== 'cancelled' &&
-      (
-        tournament.status === 'live' ||
-        (tournament.startDate && new Date(tournament.startDate).getTime() <= Date.now())
-      )
+      tournament.status !== 'cancelled'
     );
   };
 
@@ -511,6 +507,13 @@ const TournamentList = () => {
           <MenuItem onClick={() => handleStatusChange(selectedTournament, 'completed')}>
             <CheckCircle sx={{ mr: 1 }} color="success" />
             Mark Complete
+          </MenuItem>
+        )}
+
+        {selectedTournament?.status === 'completed' && (
+          <MenuItem onClick={() => navigate(`/tournaments/${selectedTournament._id}?tab=results`)}>
+            <EmojiEvents sx={{ mr: 1 }} color="primary" />
+            Manage Results
           </MenuItem>
         )}
 

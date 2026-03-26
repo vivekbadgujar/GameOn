@@ -40,7 +40,7 @@ import {
   Stop
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { tournamentAPI } from '../../services/api';
@@ -54,9 +54,20 @@ import TournamentResults from './TournamentResults';
 const TournamentDetails = () => {
   const { id: tournamentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { admin } = useAuth();
   const { showSuccess, showError } = useNotification();
-  const [activeTab, setActiveTab] = useState(0);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const tabName = params.get('tab');
+    switch (tabName) {
+      case 'participants': return 1;
+      case 'results': return 2;
+      case 'setup': return 3;
+      default: return 0;
+    }
+  });
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -105,6 +116,8 @@ const TournamentDetails = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    const tabNames = ['layout', 'participants', 'results', 'setup'];
+    navigate(`/tournaments/${tournamentId}?tab=${tabNames[newValue]}`, { replace: true });
   };
 
   // Show loading state
@@ -439,7 +452,13 @@ const TournamentDetails = () => {
       {/* Tabs */}
       <Card>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={activeTab} onChange={handleTabChange}>
+          <Tabs 
+            value={activeTab} 
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
             <Tab 
               label="BGMI Room Layout" 
               icon={<SportsMma />} 

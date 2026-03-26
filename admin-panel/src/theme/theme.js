@@ -1,7 +1,7 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, responsiveFontSizes } from '@mui/material/styles';
 
-// Create theme with error handling
-export const theme = createTheme({
+// Create base theme
+let baseTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
@@ -160,4 +160,6 @@ export const theme = createTheme({
       },
     },
   },
-}); 
+});
+
+export const theme = responsiveFontSizes(baseTheme); 

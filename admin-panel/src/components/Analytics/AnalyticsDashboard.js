@@ -581,7 +581,7 @@ const AnalyticsDashboard = () => {
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   Top Tournaments
                 </Typography>
-                <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+                <TableContainer component={Paper} sx={{ boxShadow: 'none', overflowX: 'auto' }}>
                   <Table>
                     <TableHead>
                       <TableRow>
