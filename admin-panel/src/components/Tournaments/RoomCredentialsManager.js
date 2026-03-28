@@ -86,7 +86,8 @@ const RoomCredentialsManager = ({ tournament, onUpdate }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/tournaments/${tournament._id}/set-room`, {
+      const apiBase = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+      const response = await fetch(`${apiBase}/admin/tournaments/${tournament._id}/set-room`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +116,8 @@ const RoomCredentialsManager = ({ tournament, onUpdate }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/tournaments/${tournament._id}/release-room`, {
+      const apiBase = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+      const response = await fetch(`${apiBase}/admin/tournaments/${tournament._id}/release-room`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

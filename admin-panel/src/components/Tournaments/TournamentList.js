@@ -105,10 +105,16 @@ const TournamentList = () => {
 
     window.addEventListener('tournamentUpdated', handleTournamentUpdate);
     window.addEventListener('tournamentDeleted', handleTournamentUpdate);
+    window.addEventListener('tournamentAdded', handleTournamentUpdate);
+    window.addEventListener('tournamentStatusUpdated', handleTournamentUpdate);
+    window.addEventListener('roomCredentialsReleased', handleTournamentUpdate);
 
     return () => {
       window.removeEventListener('tournamentUpdated', handleTournamentUpdate);
       window.removeEventListener('tournamentDeleted', handleTournamentUpdate);
+      window.removeEventListener('tournamentAdded', handleTournamentUpdate);
+      window.removeEventListener('tournamentStatusUpdated', handleTournamentUpdate);
+      window.removeEventListener('roomCredentialsReleased', handleTournamentUpdate);
     };
   }, [refetch]);
 

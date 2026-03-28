@@ -62,7 +62,7 @@ const TournamentForm = () => {
 
     // Build base URL from API env var — strip trailing /api path (not the domain!)
     const apiUrl = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
-    const baseUrl = apiUrl.replace(/\/api$/, ''); // only removes trailing '/api' not 'api.' in domain
+    const baseUrl = apiUrl.replace(/\/api$/, '');
 
     return baseUrl + (cleanPath.startsWith('/') ? '' : '/') + cleanPath;
   };
@@ -89,12 +89,13 @@ const TournamentForm = () => {
     autoStart: false,
     upiId: '',
     upiQrImage: '',
+    poster: '',
+    posterUrl: '',
     prizeDistribution: [
       { position: 1, percentage: 50, amount: 0 },
       { position: 2, percentage: 30, amount: 0 },
       { position: 3, percentage: 20, amount: 0 }
     ],
-    // Room Credentials
     roomId: '',
     roomPassword: '',
     manualRelease: false
@@ -114,68 +115,50 @@ const TournamentForm = () => {
     queryFn: () => tournamentAPI.getById(id),
     enabled: isEditing && !!id,
     retry: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   // Create/Update mutation
   const mutation = useMutation({
     mutationFn: async (data) => {
       console.log('Submitting tournament data:', data);
-      
-      // Add timeout to prevent infinite loading
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 seconds
+        setTimeout(() => reject(new Error('Request timeout')), 30000);
       });
-      
       const apiPromise = isEditing ? tournamentAPI.update(id, data) : tournamentAPI.create(data);
-      
       return Promise.race([apiPromise, timeoutPromise]);
     },
     onSuccess: (response) => {
       console.log('Tournament created/updated successfully:', response);
-      
       const tournamentName = formData.title || 'Tournament';
       const action = isEditing ? 'update' : 'create';
-      
-      // Show success notification
       showTournamentSuccess(action, tournamentName);
-      
-      // Invalidate and refetch tournament queries immediately
       queryClient.invalidateQueries(['tournaments']);
       queryClient.refetchQueries(['tournaments']);
-      
-      // Force multiple refreshes to ensure data consistency
       setTimeout(() => {
         queryClient.invalidateQueries(['tournaments']);
         queryClient.refetchQueries(['tournaments']);
       }, 500);
-      
       setTimeout(() => {
         queryClient.invalidateQueries(['tournaments']);
         queryClient.refetchQueries(['tournaments']);
       }, 1500);
-      
-      // Navigate after ensuring data is refreshed
       setTimeout(() => {
         navigate('/tournaments');
       }, 2000);
     },
     onError: (error) => {
       console.error('Tournament creation/update failed:', error);
-      console.error('Error response:', error.response?.data);
-      
       const action = isEditing ? 'update' : 'create';
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
-      
-      // Show error notification
       showTournamentError(action, errorMessage);
-      
       if (error.message === 'Request timeout') {
         console.error('Request timed out after 30 seconds');
       }
     },
   });
 
+  // Populate form when editing an existing tournament
   useEffect(() => {
     if (tournament?.data && isEditing) {
       const data = tournament.data?.data || tournament.data;
@@ -201,28 +184,33 @@ const TournamentForm = () => {
         autoStart: data.autoStart ?? false,
         upiId: data.upiId || '',
         upiQrImage: data.upiQrImage || '',
+        poster: data.poster || data.posterUrl || '',
+        posterUrl: data.posterUrl || data.poster || '',
         prizeDistribution: data.prizeDistribution || [
           { position: 1, percentage: 50, amount: 0 },
           { position: 2, percentage: 30, amount: 0 },
           { position: 3, percentage: 20, amount: 0 }
         ],
-        // Room Credentials
         roomId: data.roomDetails?.roomId || '',
         roomPassword: data.roomDetails?.password || '',
         manualRelease: data.roomDetails?.manualRelease || false
       });
-      if (data.image) {
-        setImagePreview(data.image);
+
+      // Load poster/thumbnail preview from existing DB data
+      const existingPoster = data.poster || data.posterUrl || '';
+      if (existingPoster) {
+        setImagePreview(getAssetUrl(existingPoster));
       }
+
+      // Load UPI QR preview from existing DB data
       if (data.upiQrImage) {
-        setUpiQrPreview(data.upiQrImage);
+        setUpiQrPreview(getAssetUrl(data.upiQrImage));
       }
     }
   }, [tournament, isEditing]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -231,13 +219,10 @@ const TournamentForm = () => {
   const handlePrizeDistributionChange = (index, field, value) => {
     const newDistribution = [...formData.prizeDistribution];
     newDistribution[index] = { ...newDistribution[index], [field]: value };
-    
-    // Recalculate amounts based on percentages
     if (field === 'percentage') {
       const totalPrizePool = parseFloat(formData.prizePool) || 0;
       newDistribution[index].amount = (totalPrizePool * value) / 100;
     }
-    
     setFormData(prev => ({ ...prev, prizeDistribution: newDistribution }));
   };
 
@@ -255,7 +240,6 @@ const TournamentForm = () => {
   const removePrizePosition = (index) => {
     if (formData.prizeDistribution.length > 1) {
       const newDistribution = formData.prizeDistribution.filter((_, i) => i !== index);
-      // Reorder positions
       newDistribution.forEach((item, i) => {
         item.position = i + 1;
       });
@@ -264,21 +248,15 @@ const TournamentForm = () => {
   };
 
   const validateImageFile = (file) => {
-    if (!file) {
-      return '';
-    }
-
+    if (!file) return '';
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
     const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-
     if (!ALLOWED_TYPES.includes(file.type)) {
       return 'Invalid file type. Please upload JPEG, PNG, or WebP images only.';
     }
-
     if (file.size > MAX_FILE_SIZE) {
       return `File size exceeds 5MB limit. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`;
     }
-
     return '';
   };
 
@@ -294,7 +272,6 @@ const TournamentForm = () => {
       setImageError('');
       return;
     }
-
     const validationError = validateImageFile(file);
     if (validationError) {
       setImageError(validationError);
@@ -302,7 +279,6 @@ const TournamentForm = () => {
       setImagePreview('');
       return;
     }
-
     setImageError('');
     setImageFile(file);
     loadPreview(file, setImagePreview);
@@ -314,7 +290,6 @@ const TournamentForm = () => {
       setUpiQrError('');
       return;
     }
-
     const validationError = validateImageFile(file);
     if (validationError) {
       setUpiQrError(validationError);
@@ -322,101 +297,59 @@ const TournamentForm = () => {
       setUpiQrPreview('');
       return;
     }
-
     setUpiQrError('');
     setUpiQrFile(file);
     loadPreview(file, setUpiQrPreview);
   };
 
   const validateForm = () => {
-    console.log('Validating form data:', formData);
     const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.game) newErrors.game = 'Game is required';
+    if (!formData.map) newErrors.map = 'Map is required';
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-      console.log('Title validation failed');
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-      console.log('Description validation failed');
-    }
-    if (!formData.game) {
-      newErrors.game = 'Game is required';
-      console.log('Game validation failed');
-    }
-    if (!formData.map) {
-      newErrors.map = 'Map is required';
-      console.log('Map validation failed');
-    }
     const entryFeeValue = Number(formData.entryFee);
     if (formData.entryFee === '' || formData.entryFee === null || Number.isNaN(entryFeeValue) || entryFeeValue < 0) {
       newErrors.entryFee = 'Valid entry fee is required';
-      console.log('Entry fee validation failed:', formData.entryFee);
     }
     if (!formData.prizePool || formData.prizePool <= 0) {
       newErrors.prizePool = 'Valid prize pool is required';
-      console.log('Prize pool validation failed:', formData.prizePool);
     }
     if (!formData.maxParticipants || formData.maxParticipants < 2) {
       newErrors.maxParticipants = 'Minimum 2 participants required';
-      console.log('Max participants validation failed:', formData.maxParticipants);
     }
-    
-    // Validate maxParticipants is one of the allowed values
+
     const validSizes = [2, 4, 8, 16, 32, 64, 100];
     if (!validSizes.includes(parseInt(formData.maxParticipants))) {
       newErrors.maxParticipants = 'Invalid participant count. Must be one of: 2, 4, 8, 16, 32, 64, 100';
-      console.log('Max participants size validation failed:', formData.maxParticipants);
-    }
-    
-    if (!formData.startDate) {
-      newErrors.startDate = 'Start date is required';
-      console.log('Start date validation failed');
-    }
-    if (!formData.endDate) {
-      newErrors.endDate = 'End date is required';
-      console.log('End date validation failed');
-    }
-    
-    // Validate dates
-    if (formData.startDate && formData.endDate && formData.startDate.isAfter(formData.endDate)) {
-      newErrors.endDate = 'End date must be after start date';
-      console.log('Date range validation failed');
-    }
-    
-    if (formData.startDate && formData.startDate.isBefore(dayjs())) {
-      newErrors.startDate = 'Start date must be in the future';
-      console.log('Start date future validation failed');
     }
 
-    console.log('Validation errors:', newErrors);
+    if (!formData.startDate) newErrors.startDate = 'Start date is required';
+    if (!formData.endDate) newErrors.endDate = 'End date is required';
+
+    if (formData.startDate && formData.endDate && formData.startDate.isAfter(formData.endDate)) {
+      newErrors.endDate = 'End date must be after start date';
+    }
+    if (formData.startDate && formData.startDate.isBefore(dayjs())) {
+      newErrors.startDate = 'Start date must be in the future';
+    }
+
     setErrors(newErrors);
-    const isValid = Object.keys(newErrors).length === 0;
-    console.log('Form validation result:', isValid);
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log('Form submitted, checking authentication...');
-    
+
     if (!isAuthenticated) {
-      console.error('User not authenticated');
       alert('Please log in to create a tournament');
       return;
     }
-    
-    console.log('User authenticated, validating form...');
-    
-    if (!validateForm()) {
-      console.log('Form validation failed');
-      return;
-    }
 
-    console.log('Form validation passed, preparing data...');
+    if (!validateForm()) return;
 
-    // Only include fields that match the backend schema
+    // Build submit payload — preserve existing poster/upiQrImage when no new file uploaded
     const submitData = {
       title: formData.title.trim(),
       description: formData.description.trim(),
@@ -434,6 +367,8 @@ const TournamentForm = () => {
       isPublic: true,
       upiId: formData.upiId.trim(),
       upiQrImage: formData.upiQrImage || '',
+      poster: formData.poster || '',
+      posterUrl: formData.posterUrl || '',
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
@@ -442,32 +377,21 @@ const TournamentForm = () => {
       }
     };
 
-    console.log('Submit data prepared:', submitData);
-
-    // Handle image upload if there's a new image
+    // Handle poster/thumbnail upload if user selected a new image
     if (imageFile) {
       try {
-        console.log('Uploading tournament image...');
-
-        // Upload image and get URL
         const uploadResponse = await mediaAPI.upload(imageFile, { type: 'poster' });
         if (uploadResponse.data.success) {
           submitData.poster = uploadResponse.data.data?.url || '';
           submitData.posterUrl = uploadResponse.data.data?.url || '';
-          console.log('Image uploaded successfully:', uploadResponse.data.data?.url);
         }
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
-        // Continue with tournament creation even if image upload fails
+        // Continue — keep existing poster from formData
       }
     }
-    
-    // Add image preview URL if available
-    if (imagePreview && !submitData.poster) {
-      submitData.poster = imagePreview;
-      submitData.posterUrl = imagePreview;
-    }
 
+    // Handle UPI QR upload if user selected a new QR image
     if (upiQrFile) {
       try {
         const uploadResponse = await tournamentAPI.uploadPaymentQr(upiQrFile);
@@ -479,11 +403,9 @@ const TournamentForm = () => {
         setUpiQrError(uploadError.response?.data?.message || 'Failed to upload UPI QR image');
         return;
       }
-    } else if (upiQrPreview && !submitData.upiQrImage) {
-      submitData.upiQrImage = upiQrPreview;
     }
 
-    console.log('Calling mutation.mutate...');
+    console.log('Calling mutation.mutate with data:', submitData);
     mutation.mutate(submitData);
   };
 
@@ -497,8 +419,6 @@ const TournamentForm = () => {
     'CS:GO': ['Dust 2', 'Mirage', 'Inferno', 'Overpass', 'Nuke', 'Ancient', 'Anubis'],
     'Others': ['Custom Map']
   };
-
-  console.log('TournamentForm render:', { isEditing, isLoadingTournament, id });
 
   if (isEditing && isLoadingTournament) {
     return <LinearProgress />;
@@ -693,8 +613,6 @@ const TournamentForm = () => {
                       }}
                     />
                   </Grid>
-                  
-
                 </Grid>
               </CardContent>
             </Card>
@@ -795,8 +713,6 @@ const TournamentForm = () => {
                       required
                     />
                   </Grid>
-                  
-
                 </Grid>
               </CardContent>
             </Card>
@@ -898,6 +814,7 @@ const TournamentForm = () => {
               </CardContent>
             </Card>
 
+            {/* Payment Settings */}
             <Card sx={{ mt: 3 }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -931,7 +848,7 @@ const TournamentForm = () => {
                         startIcon={<Payment />}
                         fullWidth
                       >
-                        Upload UPI QR Code
+                        {upiQrPreview ? 'Change UPI QR Code' : 'Upload UPI QR Code'}
                       </Button>
                     </label>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
@@ -948,7 +865,7 @@ const TournamentForm = () => {
                     <Grid item xs={12}>
                       <Box sx={{ mt: 1, textAlign: 'center' }}>
                         <img
-                          src={getAssetUrl(upiQrPreview)}
+                          src={upiQrPreview}
                           alt="UPI QR"
                           style={{
                             width: '100%',
@@ -987,14 +904,14 @@ const TournamentForm = () => {
                     startIcon={<CloudUpload />}
                     fullWidth
                   >
-                    Upload Image
+                    {imagePreview ? 'Change Image' : 'Upload Image'}
                   </Button>
                 </label>
                 
                 {imagePreview && (
                   <Box sx={{ mt: 2, textAlign: 'center' }}>
                     <img
-                      src={getAssetUrl(imagePreview)}
+                      src={imagePreview}
                       alt="Tournament"
                       style={{
                         width: '100%',
@@ -1056,40 +973,6 @@ const TournamentForm = () => {
             Cancel
           </Button>
           
-          {/* Test API Connection */}
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={async () => {
-              try {
-                console.log('Testing API connection...');
-                const response = await tournamentAPI.getAll();
-                console.log('API test successful:', response);
-                alert('API connection working!');
-              } catch (error) {
-                console.error('API test failed:', error);
-                alert('API connection failed: ' + error.message);
-              }
-            }}
-          >
-            Test API
-          </Button>
-          
-          {/* Test Form Data */}
-          <Button
-            variant="outlined"
-            color="info"
-            onClick={() => {
-              console.log('Current form data:', formData);
-              console.log('Form errors:', errors);
-              console.log('Is authenticated:', isAuthenticated);
-              console.log('Mutation loading:', mutation.isLoading);
-              alert('Check console for form data');
-            }}
-          >
-            Debug Form
-          </Button>
-          
           <Button
             type="submit"
             variant="contained"
@@ -1111,4 +994,3 @@ const TournamentForm = () => {
 };
 
 export default TournamentForm;
-

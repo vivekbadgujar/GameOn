@@ -114,7 +114,8 @@ export const isSocketFeatureEnabled = () => {
   if (envFlag === 'true') return true;
   if (envFlag === 'false') return false;
 
-  return process.env.NODE_ENV !== 'production';
+  // Default: enable socket unless explicitly disabled
+  return true;
 };
 
 export const disableSocketFeatureForSession = () => {

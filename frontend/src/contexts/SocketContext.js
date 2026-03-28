@@ -14,7 +14,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
-  const [syncStatus, setSyncStatus] = useState('disconnected'); // disconnected, connecting, connected, error
+  const [syncStatus, setSyncStatus] = useState('disconnected');
   const [activeSessions, setActiveSessions] = useState(0);
   const [platforms, setPlatforms] = useState([]);
   const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -39,7 +39,6 @@ export const SocketProvider = ({ children }) => {
   }, [user, token]);
 
   const initializeSocket = () => {
-    // Guard: Only initialize socket if backend supports it and we're in browser
     if (typeof window === 'undefined') {
       console.log('[Socket] Skipping socket initialization (server-side)');
       return;
@@ -51,8 +50,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // CRITICAL: Disable WebSocket in serverless environments (Vercel)
-    // Check if we're likely in a serverless environment
+    // Disable WebSocket in serverless environments (Vercel)
     const isServerless = typeof process !== 'undefined' && (
       process.env.VERCEL === '1' || 
       process.env.NEXT_PUBLIC_VERCEL === '1' ||
@@ -65,23 +63,15 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Check if API base URL is production and supports WebSocket
-    const apiBaseUrl = config.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api';
-    if (!apiBaseUrl.startsWith('https://api.gameonesport.xyz')) {
-      console.log('[Socket] Skipping socket initialization (non-production API)');
-      setSyncStatus('disconnected');
-      return;
-    }
-
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {
       transports: ['polling', 'websocket'],
-      path: '/api/socket.io',
-      reconnectionAttempts: 0, // We'll handle reconnection manually
+      reconnectionAttempts: 0,
       autoConnect: true,
       forceNew: true,
-      timeout: 5000, // 5 second timeout
+      timeout: 5000,
+      withCredentials: true,
     });
 
     // Add connection timeout
@@ -91,9 +81,8 @@ export const SocketProvider = ({ children }) => {
         newSocket.disconnect();
         setSyncStatus('disconnected');
       }
-    }, 10000); // 10 second total timeout
+    }, 10000);
 
-    // Enhanced connection handling for unified platform
     newSocket.on('connect', () => {
       clearTimeout(connectionTimeout);
       console.log('🔗 Socket connected:', newSocket.id);
@@ -101,12 +90,11 @@ export const SocketProvider = ({ children }) => {
       setSyncStatus('connected');
       setConnectionRetries(0);
       
-      // Authenticate with backend for unified platform sync
       if (user && token) {
         newSocket.emit('authenticate', {
           userId: user.id,
           platform: 'web',
-          token: getWebPushToken() // Get web push token if available
+          token: getWebPushToken()
         });
       }
       
@@ -117,7 +105,6 @@ export const SocketProvider = ({ children }) => {
       console.log('✅ Authenticated with sync service:', data);
       setLastSyncTime(new Date().toISOString());
       
-      // Request sync status
       newSocket.emit('sync_request', {
         type: 'initial_sync',
         lastSyncId: null
@@ -150,11 +137,9 @@ export const SocketProvider = ({ children }) => {
 
     // Unified Platform Sync Events
     newSocket.on('tournament_sync', (event) => {
-      console.log('🎮 Tournament sync:', event.type);
       setLastMessage({ type: 'tournament_sync', data: event });
       setLastSyncTime(event.timestamp);
       
-      // Show notifications for important tournament events
       switch (event.type) {
         case 'tournament_joined':
           showNotification('Tournament Joined', `You joined ${event.data.title}`, 'success');
@@ -169,7 +154,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('user_sync', (event) => {
-      console.log('👤 User sync:', event.type);
       setLastMessage({ type: 'user_sync', data: event });
       setLastSyncTime(event.timestamp);
       
@@ -179,7 +163,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('wallet_sync', (event) => {
-      console.log('💰 Wallet sync:', event.type);
       setLastMessage({ type: 'wallet_sync', data: event });
       setLastSyncTime(event.timestamp);
       
@@ -197,7 +180,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('slot_sync', (event) => {
-      console.log('🎯 Slot sync:', event.type);
       setLastMessage({ type: 'slot_sync', data: event });
       setLastSyncTime(event.timestamp);
       
@@ -207,152 +189,114 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('sync_response', (data) => {
-      console.log('🔄 Sync response:', data.type);
       setLastSyncTime(data.timestamp);
     });
 
-    // Legacy tournament events (keeping for backward compatibility)
+    // Legacy tournament events
     newSocket.on('tournamentAdded', (tournament) => {
-      console.log('New tournament added:', tournament);
       setLastMessage({ type: 'tournamentAdded', data: tournament });
     });
 
     newSocket.on('tournamentUpdated', (tournament) => {
-      console.log('Tournament updated:', tournament);
       setLastMessage({ type: 'tournamentUpdated', data: tournament });
     });
 
     newSocket.on('tournamentDeleted', (tournamentId) => {
-      console.log('Tournament deleted:', tournamentId);
       setLastMessage({ type: 'tournamentDeleted', data: tournamentId });
     });
 
     newSocket.on('tournamentStatusUpdated', (statusUpdate) => {
-      console.log('Tournament status updated:', statusUpdate);
       setLastMessage({ type: 'tournamentStatusUpdated', data: statusUpdate });
     });
 
     newSocket.on('tournamentJoined', (joinData) => {
-      console.log('Tournament joined:', joinData);
       setLastMessage({ type: 'tournamentJoined', data: joinData });
     });
 
     newSocket.on('tournament_message', (message) => {
-      console.log('Tournament message:', message);
       setLastMessage({ type: 'tournament_message', data: message });
     });
 
     newSocket.on('tournament_update', (update) => {
-      console.log('Tournament update:', update);
       setLastMessage({ type: 'tournament_update', data: update });
     });
 
     newSocket.on('match_update', (matchData) => {
-      console.log('Match update:', matchData);
       setLastMessage({ type: 'match_update', data: matchData });
     });
 
-    // Broadcast real-time events
     newSocket.on('broadcastSent', (broadcast) => {
-      console.log('Broadcast sent:', broadcast);
       setLastMessage({ type: 'broadcastSent', data: broadcast });
     });
 
     newSocket.on('broadcastScheduled', (broadcast) => {
-      console.log('Broadcast scheduled:', broadcast);
       setLastMessage({ type: 'broadcastScheduled', data: broadcast });
     });
 
-    // Payout real-time events
     newSocket.on('payoutProcessed', (payout) => {
-      console.log('Payout processed:', payout);
       setLastMessage({ type: 'payoutProcessed', data: payout });
     });
 
     newSocket.on('payoutStatusUpdated', (payout) => {
-      console.log('Payout status updated:', payout);
       setLastMessage({ type: 'payoutStatusUpdated', data: payout });
     });
 
-    // AI monitoring real-time events
     newSocket.on('userFlagged', (flag) => {
-      console.log('User flagged:', flag);
       setLastMessage({ type: 'userFlagged', data: flag });
     });
 
     newSocket.on('aiFlagUpdated', (flag) => {
-      console.log('AI flag updated:', flag);
       setLastMessage({ type: 'aiFlagUpdated', data: flag });
     });
 
-    // Media real-time events
     newSocket.on('mediaUploaded', (media) => {
-      console.log('Media uploaded:', media);
       setLastMessage({ type: 'mediaUploaded', data: media });
     });
 
     newSocket.on('mediaDeleted', (media) => {
-      console.log('Media deleted:', media);
       setLastMessage({ type: 'mediaDeleted', data: media });
     });
 
-    // User-specific real-time events
     newSocket.on('user_status_change', (statusChange) => {
-      console.log('User status changed:', statusChange);
       setLastMessage({ type: 'user_status_change', data: statusChange });
     });
 
     newSocket.on('wallet_update', (walletUpdate) => {
-      console.log('Wallet updated:', walletUpdate);
       setLastMessage({ type: 'wallet_update', data: walletUpdate });
     });
 
-    // Screenshot and AI verification events
     newSocket.on('screenshot_uploaded', (screenshot) => {
-      console.log('Screenshot uploaded:', screenshot);
       setLastMessage({ type: 'screenshot_uploaded', data: screenshot });
     });
 
     newSocket.on('ai_verification', (verification) => {
-      console.log('AI verification:', verification);
       setLastMessage({ type: 'ai_verification', data: verification });
     });
 
-    // Video real-time events
     newSocket.on('videoAdded', (video) => {
-      console.log('Video added:', video);
       setLastMessage({ type: 'videoAdded', data: video });
     });
     newSocket.on('videoUpdated', (video) => {
-      console.log('Video updated:', video);
       setLastMessage({ type: 'videoUpdated', data: video });
     });
     newSocket.on('videoDeleted', (videoId) => {
-      console.log('Video deleted:', videoId);
       setLastMessage({ type: 'videoDeleted', data: videoId });
     });
     
-    // Notification real-time events
     newSocket.on('notificationAdded', (notification) => {
-      console.log('Notification added:', notification);
       setLastMessage({ type: 'notificationAdded', data: notification });
     });
     newSocket.on('notificationUpdated', (notification) => {
-      console.log('Notification updated:', notification);
       setLastMessage({ type: 'notificationUpdated', data: notification });
     });
     newSocket.on('notificationSent', (notification) => {
-      console.log('Notification sent:', notification);
       setLastMessage({ type: 'notificationSent', data: notification });
     });
     newSocket.on('notificationDeleted', (notificationId) => {
-      console.log('Notification deleted:', notificationId);
       setLastMessage({ type: 'notificationDeleted', data: notificationId });
     });
     
-    // New notification for users (when admin sends notification)
     newSocket.on('newNotification', (notification) => {
-      console.log('New notification received:', notification);
       setLastMessage({ type: 'newNotification', data: notification });
     });
 
@@ -381,7 +325,7 @@ export const SocketProvider = ({ children }) => {
       if (socketInstance?.connected) {
         socketInstance.emit('heartbeat');
       }
-    }, 30000); // Every 30 seconds
+    }, 30000);
   };
 
   const stopHeartbeat = () => {
@@ -398,9 +342,7 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const delay = Math.min(1000 * Math.pow(2, connectionRetries), 30000); // Exponential backoff, max 30s
-    
-    console.log(`🔄 Scheduling reconnect in ${delay}ms (attempt ${connectionRetries + 1})`);
+    const delay = Math.min(1000 * Math.pow(2, connectionRetries), 30000);
     
     reconnectTimeoutRef.current = setTimeout(() => {
       setConnectionRetries(prev => prev + 1);
@@ -409,12 +351,9 @@ export const SocketProvider = ({ children }) => {
   };
 
   const getWebPushToken = () => {
-    // Placeholder for web push token
-    // In a real implementation, you'd get this from service worker registration
     return null;
   };
 
-  // Enhanced helper functions for unified platform sync
   const joinTournament = (tournamentId) => {
     if (socket && isConnected && user) {
       socket.emit('join_tournament', {
@@ -460,7 +399,6 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
-  // New unified platform sync functions
   const updateSlot = (tournamentId, slotData) => {
     if (socket && isConnected && user) {
       socket.emit('update_slot', {
@@ -508,7 +446,6 @@ export const SocketProvider = ({ children }) => {
   };
 
   const contextValue = {
-    // Original socket functions
     socket,
     isConnected,
     lastMessage,
@@ -517,14 +454,10 @@ export const SocketProvider = ({ children }) => {
     joinUser,
     sendTournamentMessage,
     sendScreenshotUpload,
-    
-    // New unified platform sync functions
     updateSlot,
     forceSync,
     registerPushToken,
     getSyncStatus,
-    
-    // Sync state
     syncStatus,
     lastSyncTime,
     activeSessions,
@@ -538,4 +471,3 @@ export const SocketProvider = ({ children }) => {
     </SocketContext.Provider>
   );
 };
-

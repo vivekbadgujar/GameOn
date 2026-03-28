@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const SocketContext = createContext();
 
@@ -11,51 +11,48 @@ export const useSocket = () => {
 };
 
 /**
- * SocketProvider — connects to the Socket.IO server only when it is
- * confirmed reachable.  We first probe the /api/health endpoint; if that
- * succeeds AND the server is NOT running in serverless mode (indicated by
- * the health payload's `socketEnabled` flag), we attempt the WebSocket
- * connection.  This prevents the endless 404 polling loop that appears when
- * the backend is deployed in serverless mode (Vercel/Lambda via Render).
+ * SocketProvider — connects to the Socket.IO server after confirming it is
+ * reachable via the /api/health endpoint.  Forwards all relevant server
+ * events as window CustomEvents so components can subscribe via
+ * addEventListener without coupling to the socket instance.
  */
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
-    let newSocket = null;
     let cancelled = false;
 
     const tryConnect = async () => {
       try {
-        // Resolve backend origin from env or default
         const apiBase = (
           process.env.REACT_APP_API_URL ||
           process.env.NEXT_PUBLIC_API_URL ||
           'https://api.gameonesport.xyz/api'
         ).replace(/\/$/, '');
 
-        // Quick health check to see if socket is available
+        // Health check — is socket available?
         const healthRes = await fetch(`${apiBase}/health`, { cache: 'no-store' });
         const health = await healthRes.json();
 
-        // Only connect if the server explicitly signals socket support
-        // (or if the flag is absent, assume it's supported — truthy by default)
         const socketEnabled = health?.socketEnabled !== false;
         if (!socketEnabled || cancelled) return;
 
         const wsUrl = apiBase.replace(/\/api$/, '');
 
-        // Dynamic import so we don't pay the bundle cost when not needed
         const { io } = await import('socket.io-client');
         if (cancelled) return;
 
-        newSocket = io(wsUrl, {
+        const newSocket = io(wsUrl, {
           transports: ['polling', 'websocket'],
-          reconnectionAttempts: 2,
-          reconnectionDelay: 10000,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 3000,
+          reconnectionDelayMax: 15000,
           autoConnect: true,
           withCredentials: true,
+          timeout: 10000,
         });
 
         newSocket.on('connect', () => {
@@ -64,41 +61,84 @@ export const SocketProvider = ({ children }) => {
           const adminToken = localStorage.getItem('adminToken');
           if (adminToken) {
             newSocket.emit('authenticate', { token: adminToken, role: 'admin' });
+            newSocket.emit('join_room', 'admin_room');
           }
         });
 
-        newSocket.on('disconnect', () => {
-          console.log('🔌 Admin Panel Socket disconnected');
+        newSocket.on('disconnect', (reason) => {
+          console.log('🔌 Admin Panel Socket disconnected:', reason);
           setIsConnected(false);
         });
 
-        // Give up immediately on any connection error — don't spam retry logs
-        newSocket.on('connect_error', () => {
-          console.warn('[Admin Socket] Connection unavailable — disabling socket.');
-          newSocket.io.opts.reconnectionAttempts = 0;
-          newSocket.disconnect();
+        newSocket.on('connect_error', (err) => {
+          console.warn('[Admin Socket] Connection error:', err.message);
+          // Don't give up — let the built-in reconnection handle it
           setIsConnected(false);
         });
 
-        // Forward server events to window so components can listen
-        const events = [
-          'tournamentUpdated', 'slotsUpdated', 'squadUpdated',
-          'roomSlotUpdated', 'participantUpdated', 'participantsUpdated', 'slotsSwapped',
+        // ---- Forward ALL relevant events as window CustomEvents ----
+        // Tournament lifecycle events
+        const tournamentEvents = [
+          'tournamentAdded',
+          'tournamentUpdated',
+          'tournamentDeleted',
+          'tournamentStatusUpdated',
+          'roomCredentialsReleased',
         ];
-        events.forEach(name => {
-          newSocket.on(name, data =>
-            window.dispatchEvent(new CustomEvent(name, { detail: data }))
-          );
-        });
-        newSocket.on('slot_sync', event => {
-          if (event?.data)
-            window.dispatchEvent(new CustomEvent('roomSlotUpdated', { detail: event.data }));
+
+        // Slot & room events
+        const slotEvents = [
+          'slotsUpdated',
+          'squadUpdated',
+          'roomSlotUpdated',
+          'slotsSwapped',
+          'adminSlotChanged',
+          'slotLockChanged',
+          'slotsLocked',
+          'roomSettingsChanged',
+          'playerRemoved',
+        ];
+
+        // Participant events
+        const participantEvents = [
+          'participantUpdated',
+          'participantsUpdated',
+          'tournamentJoined',
+        ];
+
+        // Admin-specific events
+        const adminEvents = [
+          'adminUpdate',
+          'userRegistered',
+          'broadcastSent',
+          'payoutProcessed',
+          'payoutStatusUpdated',
+        ];
+
+        const allEvents = [
+          ...tournamentEvents,
+          ...slotEvents,
+          ...participantEvents,
+          ...adminEvents,
+        ];
+
+        allEvents.forEach(name => {
+          newSocket.on(name, data => {
+            window.dispatchEvent(new CustomEvent(name, { detail: data }));
+          });
         });
 
+        // Also map slot_sync to roomSlotUpdated for compatibility
+        newSocket.on('slot_sync', event => {
+          if (event?.data) {
+            window.dispatchEvent(new CustomEvent('roomSlotUpdated', { detail: event.data }));
+          }
+        });
+
+        socketRef.current = newSocket;
         setSocket(newSocket);
-      } catch {
-        // Health check failed — backend unreachable, skip socket entirely
-        console.warn('[Admin Socket] Backend health check failed — socket disabled.');
+      } catch (err) {
+        console.warn('[Admin Socket] Backend health check failed — socket disabled.', err.message);
       }
     };
 
@@ -106,7 +146,10 @@ export const SocketProvider = ({ children }) => {
 
     return () => {
       cancelled = true;
-      if (newSocket) newSocket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, []);
 

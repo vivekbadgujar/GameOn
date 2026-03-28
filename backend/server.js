@@ -302,13 +302,7 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Debug middleware for admin routes
-app.use('/api/admin', (req, res, next) => {
-  console.log(`Admin API Request: ${req.method} ${req.originalUrl}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-});
+
 
 // Root route
 app.get('/', (req, res) => {
@@ -345,57 +339,78 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
-// Additional favicon handler for admin subdomain
-app.get('/favicon.ico', (req, res) => {
-  res.status(204).end();
-});
 
-// Socket.IO route handler for serverless environment
-const setSocketCorsHeaders = (req, res) => {
-  const origin = req.headers.origin || '*';
-  res.set({
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Credentials': 'true'
+
+// Socket.IO Connection Handler
+io.on('connection', (socket) => {
+  console.log('🔗 Socket connected:', socket.id);
+
+  // Handle authentication from both frontend and admin panel
+  socket.on('authenticate', (data) => {
+    try {
+      if (data.role === 'admin' && data.token) {
+        socket.join('admin_room');
+        console.log(`✅ Admin authenticated: ${socket.id}`);
+        socket.emit('authenticated', { 
+          status: 'ok', 
+          role: 'admin',
+          socketId: socket.id 
+        });
+      } else if (data.userId) {
+        socket.join(`user_${data.userId}`);
+        console.log(`✅ User authenticated: ${data.userId} (${socket.id})`);
+        socket.emit('authenticated', { 
+          status: 'ok', 
+          userId: data.userId,
+          socketId: socket.id 
+        });
+        
+        // Update sync service if available
+        if (syncService && syncService.registerUser) {
+          syncService.registerUser(data.userId, socket);
+        }
+      }
+    } catch (err) {
+      console.error('Socket authentication error:', err.message);
+    }
   });
-};
 
-app.get('/socket.io/*', (req, res) => {
-  setSocketCorsHeaders(req, res);
-  
-  // Return a specific response that tells Socket.IO client to stop polling
-  res.status(503).json({
-    success: false,
-    message: 'Socket.IO is not available in serverless environment',
-    error: 'REALTIME_DISABLED',
-    code: 3, // Socket.IO disconnect code
-    type: 'TransportError'
+  // Room management
+  socket.on('join_room', (room) => {
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined room: ${room}`);
   });
-});
 
-app.post('/socket.io/*', (req, res) => {
-  setSocketCorsHeaders(req, res);
-  
-  res.status(503).json({
-    success: false,
-    message: 'Socket.IO is not available in serverless environment',
-    error: 'REALTIME_DISABLED',
-    code: 3,
-    type: 'TransportError'
+  socket.on('leave_room', (room) => {
+    socket.leave(room);
   });
-});
 
-app.options('/socket.io/*', (req, res) => {
-  setSocketCorsHeaders(req, res);
-  res.status(503).end();
-});
+  // Tournament room management
+  socket.on('join_tournament', (data) => {
+    const tournamentId = data?.tournamentId || data;
+    socket.join(`tournament_${tournamentId}`);
+    console.log(`Socket ${socket.id} joined tournament: ${tournamentId}`);
+  });
 
-// Serve Socket.IO serverless fix script
-app.get('/socket.io-serverless-fix.js', (req, res) => {
-  res.set('Content-Type', 'application/javascript');
-  res.sendFile(path.join(__dirname, 'public', 'socket.io-serverless-fix.js'));
+  socket.on('leave_tournament', (data) => {
+    const tournamentId = data?.tournamentId || data;
+    socket.leave(`tournament_${tournamentId}`);
+  });
+
+  // User-specific room
+  socket.on('join_user', (userId) => {
+    socket.join(`user_${userId}`);
+  });
+
+  // Heartbeat
+  socket.on('heartbeat', () => {
+    socket.emit('heartbeat_ack');
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', (reason) => {
+    console.log(`🔌 Socket disconnected: ${socket.id} (${reason})`);
+  });
 });
 
 // Make Socket.IO and services available to routes

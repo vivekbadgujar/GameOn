@@ -492,7 +492,7 @@ router.put('/:id',
 
       // If tournament is live, only allow updating certain fields
       if (tournament.status === 'live') {
-        const allowedUpdates = ['endDate', 'rules', 'roomDetails', 'upiId', 'upiQrImage'];
+        const allowedUpdates = ['endDate', 'rules', 'roomDetails', 'upiId', 'upiQrImage', 'poster', 'posterUrl'];
         Object.keys(updates).forEach(key => {
           if (!allowedUpdates.includes(key)) {
             delete updates[key];
@@ -514,6 +514,18 @@ router.put('/:id',
 
       delete updates.upi_id;
       delete updates.upi_qr_image;
+
+      // Preserve existing image fields if empty strings are sent
+      // (don't overwrite existing images with empty values)
+      if (!updates.poster && tournament.poster) {
+        delete updates.poster;
+      }
+      if (!updates.posterUrl && tournament.posterUrl) {
+        delete updates.posterUrl;
+      }
+      if (!updates.upiQrImage && tournament.upiQrImage) {
+        delete updates.upiQrImage;
+      }
 
       Object.assign(tournament, updates);
       await tournament.save();
@@ -684,6 +696,11 @@ router.post('/:id/set-room',
           tournamentId,
           roomCredentials: tournament.roomDetails,
           message: 'Room credentials are now available!'
+        });
+        // Also emit tournamentUpdated so admin list auto-refreshes
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
         });
       }
 
@@ -999,6 +1016,152 @@ function calculatePrizeDistribution(prizePool, tournamentType) {
 
   return distribution.map((ratio) => Math.floor(prizePool * ratio));
 }
+
+// Update tournament status
+router.patch('/:id/status',
+  requirePermission('tournaments_manage'),
+  auditLog('update_tournament_status'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { status } = req.body;
+
+      const validStatuses = ['upcoming', 'live', 'completed', 'cancelled'];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+        });
+      }
+
+      const tournament = await Tournament.findById(tournamentId);
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      const oldStatus = tournament.status;
+      tournament.status = status;
+
+      if (status === 'completed' && !tournament.endDate) {
+        tournament.endDate = new Date();
+      }
+
+      await tournament.save();
+
+      // Emit Socket.IO event for real-time updates
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('tournamentStatusUpdated', {
+          tournamentId,
+          oldStatus,
+          newStatus: status,
+          tournament
+        });
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Tournament status updated to ${status}`,
+        data: tournament
+      });
+    } catch (error) {
+      console.error('Error updating tournament status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update tournament status',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Post tournament results (winners)
+router.post('/:id/results',
+  requirePermission('tournaments_manage'),
+  auditLog('post_tournament_results'),
+  async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { winners } = req.body;
+
+      if (!winners || !Array.isArray(winners) || winners.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Winners array is required'
+        });
+      }
+
+      const tournament = await Tournament.findById(tournamentId)
+        .populate('participants.user', 'username displayName gameProfile');
+
+      if (!tournament) {
+        return res.status(404).json({
+          success: false,
+          message: 'Tournament not found'
+        });
+      }
+
+      if (tournament.status !== 'completed') {
+        return res.status(400).json({
+          success: false,
+          message: 'Tournament must be completed before posting results'
+        });
+      }
+
+      // Map winners to the schema format
+      const tournamentWinners = winners.map(w => ({
+        user: w.participantId,
+        position: w.position,
+        prize: 0,
+        kills: 0,
+        rank: w.position
+      }));
+
+      // Calculate prize amounts from prize distribution if available
+      const prizeDistribution = tournament.prizeDistribution || [];
+      tournamentWinners.forEach(winner => {
+        const dist = prizeDistribution.find(d => d.position === winner.position);
+        if (dist) {
+          winner.prize = dist.amount || Math.floor((tournament.prizePool * (dist.percentage || 0)) / 100);
+        }
+      });
+
+      tournament.winners = tournamentWinners;
+      await tournament.save();
+
+      // Emit Socket.IO event
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Tournament results posted successfully',
+        data: {
+          winners: tournamentWinners
+        }
+      });
+    } catch (error) {
+      console.error('Error posting tournament results:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to post tournament results',
+        error: error.message
+      });
+    }
+  }
+);
 
 // Get tournament participants (for admin results + management screens)
 router.get('/:id/participants',
