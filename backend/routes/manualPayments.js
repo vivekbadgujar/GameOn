@@ -221,7 +221,54 @@ router.post(
 );
 
 /**
- * User can check status of their submission
+ * Debug route to check if payment exists (no auth required)
+ */
+router.get('/debug/payment/:paymentId', async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid payment ID format' 
+      });
+    }
+
+    const payment = await Payment.findById(paymentId)
+      .populate('tournament', 'title')
+      .populate('user', 'username email');
+    
+    if (!payment) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Payment not found',
+        paymentId: paymentId
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        tournament: payment.tournament,
+        user: payment.user,
+        status: payment.paymentStatus,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Debug payment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve payment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * User can check status of their submission - Enhanced with better error handling
  */
 router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) => {
   try {
@@ -229,30 +276,115 @@ router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) =
     const userEmail = req.user.email?.trim().toLowerCase();
     const userId = req.user._id;
 
-    const payment = await Payment.findOne({
-      tournament: tournamentId,
-      $or: [
-        { user: userId },
-        ...(userEmail ? [{ email: userEmail }] : [])
-      ]
-    }).sort({ updatedAt: -1, createdAt: -1 });
-    if (!payment) {
-      return res.status(404).json({ success: false, message: 'No payment record found' });
+    console.log(`[PAYMENT STATUS] Checking status for tournament: ${tournamentId}, user: ${userId}, email: ${userEmail}`);
+
+    // Validate tournamentId format
+    if (!mongoose.Types.ObjectId.isValid(tournamentId)) {
+      console.warn(`[PAYMENT STATUS] Invalid tournament ID format: ${tournamentId}`);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid tournament ID format',
+        error: 'INVALID_TOURNAMENT_ID',
+        tournamentId: tournamentId
+      });
     }
 
+    // Check if tournament exists first
+    let tournament;
+    try {
+      tournament = await Tournament.findById(tournamentId).select('title status entryFee');
+      if (!tournament) {
+        console.warn(`[PAYMENT STATUS] Tournament not found: ${tournamentId}`);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Tournament not found',
+          error: 'TOURNAMENT_NOT_FOUND',
+          tournamentId: tournamentId
+        });
+      }
+    } catch (tournamentError) {
+      console.error('[PAYMENT STATUS] Error checking tournament:', tournamentError.message);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error verifying tournament',
+        error: 'TOURNAMENT_CHECK_ERROR'
+      });
+    }
+
+    // Find payment with detailed error handling
+    let payment;
+    try {
+      const paymentQuery = {
+        tournament: tournamentId,
+        $or: [
+          { user: userId },
+          ...(userEmail ? [{ email: userEmail }] : [])
+        ]
+      };
+      
+      payment = await Payment.findOne(paymentQuery)
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .populate('user', 'username email')
+        .populate('tournament', 'title entryFee');
+        
+    } catch (paymentError) {
+      console.error('[PAYMENT STATUS] Database error during payment lookup:', paymentError.message);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Database error during payment lookup',
+        error: 'DATABASE_ERROR'
+      });
+    }
+    
+    if (!payment) {
+      console.log(`[PAYMENT STATUS] No payment found for tournament: ${tournamentId}, user: ${userId}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No payment record found for this tournament',
+        error: 'PAYMENT_NOT_FOUND',
+        tournamentInfo: {
+          id: tournament._id,
+          title: tournament.title,
+          entryFee: tournament.entryFee
+        }
+      });
+    }
+
+    console.log(`[PAYMENT STATUS] Found payment: ${payment._id}, status: ${payment.paymentStatus}`);
+
+    // Return comprehensive payment information
     res.json({
       success: true,
       data: {
         paymentId: payment._id,
         status: payment.paymentStatus,
         screenshotUrl: payment.screenshotUrl,
+        transactionId: payment.transactionId,
+        email: payment.email,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        submittedAt: payment.createdAt,
         updatedAt: payment.updatedAt,
-        createdAt: payment.createdAt
-      }
+        tournament: {
+          id: tournament._id,
+          title: tournament.title,
+          entryFee: tournament.entryFee
+        },
+        user: payment.user ? {
+          id: payment.user._id,
+          username: payment.user.username,
+          email: payment.user.email
+        } : null
+      },
+      message: 'Payment status retrieved successfully'
     });
   } catch (error) {
-    console.error('Manual payment status error:', error);
-    res.status(500).json({ success: false, message: 'Failed to retrieve payment status' });
+    console.error('[PAYMENT STATUS] Unexpected error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve payment status',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'INTERNAL_SERVER_ERROR'
+    });
   }
 });
 

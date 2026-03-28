@@ -203,7 +203,7 @@ app.use(compression());
 // Security middleware
 app.use(helmet());
 
-// CORS Configuration
+// CORS Configuration - Enhanced for all platforms
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, Postman, curl)
@@ -216,6 +216,17 @@ const corsOptions = {
       return callback(null, origin);
     }
     
+    // Allow localhost for development
+    if (origin && (
+      origin.includes('localhost') || 
+      origin.includes('127.0.0.1') ||
+      origin.includes('192.168.') ||
+      origin.includes('10.0.') ||
+      origin.includes('::1')
+    )) {
+      return callback(null, origin);
+    }
+    
     // Log rejected origins for debugging
     console.log(`CORS blocked origin: ${origin}`);
     
@@ -224,8 +235,19 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Set-Cookie', 'Content-Type'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cookie', 
+    'X-Requested-With', 
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers',
+    'X-Auth-Token',
+    'X-Admin-Token'
+  ],
+  exposedHeaders: ['Set-Cookie', 'Content-Type', 'X-Total-Count'],
   maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 200
@@ -248,17 +270,55 @@ app.use(morgan('combined'));
 const defaultUploadDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR
   || (isServerless ? path.join(os.tmpdir(), 'gameon-uploads') : path.join(__dirname, 'uploads'));
 
-// Enhanced static file serving with CORS headers
+// Enhanced static file serving with comprehensive CORS headers
 app.use('/uploads', (req, res, next) => {
-  // Set CORS headers for static files
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  // Set comprehensive CORS headers for static files
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://gameonesport.xyz',
+    'https://admin.gameonesport.xyz',
+    'https://api.gameonesport.xyz'
+  ];
+  
+  // Allow any origin for static files (images, documents)
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  // Cache control for static assets
+  if (req.url.includes('.jpg') || req.url.includes('.jpeg') || req.url.includes('.png') || req.url.includes('.webp')) {
+    res.header('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (req.url.includes('.pdf') || req.url.includes('.doc') || req.url.includes('.docx')) {
+    res.header('Cache-Control', 'public, max-age=86400');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
   next();
 }, express.static(defaultUploadDir, {
   maxAge: '1d',
   etag: true,
-  lastModified: true
+  lastModified: true,
+  setHeaders: (res, path, stat) => {
+    // Set content type based on file extension
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      res.set('Content-Type', 'image/jpeg');
+    } else if (path.endsWith('.png')) {
+      res.set('Content-Type', 'image/png');
+    } else if (path.endsWith('.webp')) {
+      res.set('Content-Type', 'image/webp');
+    } else if (path.endsWith('.pdf')) {
+      res.set('Content-Type', 'application/pdf');
+    } else if (path.endsWith('.mp4')) {
+      res.set('Content-Type', 'video/mp4');
+    }
+  }
 }));
 
 // if manual payment upload dir is overridden, serve that too so screenshots
@@ -304,6 +364,52 @@ app.use('/api', async (req, res, next) => {
 
 
 
+// Socket.IO route handler for serverless environment (must come early)
+app.get('/socket.io/*', (req, res) => {
+  // Set headers to indicate Socket.IO is disabled
+  res.set({
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  
+  // Return a specific response that tells Socket.IO client to stop polling
+  res.status(503).json({
+    success: false,
+    message: 'Socket.IO is not available in serverless environment',
+    error: 'REALTIME_DISABLED',
+    code: 3, // Socket.IO disconnect code
+    type: 'TransportError'
+  });
+});
+
+app.post('/socket.io/*', (req, res) => {
+  res.set({
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  
+  res.status(503).json({
+    success: false,
+    message: 'Socket.IO is not available in serverless environment',
+    error: 'REALTIME_DISABLED',
+    code: 3,
+    type: 'TransportError'
+  });
+});
+
+app.options('/socket.io/*', (req, res) => {
+  res.set({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  });
+  res.status(503).end();
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -326,7 +432,8 @@ app.get('/', (req, res) => {
       },
       payments: {
         create: 'POST /api/payments/create',
-        verify: 'POST /api/payments/verify'
+        verify: 'POST /api/payments/verify',
+        manualStatus: 'GET /api/payments/manual/status/:tournamentId'
       },
       leaderboard: 'GET /api/leaderboard',
       health: 'GET /api/health'
@@ -337,6 +444,17 @@ app.get('/', (req, res) => {
 // Favicon route to prevent 404 errors
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
+});
+
+// Serve Socket.IO serverless fix scripts
+app.get('/socket.io-serverless-fix.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, 'public', 'socket.io-serverless-fix.js'));
+});
+
+app.get('/universal-socket-fix.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, 'public', 'universal-socket-fix.js'));
 });
 
 
