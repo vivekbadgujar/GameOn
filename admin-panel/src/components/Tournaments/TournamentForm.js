@@ -54,17 +54,23 @@ const TournamentForm = () => {
     if (!filePath) return '';
     if (filePath.startsWith('data:')) return filePath;
 
-    // Scrub legacy localhost paths to production
-    let cleanPath = filePath.replace(/https?:\/\/localhost:\d+/g, 'https://api.gameonesport.xyz');
+    const apiUrl = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
+    const baseUrl = apiUrl.replace(/\/api$/, ''); // e.g. https://api.gameonesport.xyz
 
-    // Already an absolute URL — return as-is (after localhost scrub)
+    // Scrub any legacy localhost references
+    let cleanPath = filePath.replace(/https?:\/\/localhost:\d+/g, '');
+
+    // Strip any occurrence of the production base URL that may have been baked in,
+    // so we always rebuild from scratch to avoid double-domain concatenation.
+    cleanPath = cleanPath.replace(/https?:\/\/api\.gameonesport\.xyz/g, '');
+
+    // If still a full URL (e.g. Cloudinary or other CDN) leave as-is
     if (cleanPath.startsWith('http')) return cleanPath;
 
-    // Build base URL from API env var — strip trailing /api path (not the domain!)
-    const apiUrl = (process.env.REACT_APP_API_URL || 'https://api.gameonesport.xyz/api').replace(/\/$/, '');
-    const baseUrl = apiUrl.replace(/\/api$/, '');
+    // Ensure leading slash for relative paths
+    if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
 
-    return baseUrl + (cleanPath.startsWith('/') ? '' : '/') + cleanPath;
+    return baseUrl + cleanPath;
   };
 
   const [formData, setFormData] = useState({
@@ -366,9 +372,6 @@ const TournamentForm = () => {
       isVisible: true,
       isPublic: true,
       upiId: formData.upiId.trim(),
-      upiQrImage: formData.upiQrImage || '',
-      poster: formData.poster || '',
-      posterUrl: formData.posterUrl || '',
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
@@ -377,13 +380,19 @@ const TournamentForm = () => {
       }
     };
 
+    // Only include image fields if they have a value — prevents overwriting existing DB values with empty strings
+    if (formData.upiQrImage) submitData.upiQrImage = formData.upiQrImage;
+    if (formData.poster) submitData.poster = formData.poster;
+    if (formData.posterUrl) submitData.posterUrl = formData.posterUrl;
+
     // Handle poster/thumbnail upload if user selected a new image
     if (imageFile) {
       try {
         const uploadResponse = await mediaAPI.upload(imageFile, { type: 'poster' });
-        if (uploadResponse.data.success) {
-          submitData.poster = uploadResponse.data.data?.url || '';
-          submitData.posterUrl = uploadResponse.data.data?.url || '';
+        const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
+        if (uploadUrl) {
+          submitData.poster = uploadUrl;
+          submitData.posterUrl = uploadUrl;
         }
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
@@ -395,8 +404,9 @@ const TournamentForm = () => {
     if (upiQrFile) {
       try {
         const uploadResponse = await tournamentAPI.uploadPaymentQr(upiQrFile);
-        if (uploadResponse.data?.success) {
-          submitData.upiQrImage = uploadResponse.data.data?.url || '';
+        const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
+        if (uploadUrl) {
+          submitData.upiQrImage = uploadUrl;
         }
       } catch (uploadError) {
         console.error('UPI QR upload failed:', uploadError);

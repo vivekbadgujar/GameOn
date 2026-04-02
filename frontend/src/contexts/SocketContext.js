@@ -50,19 +50,6 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Disable WebSocket in serverless environments (Vercel)
-    const isServerless = typeof process !== 'undefined' && (
-      process.env.VERCEL === '1' || 
-      process.env.NEXT_PUBLIC_VERCEL === '1' ||
-      window.location.hostname.includes('vercel.app')
-    );
-
-    if (isServerless) {
-      console.log('[Socket] Skipping socket initialization (serverless environment detected)');
-      setSyncStatus('disconnected');
-      return;
-    }
-
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {
