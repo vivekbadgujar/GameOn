@@ -575,7 +575,7 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: true
+      socketEnabled: !isServerless
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash
@@ -595,8 +595,12 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// 404 handler
+// 404 handler — skip socket.io paths (handled by Socket.IO engine)
 app.use('*', (req, res) => {
+  // Don't intercept Socket.IO traffic — it's handled by the HTTP server directly
+  if (req.originalUrl && req.originalUrl.startsWith('/socket.io')) {
+    return res.status(404).end();
+  }
   res.status(404).json({
     success: false,
     message: 'API endpoint not found'
@@ -694,5 +698,7 @@ if (!isServerless && server) {
   });
 }
 
-// Export app for serverless deployment
+// Export app for serverless deployment (Vercel)
+// Export server for persistent deployment (Render) where Socket.IO works
 module.exports = app;
+module.exports.server = server;
