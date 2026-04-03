@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-import config, { isSocketFeatureEnabled } from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 
@@ -24,7 +24,7 @@ export const SocketProvider = ({ children }) => {
   const heartbeatRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const [connectionRetries, setConnectionRetries] = useState(0);
-  const maxRetries = 15; // Allow up to 15 reconnect attempts with exponential back-off
+  const maxRetries = 15;
 
   useEffect(() => {
     if (user && token) {
@@ -38,7 +38,7 @@ export const SocketProvider = ({ children }) => {
     };
   }, [user, token]);
 
-  const initializeSocket = () => {
+  const initializeSocket = async () => {
     if (typeof window === 'undefined') {
       console.log('[Socket] Skipping socket initialization (server-side)');
       return;
@@ -50,12 +50,31 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
+    try {
+      const healthUrl = `${config.API_BASE_URL.replace(/\/$/, '')}/health`;
+      const healthRes = await fetch(healthUrl, { cache: 'no-store' });
+      const health = await healthRes.json();
+
+      if (health?.serverless === true || health?.websocketSupported !== true) {
+        console.info('[Socket] Realtime socket unavailable on current backend, disabling for this session');
+        disableSocketFeatureForSession();
+        setSyncStatus('disconnected');
+        setIsConnected(false);
+        return;
+      }
+    } catch (error) {
+      console.warn('[Socket] Health check failed before socket init:', error?.message || error);
+      disableSocketFeatureForSession();
+      setSyncStatus('disconnected');
+      setIsConnected(false);
+      return;
+    }
+
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
-      // Socket.IO built-in reconnection — let it handle transient drops automatically
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
@@ -66,10 +85,10 @@ export const SocketProvider = ({ children }) => {
       withCredentials: true,
     });
 
-    // Add connection timeout
     const connectionTimeout = setTimeout(() => {
       if (!newSocket.connected) {
         console.warn('[Socket] Connection timeout - disabling WebSocket');
+        disableSocketFeatureForSession();
         newSocket.disconnect();
         setSyncStatus('disconnected');
       }
@@ -77,7 +96,7 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect', () => {
       clearTimeout(connectionTimeout);
-      console.log('🔗 Socket connected:', newSocket.id);
+      console.log('[Socket] Connected:', newSocket.id);
       setIsConnected(true);
       setSyncStatus('connected');
       setConnectionRetries(0);
@@ -94,7 +113,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('authenticated', (data) => {
-      console.log('✅ Authenticated with sync service:', data);
+      console.log('[Socket] Authenticated with sync service:', data);
       setLastSyncTime(new Date().toISOString());
       
       newSocket.emit('sync_request', {
@@ -105,7 +124,7 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('disconnect', (reason) => {
       clearTimeout(connectionTimeout);
-      console.log('🔌 Socket disconnected:', reason);
+      console.log('[Socket] Disconnected:', reason);
       setIsConnected(false);
       setSyncStatus('disconnected');
       stopHeartbeat();
@@ -117,15 +136,16 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect_error', (error) => {
       clearTimeout(connectionTimeout);
-      console.warn('[Socket] Connection error (will retry):', error?.message || error);
+      console.warn('[Socket] Connection error:', error?.message || error);
       setIsConnected(false);
       setSyncStatus('disconnected');
-      // NOTE: do NOT call disableSocketFeatureForSession() here — that permanently
-      // kills the socket for the whole browser session. Instead let scheduleReconnect
-      // handle the retry with exponential back-off.
+      disableSocketFeatureForSession();
+      try {
+        newSocket.disconnect();
+      } catch (_) {
+      }
     });
 
-    // Unified Platform Sync Events
     newSocket.on('tournament_sync', (event) => {
       setLastMessage({ type: 'tournament_sync', data: event });
       setLastSyncTime(event.timestamp);
@@ -158,13 +178,13 @@ export const SocketProvider = ({ children }) => {
       
       switch (event.type) {
         case 'wallet_credited':
-          showNotification('Wallet Credited', `₹${event.data.transaction.amount} added to your wallet`, 'success');
+          showNotification('Wallet Credited', `Rs ${event.data.transaction.amount} added to your wallet`, 'success');
           break;
         case 'wallet_debited':
-          showNotification('Wallet Debited', `₹${event.data.transaction.amount} deducted from your wallet`, 'info');
+          showNotification('Wallet Debited', `Rs ${event.data.transaction.amount} deducted from your wallet`, 'info');
           break;
         case 'low_balance':
-          showNotification('Low Balance', `Your wallet balance is ₹${event.data.balance}. Recharge now!`, 'warning');
+          showNotification('Low Balance', `Your wallet balance is Rs ${event.data.balance}. Recharge now!`, 'warning');
           break;
       }
     });
@@ -182,7 +202,6 @@ export const SocketProvider = ({ children }) => {
       setLastSyncTime(data.timestamp);
     });
 
-    // Legacy tournament events
     newSocket.on('tournamentAdded', (tournament) => {
       setLastMessage({ type: 'tournamentAdded', data: tournament });
     });
@@ -326,8 +345,12 @@ export const SocketProvider = ({ children }) => {
   };
 
   const scheduleReconnect = () => {
+    if (!isSocketFeatureEnabled()) {
+      return;
+    }
+
     if (connectionRetries >= maxRetries) {
-      console.log('❌ Max reconnection attempts reached');
+      console.log('[Socket] Max reconnection attempts reached');
       setSyncStatus('error');
       return;
     }

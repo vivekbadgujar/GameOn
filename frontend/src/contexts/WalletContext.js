@@ -37,49 +37,75 @@ export const WalletProvider = ({ children }) => {
 
   // Initialize socket connection for real-time wallet updates
   useEffect(() => {
-    if (isAuthenticated && user?._id) {
-      if (typeof window === 'undefined') return;
+    if (!isAuthenticated || !user?._id) return;
+    if (typeof window === 'undefined') return;
+    if (!isSocketFeatureEnabled()) return;
 
-      if (!isSocketFeatureEnabled()) {
-        return;
-      }
+    let newSocket = null;
+    let cancelled = false;
 
-      const wsUrl = config.WS_URL || 'wss://api.gameonesport.xyz';
-      const newSocket = io(wsUrl, {
-        reconnection: false,
-        reconnectionAttempts: 0,
-        timeout: 5000,
-        auth: {
-          token: localStorage.getItem('token')
+    const initWalletSocket = async () => {
+      try {
+        const healthRes = await fetch(`${config.API_BASE_URL}/health`, { cache: 'no-store' });
+        const health = await healthRes.json();
+        if (cancelled) return;
+
+        if (health?.serverless === true || health?.websocketSupported !== true) {
+          if (!hasLoggedSocketDisableRef.current) {
+            hasLoggedSocketDisableRef.current = true;
+            console.warn('[Socket] Wallet realtime disabled for this session (serverless backend)');
+          }
+          disableSocketFeatureForSession();
+          return;
         }
-      });
 
-      newSocket.on('connect_error', () => {
+        const wsUrl = config.WS_URL || 'wss://api.gameonesport.xyz';
+        newSocket = io(wsUrl, {
+          reconnection: false,
+          reconnectionAttempts: 0,
+          timeout: 5000,
+          auth: {
+            token: localStorage.getItem('token')
+          }
+        });
+
+        newSocket.on('connect_error', () => {
+          if (!hasLoggedSocketDisableRef.current) {
+            hasLoggedSocketDisableRef.current = true;
+            console.warn('[Socket] Wallet realtime disabled for this session (connection failed)');
+          }
+          disableSocketFeatureForSession();
+          try {
+            newSocket.disconnect();
+          } catch (_) {
+          }
+        });
+
+        newSocket.emit('joinWalletRoom', user._id);
+        newSocket.on('walletUpdated', handleWalletUpdate);
+        newSocket.on('transactionAdded', handleTransactionAdded);
+
+        if (!cancelled) {
+          setSocket(newSocket);
+        }
+      } catch (_) {
         if (!hasLoggedSocketDisableRef.current) {
           hasLoggedSocketDisableRef.current = true;
-          console.warn('[Socket] Wallet realtime disabled for this session (connection failed)');
+          console.warn('[Socket] Wallet realtime disabled for this session (health check failed)');
         }
         disableSocketFeatureForSession();
-        try {
-          newSocket.disconnect();
-        } catch (_) {
-        }
-      });
+      }
+    };
 
-      // Join user's wallet room for real-time updates
-      newSocket.emit('joinWalletRoom', user._id);
-      
-      // Listen for wallet updates
-      newSocket.on('walletUpdated', handleWalletUpdate);
-      newSocket.on('transactionAdded', handleTransactionAdded);
+    initWalletSocket();
 
-      setSocket(newSocket);
-
-      return () => {
+    return () => {
+      cancelled = true;
+      if (newSocket) {
         newSocket.emit('leaveWalletRoom', user._id);
         newSocket.disconnect();
-      };
-    }
+      }
+    };
   }, [isAuthenticated, user?._id]);
 
   // Fetch wallet balance
