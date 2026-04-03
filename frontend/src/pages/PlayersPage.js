@@ -27,19 +27,19 @@ export default function PlayersPage() {
       <div className="container-custom">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
             <span className="text-gradient">Top Players</span>
           </h1>
-          <p className="text-white/60 text-lg max-w-3xl mx-auto">
+          <p className="text-white/60 text-base sm:text-lg max-w-3xl mx-auto">
             Discover the best players and their achievements on our platform
           </p>
         </div>
-      <div className="flex flex-wrap gap-6 justify-center">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         {players.map((p, i) => (
-          <div key={p._id || i} className="bg-glass rounded-xl shadow-neon px-8 py-6 flex flex-col items-center min-w-[180px]">
-            <span className="text-2xl font-bold text-accent-blue">#{i+1}</span>
-            <span className="font-semibold text-lg mt-2">{p.username || p.name || `Player ${i+1}`}</span>
-            <span className="text-secondary text-sm">Points: {p.points || p.totalPoints || 0}</span>
+          <div key={p._id || i} className="glass-card px-4 py-5 flex flex-col items-center text-center">
+            <span className="text-xl sm:text-2xl font-bold text-blue-400">#{i + 1}</span>
+            <span className="font-semibold text-sm sm:text-base mt-2 text-white truncate w-full text-center">{p.username || p.name || `Player ${i + 1}`}</span>
+            <span className="text-white/60 text-xs mt-1">Points: {p.points || p.totalPoints || 0}</span>
           </div>
         ))}
       </div>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
+import config, { isSocketFeatureEnabled } from '../config';
 import { useAuth } from './AuthContext';
 import { useNotification } from './NotificationContext';
 
