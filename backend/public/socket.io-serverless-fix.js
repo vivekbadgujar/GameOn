@@ -8,11 +8,11 @@
 
   // Detect if we're in a serverless environment
   const isServerless = window.location.hostname.includes('vercel.app') || 
-                      window.location.hostname.includes('api.gameonesport.xyz') ||
-                      window.location.hostname.includes('admin.gameonesport.xyz');
+                      window.location.hostname.includes('api.gameonesport.xyz');
 
-  // Socket.IO configuration for serverless environments
-  if (isServerless) {
+  // Only disable Socket.IO for api.gameonesport.xyz, NOT for admin.gameonesport.xyz
+  // Admin panel needs real-time features even in serverless mode
+  if (isServerless && window.location.hostname.includes('api.gameonesport.xyz')) {
     // Prevent Socket.IO from attempting to connect
     const originalIO = window.io;
     
@@ -79,6 +79,8 @@
         }
       });
     }
+  } else {
+    console.info('[Socket.IO] Real-time features enabled for admin panel');
   }
 
 })(typeof window !== 'undefined' ? window : global);
