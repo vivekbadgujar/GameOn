@@ -120,12 +120,22 @@ export const isSocketFeatureEnabled = () => {
 
 export const getAssetUrl = (assetPath) => {
   if (!assetPath) return '';
-  // If it's already an absolute URL (http/https/data), return as is
-  if (/^(https?:|data:)/i.test(assetPath)) return assetPath;
   
   // Extract base URL from API_BASE_URL (removing /api suffix if present)
   let baseUrl = config.API_BASE_URL || 'https://api.gameonesport.xyz';
   baseUrl = baseUrl.replace(/\/api\/?$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
+
+  // Normalize stale production asset URLs that incorrectly point at the
+  // frontend domain instead of the API/uploads host.
+  if (/^https?:/i.test(assetPath)) {
+    if (/^https?:\/\/gameonesport\.xyz\/uploads\//i.test(assetPath)) {
+      return assetPath.replace(/^https?:\/\/gameonesport\.xyz/i, baseUrl);
+    }
+    return assetPath;
+  }
+
+  // Allow data URLs through unchanged.
+  if (/^data:/i.test(assetPath)) return assetPath;
 
   // Ensure path starts with slash
   const path = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;

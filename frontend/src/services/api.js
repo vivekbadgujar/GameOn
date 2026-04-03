@@ -19,6 +19,16 @@ const api = axios.create({
     'Accept': 'application/json',
   }
 });
+const shouldLogApiError = (error) => {
+  const status = error?.response?.status;
+  const url = error?.config?.url || '';
+
+  if (status === 404 && url.includes('/payments/manual/status/')) {
+    return false;
+  }
+
+  return true;
+};
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {
@@ -48,6 +58,9 @@ api.interceptors.response.use(
         code: error.code
       });
     } else if (error.response) {
+      if (!shouldLogApiError(error)) {
+        return Promise.reject(error);
+      }
       console.error('❌ API Error Response:', {
         status: error.response.status,
         statusText: error.response.statusText,
@@ -1110,4 +1123,5 @@ export const groupsAPI = {
 };
 
 export default api;
+
 

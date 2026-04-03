@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { getPublicMedia } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import { getAssetUrl } from '../config';
 
 const Gallery = () => {
   const [media, setMedia] = useState([]);
@@ -185,7 +186,7 @@ const Gallery = () => {
                     <div className="relative overflow-hidden rounded-t-xl">
                       {item.type === 'image' ? (
                         <img
-                          src={item.url}
+                          src={getAssetUrl(item.url)}
                           alt={item.title}
                           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -225,7 +226,7 @@ const Gallery = () => {
                     <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
                       {item.type === 'image' ? (
                         <img
-                          src={item.url}
+                          src={getAssetUrl(item.url)}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />
@@ -291,13 +292,13 @@ const Gallery = () => {
               <div className="relative">
                 {selectedMedia.type === 'image' ? (
                   <img
-                    src={selectedMedia.url}
+                    src={getAssetUrl(selectedMedia.url)}
                     alt={selectedMedia.title}
                     className="w-full max-h-[60vh] object-contain"
                   />
                 ) : (
                   <video
-                    src={selectedMedia.url}
+                    src={getAssetUrl(selectedMedia.url)}
                     controls
                     className="w-full max-h-[60vh]"
                   />
@@ -325,7 +326,7 @@ const Gallery = () => {
                     </span>
                   </div>
                   <a
-                    href={selectedMedia.url}
+                    href={getAssetUrl(selectedMedia.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
