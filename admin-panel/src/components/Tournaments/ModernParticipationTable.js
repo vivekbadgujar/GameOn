@@ -79,7 +79,7 @@ const ModernParticipationTable = ({ tournamentId }) => {
     queryKey: ['tournament-participants', tournamentId],
     queryFn: async () => {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/participants`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournamentId}/participants`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch participants');

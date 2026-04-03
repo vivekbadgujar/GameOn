@@ -1,5 +1,5 @@
 import axios from 'axios';
-import config from '../config';
+import config, { getAssetUrl } from '../config';
 
 // Log API configuration for debugging (only in development)
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -1110,3 +1110,4 @@ export const groupsAPI = {
 };
 
 export default api;
+

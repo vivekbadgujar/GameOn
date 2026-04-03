@@ -96,7 +96,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
   const { data: participantStats, refetch: refetchStats } = useQuery({
     queryKey: ['tournament-participant-stats', tournament?.data?._id],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/stats`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/stats`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -277,7 +277,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
     if (sourceSlot === destSlot) return;
 
     try {
-      const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/swap-slots`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/swap-slots`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
     if (!selectedParticipant) return;
 
     try {
-      const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/${selectedParticipant._id}/kick`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/${selectedParticipant._id}/kick`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -333,7 +333,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
   // Handle confirm player
   const handleConfirmPlayer = async (participant) => {
     try {
-      const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/${participant._id}/confirm`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/${participant._id}/confirm`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -362,7 +362,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
         return;
       }
 
-      const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/bulk-confirm`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/bulk-confirm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -419,7 +419,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
         const participant = selectedForSquad[i];
         const targetSlot = targetSlots[i];
 
-        const response = await fetch(`/api/admin/tournaments/${tournament?.data?._id}/participants/${participant._id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournament?.data?._id}/participants/${participant._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

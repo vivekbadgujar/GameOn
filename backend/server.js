@@ -537,8 +537,14 @@ app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
 // The tournaments router has a /:id wildcard that would otherwise intercept
 // paths like /:id/participants, returning "Tournament not found" instead of
 // delegating to the participants router.
-app.use('/api/admin/tournaments', require('./routes/admin/tournamentParticipants'));
-app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
+app.use('/api/admin/tournaments', (req, res, next) => {
+  console.log('DEBUG: tournamentParticipants route hit:', req.method, req.originalUrl);
+  require('./routes/admin/tournamentParticipants')(req, res, next);
+});
+app.use('/api/admin/tournaments', (req, res, next) => {
+  console.log('DEBUG: tournaments route hit:', req.method, req.originalUrl);
+  require('./routes/admin/tournaments')(req, res, next);
+});
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
 app.use('/api/admin/tournament-videos', require('./routes/admin/tournamentVideos'));
 app.use('/api/admin/users', require('./routes/admin/users'));

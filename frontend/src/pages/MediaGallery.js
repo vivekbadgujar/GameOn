@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getTournamentVideos, getPublicMedia } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import { getAssetUrl } from '../config';
 
 const MediaGallery = () => {
   const [videos, setVideos] = useState([]);
@@ -423,7 +424,7 @@ const MediaGallery = () => {
                       {/* Thumbnail */}
                       <div className="relative aspect-video bg-gray-800 overflow-hidden">
                         <img
-                          src={video.thumbnail || `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`}
+                          src={getAssetUrl(video.thumbnail) || `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`}
                           alt={video.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
@@ -487,7 +488,7 @@ const MediaGallery = () => {
                       {/* List View */}
                       <div className="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
                         <img
-                          src={video.thumbnail || `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`}
+                          src={getAssetUrl(video.thumbnail) || `https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`}
                           alt={video.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -561,7 +562,7 @@ const MediaGallery = () => {
                       <div className="relative overflow-hidden">
                         {item.type === 'image' ? (
                           <img
-                            src={item.url}
+                            src={getAssetUrl(item.url)}
                             alt={item.title}
                             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
@@ -604,7 +605,7 @@ const MediaGallery = () => {
                       <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
                         {item.type === 'image' ? (
                           <img
-                            src={item.url}
+                            src={getAssetUrl(item.url)}
                             alt={item.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -779,13 +780,13 @@ const MediaGallery = () => {
                 <div className="relative w-full bg-black flex items-center justify-center min-h-[200px]">
                   {selectedMedia.type === 'image' ? (
                     <img
-                      src={selectedMedia.url}
+                      src={getAssetUrl(selectedMedia.url)}
                       alt={selectedMedia.title}
                       className="w-full max-h-[50vh] md:max-h-[60vh] object-contain"
                     />
                   ) : (
                     <video
-                      src={selectedMedia.url}
+                      src={getAssetUrl(selectedMedia.url)}
                       controls
                       className="w-full max-h-[50vh] md:max-h-[60vh]"
                     />

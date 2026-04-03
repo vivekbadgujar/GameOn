@@ -118,6 +118,20 @@ export const isSocketFeatureEnabled = () => {
   return true;
 };
 
+export const getAssetUrl = (assetPath) => {
+  if (!assetPath) return '';
+  // If it's already an absolute URL (http/https/data), return as is
+  if (/^(https?:|data:)/i.test(assetPath)) return assetPath;
+  
+  // Extract base URL from API_BASE_URL (removing /api suffix if present)
+  let baseUrl = config.API_BASE_URL || 'https://api.gameonesport.xyz';
+  baseUrl = baseUrl.replace(/\/api\/?$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
+
+  // Ensure path starts with slash
+  const path = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+  return `${baseUrl}${path}`;
+};
+
 export const disableSocketFeatureForSession = () => {
   if (typeof window === 'undefined') return;
   try {

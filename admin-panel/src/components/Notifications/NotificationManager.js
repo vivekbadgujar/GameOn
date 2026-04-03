@@ -74,7 +74,7 @@ const NotificationManager = () => {
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/notifications', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/notifications`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -88,7 +88,7 @@ const NotificationManager = () => {
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments-list'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/tournaments', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -132,7 +132,7 @@ const NotificationManager = () => {
   // Send notification mutation
   const sendMutation = useMutation({
     mutationFn: async (notificationId) => {
-      const response = await fetch(`/api/admin/notifications/${notificationId}/send`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/notifications/${notificationId}/send`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -154,7 +154,7 @@ const NotificationManager = () => {
   // Delete notification mutation
   const deleteMutation = useMutation({
     mutationFn: async (notificationId) => {
-      const response = await fetch(`/api/admin/notifications/${notificationId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/notifications/${notificationId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`

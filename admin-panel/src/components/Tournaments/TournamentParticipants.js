@@ -84,7 +84,7 @@ const TournamentParticipants = ({ tournamentId }) => {
   const { data: tournament, isLoading, error } = useQuery({
     queryKey: ['tournament-participants', tournamentId],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/participants`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournamentId}/participants`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -112,7 +112,7 @@ const TournamentParticipants = ({ tournamentId }) => {
   // Kick player mutation
   const kickPlayerMutation = useMutation({
     mutationFn: async ({ participantId, reason }) => {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/participants/${participantId}/kick`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournamentId}/participants/${participantId}/kick`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ const TournamentParticipants = ({ tournamentId }) => {
   // Update slot mutation
   const updateSlotMutation = useMutation({
     mutationFn: async ({ participantId, newSlot }) => {
-      const response = await fetch(`/api/admin/tournaments/${tournamentId}/participants/${participantId}/slot`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/tournaments/${tournamentId}/participants/${participantId}/slot`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

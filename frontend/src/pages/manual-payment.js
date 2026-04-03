@@ -14,7 +14,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import config from '../config';
+import config, { getAssetUrl } from '../config';
 import { getManualPaymentStatus, getTournamentById, submitManualPayment } from '../services/api';
 
 const ALLOWED_SCREENSHOT_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -104,13 +104,7 @@ export default function ManualPaymentPage() {
     }
   };
 
-  const getAssetUrl = (assetPath) => {
-    if (!assetPath) return '';
-    if (/^https?:\/\//i.test(assetPath)) return assetPath;
-
-    const origin = config.API_BASE_URL.replace(/\/api\/?$/, '');
-    return `${origin}${assetPath.startsWith('/') ? assetPath : `/${assetPath}`}`;
-  };
+// Local getAssetUrl removed, using global one from config instead
 
   const UPI_ID = tournament?.upiId?.trim() || 'gameon@upi';
   const UPI_QR_IMAGE = getAssetUrl(tournament?.qrCode || tournament?.upiQrImage);

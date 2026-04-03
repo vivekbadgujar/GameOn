@@ -13,6 +13,8 @@ import {
   Settings
 } from 'lucide-react';
 import { useTournamentParticipation } from '../../hooks/useTournamentParticipation';
+import { getAssetUrl } from '../../config';
+
 
 const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
   // Use the participation hook to check if user has joined

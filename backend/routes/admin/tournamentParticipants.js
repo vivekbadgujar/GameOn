@@ -188,10 +188,13 @@ router.patch('/:tournamentId/participants/:participantId', authenticateAdmin, as
     const { tournamentId, participantId } = req.params;
     const { bgmiName, bgmiId, slotNumber } = req.body;
 
+    console.log('DEBUG: Updating participant:', { tournamentId, participantId, body: req.body });
+
     const tournament = await Tournament.findById(tournamentId)
       .populate('participants.user');
 
     if (!tournament) {
+      console.log('DEBUG: Tournament not found:', tournamentId);
       return res.status(404).json({
         success: false,
         error: 'Tournament not found'

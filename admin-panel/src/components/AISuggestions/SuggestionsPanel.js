@@ -45,7 +45,7 @@ const SuggestionsPanel = () => {
   const { data: suggestionsResponse, isLoading } = useQuery({
     queryKey: ['ai-suggestions'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/ai/suggestions', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/ai/suggestions`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
