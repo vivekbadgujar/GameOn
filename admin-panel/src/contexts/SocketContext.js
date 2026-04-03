@@ -11,14 +11,14 @@ export const useSocket = () => {
 };
 
 /**
- * SocketProvider — connects to the Socket.IO server after confirming it is
- * reachable via the /api/health endpoint.  Forwards all relevant server
- * events as window CustomEvents so components can subscribe via
- * addEventListener without coupling to the socket instance.
+ * SocketProvider connects to Socket.IO only when the backend explicitly
+ * reports that realtime WebSocket support is available. On serverless/Vercel
+ * deployments, the admin panel falls back to polling-based refresh behavior.
  */
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [syncMode, setSyncMode] = useState('checking');
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -32,30 +32,38 @@ export const SocketProvider = ({ children }) => {
           'https://api.gameonesport.xyz/api'
         ).replace(/\/$/, '');
 
-        // Health check — is socket available?
         const healthRes = await fetch(`${apiBase}/health`, { cache: 'no-store' });
         const health = await healthRes.json();
 
         const socketEnabled = health?.socketEnabled !== false;
         const websocketSupported = health?.websocketSupported === true;
-        
+        const isServerless = health?.serverless === true;
+
         if (!socketEnabled) {
-          console.warn('[Socket] Socket.IO disabled');
+          console.warn('[Socket] Socket.IO disabled by backend');
+          setSyncMode('disabled');
+          setIsConnected(false);
+          setSocket(null);
           return;
         }
 
-        // Always use Socket.IO with proper transport configuration
+        if (isServerless || !websocketSupported) {
+          console.info('[Admin Socket] Realtime socket unavailable, using polling fallback');
+          setSyncMode('polling');
+          setIsConnected(false);
+          setSocket(null);
+          return;
+        }
+
         if (cancelled) return;
 
         const wsUrl = apiBase.replace(/\/api$/, '');
-
         const { io } = await import('socket.io-client');
         if (cancelled) return;
 
         const newSocket = io(wsUrl, {
           path: '/socket.io/',
-          // Use WebSocket if supported, fallback to polling
-          transports: websocketSupported ? ['websocket', 'polling'] : ['polling'],
+          transports: ['websocket', 'polling'],
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 3000,
@@ -63,15 +71,16 @@ export const SocketProvider = ({ children }) => {
           autoConnect: true,
           withCredentials: true,
           timeout: 10000,
-          // Force polling if WebSocket fails
           forceNew: true,
-          upgrade: websocketSupported,
-          rememberUpgrade: websocketSupported
+          upgrade: true,
+          rememberUpgrade: true,
         });
 
         newSocket.on('connect', () => {
-          console.log('🔗 Admin Panel Socket connected:', newSocket.id);
+          console.log('[Admin Socket] Connected:', newSocket.id);
           setIsConnected(true);
+          setSyncMode('socket');
+
           const adminToken = localStorage.getItem('adminToken');
           if (adminToken) {
             newSocket.emit('authenticate', { token: adminToken, role: 'admin' });
@@ -80,29 +89,17 @@ export const SocketProvider = ({ children }) => {
         });
 
         newSocket.on('disconnect', (reason) => {
-          console.log('🔌 Admin Panel Socket disconnected:', reason);
+          console.log('[Admin Socket] Disconnected:', reason);
           setIsConnected(false);
-          
-          // Reconnect with polling if disconnection was transport-related
-          if (reason === 'transport error' && websocketSupported) {
-            newSocket.io.opts.transports = ['polling'];
-          }
+          setSyncMode('polling');
         });
 
         newSocket.on('connect_error', (err) => {
           console.warn('[Admin Socket] Connection error:', err.message);
           setIsConnected(false);
-          
-          // If WebSocket fails, force polling
-          if (err.message.includes('WebSocket') && websocketSupported) {
-            console.log('[Admin Socket] WebSocket failed, switching to polling');
-            newSocket.io.opts.transports = ['polling'];
-            newSocket.connect();
-          }
+          setSyncMode('polling');
         });
 
-        // ---- Forward ALL relevant events as window CustomEvents ----
-        // Tournament lifecycle events
         const tournamentEvents = [
           'tournamentAdded',
           'tournamentUpdated',
@@ -111,7 +108,6 @@ export const SocketProvider = ({ children }) => {
           'roomCredentialsReleased',
         ];
 
-        // Slot & room events
         const slotEvents = [
           'slotsUpdated',
           'squadUpdated',
@@ -124,14 +120,12 @@ export const SocketProvider = ({ children }) => {
           'playerRemoved',
         ];
 
-        // Participant events
         const participantEvents = [
           'participantUpdated',
           'participantsUpdated',
           'tournamentJoined',
         ];
 
-        // Admin-specific events
         const adminEvents = [
           'adminUpdate',
           'userRegistered',
@@ -147,14 +141,13 @@ export const SocketProvider = ({ children }) => {
           ...adminEvents,
         ];
 
-        allEvents.forEach(name => {
-          newSocket.on(name, data => {
+        allEvents.forEach((name) => {
+          newSocket.on(name, (data) => {
             window.dispatchEvent(new CustomEvent(name, { detail: data }));
           });
         });
 
-        // Also map slot_sync to roomSlotUpdated for compatibility
-        newSocket.on('slot_sync', event => {
+        newSocket.on('slot_sync', (event) => {
           if (event?.data) {
             window.dispatchEvent(new CustomEvent('roomSlotUpdated', { detail: event.data }));
           }
@@ -163,7 +156,10 @@ export const SocketProvider = ({ children }) => {
         socketRef.current = newSocket;
         setSocket(newSocket);
       } catch (err) {
-        console.warn('[Admin Socket] Backend health check failed — socket disabled.', err.message);
+        console.warn('[Admin Socket] Backend health check failed, socket disabled.', err.message);
+        setSyncMode('disabled');
+        setIsConnected(false);
+        setSocket(null);
       }
     };
 
@@ -181,6 +177,7 @@ export const SocketProvider = ({ children }) => {
   const value = {
     socket,
     isConnected,
+    syncMode,
     emit: (event, data) => {
       if (socket && isConnected) socket.emit(event, data);
     },

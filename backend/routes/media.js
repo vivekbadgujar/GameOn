@@ -6,6 +6,7 @@
 const express = require('express');
 const Media = require('../models/Media');
 const router = express.Router();
+const mediaBaseUrl = (process.env.BASE_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 
 // Get public media files
 router.get('/public', async (req, res) => {
@@ -36,8 +37,8 @@ router.get('/public', async (req, res) => {
     // Transform URLs to be accessible
     const transformedMedia = media.map(item => ({
       ...item,
-      url: `${req.protocol}://${req.get('host')}${item.url}`,
-      fullUrl: `${req.protocol}://${req.get('host')}${item.url}`
+      url: `${mediaBaseUrl}${item.url}`,
+      fullUrl: `${mediaBaseUrl}${item.url}`
     }));
 
     res.json({
@@ -79,8 +80,8 @@ router.get('/public/:id', async (req, res) => {
     // Transform URL
     const transformedMedia = {
       ...media.toObject(),
-      url: `${req.protocol}://${req.get('host')}${media.url}`,
-      fullUrl: `${req.protocol}://${req.get('host')}${media.url}`
+      url: `${mediaBaseUrl}${media.url}`,
+      fullUrl: `${mediaBaseUrl}${media.url}`
     };
 
     res.json({
@@ -117,7 +118,7 @@ router.get('/download/:id', async (req, res) => {
     await media.incrementDownload();
 
     // Redirect to file URL or serve file directly
-    const fileUrl = `${req.protocol}://${req.get('host')}${media.url}`;
+    const fileUrl = `${mediaBaseUrl}${media.url}`;
     res.redirect(fileUrl);
   } catch (error) {
     console.error('Error downloading media:', error);

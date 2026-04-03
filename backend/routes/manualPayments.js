@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const Payment = require('../models/Payment');
 const Tournament = require('../models/Tournament');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const { authenticateAdmin, requirePermission, auditLog } = require('../middleware/adminAuth');
 
 const router = express.Router();
@@ -271,7 +271,7 @@ router.get('/debug/payment/:paymentId', async (req, res) => {
  * User can check status of their submission - Enhanced with better error handling
  * No authentication required - users can check payment status with email/phone
  */
-router.get('/manual/status/:tournamentId', async (req, res) => {
+router.get('/manual/status/:tournamentId', optionalAuth, async (req, res) => {
   try {
     const { tournamentId } = req.params;
     const { email, phone } = req.query; // Allow email/phone as query params for status check

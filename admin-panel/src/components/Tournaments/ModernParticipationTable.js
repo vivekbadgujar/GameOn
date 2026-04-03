@@ -51,7 +51,7 @@ import dayjs from 'dayjs';
 
 const ModernParticipationTable = ({ tournamentId }) => {
   const { showSuccess, showError } = useNotification();
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, syncMode } = useSocket();
   const queryClient = useQueryClient();
 
   // State management
@@ -298,11 +298,11 @@ const ModernParticipationTable = ({ tournamentId }) => {
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                backgroundColor: isConnected ? 'success.main' : 'error.main'
+                backgroundColor: isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')
               }}
             />
-            <Typography variant="caption" color={isConnected ? 'success.main' : 'error.main'}>
-              {isConnected ? 'Live Sync' : 'Disconnected'}
+            <Typography variant="caption" color={isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')}>
+              {isConnected ? 'Live Sync' : (syncMode === 'polling' ? 'Polling Refresh' : 'Disconnected')}
             </Typography>
             <Button
               variant="outlined"

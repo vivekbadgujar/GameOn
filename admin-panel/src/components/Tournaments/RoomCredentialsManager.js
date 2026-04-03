@@ -35,7 +35,7 @@ import dayjs from 'dayjs';
 
 const RoomCredentialsManager = ({ tournament, onUpdate }) => {
   const { showSuccess, showError } = useNotification();
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, syncMode } = useSocket();
 
   // State management
   const [roomId, setRoomId] = useState('');
@@ -175,11 +175,11 @@ const RoomCredentialsManager = ({ tournament, onUpdate }) => {
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                backgroundColor: isConnected ? 'success.main' : 'error.main'
+                backgroundColor: isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')
               }}
             />
             <Typography variant="caption">
-              {isConnected ? 'Live Sync' : 'Disconnected'}
+              {isConnected ? 'Live Sync' : (syncMode === 'polling' ? 'Polling Refresh' : 'Disconnected')}
             </Typography>
           </Box>
         </Box>

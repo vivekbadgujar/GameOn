@@ -54,7 +54,7 @@ const TournamentList = () => {
   const navigate = useNavigate();
   const { admin } = useAuth();
   const { showSuccess, showError } = useNotification();
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, syncMode } = useSocket();
   const queryClient = useQueryClient();
 
   const canCompleteTournament = (tournament) => {
@@ -285,11 +285,11 @@ const TournamentList = () => {
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                backgroundColor: isConnected ? 'success.main' : 'error.main'
+                backgroundColor: isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')
               }}
             />
             <Typography variant="caption">
-              {isConnected ? 'Live Sync' : 'Disconnected'}
+              {isConnected ? 'Live Sync' : (syncMode === 'polling' ? 'Polling Refresh' : 'Disconnected')}
             </Typography>
           </Box>
           <Button

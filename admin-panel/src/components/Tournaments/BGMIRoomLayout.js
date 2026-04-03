@@ -71,7 +71,7 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { showSuccess, showError } = useNotification();
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, syncMode } = useSocket();
   const queryClient = useQueryClient();
 
   // State management
@@ -781,11 +781,11 @@ const BGMIRoomLayout = ({ tournament, onRefresh }) => {
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                backgroundColor: isConnected ? 'success.main' : 'error.main'
+                backgroundColor: isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')
               }}
             />
-            <Typography variant="caption" color={isConnected ? 'success.main' : 'error.main'}>
-              {isConnected ? 'Live Sync Active' : 'Live Sync Disconnected'}
+            <Typography variant="caption" color={isConnected ? 'success.main' : (syncMode === 'polling' ? 'warning.main' : 'error.main')}>
+              {isConnected ? 'Live Sync Active' : (syncMode === 'polling' ? 'Polling Refresh Active' : 'Live Sync Disconnected')}
             </Typography>
           </Box>
         </Box>
