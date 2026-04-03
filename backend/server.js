@@ -42,6 +42,7 @@ let syncService, pushNotificationService;
 
 // Always create HTTP Server + Socket.IO unconditionally
 const { createServer } = require('http');
+const { Server } = require('socket.io');
 const server = createServer(app);
 
 const io = new Server(server, {
