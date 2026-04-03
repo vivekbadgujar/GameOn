@@ -179,6 +179,17 @@ router.patch('/:tournamentId/participants/:participantId/slot', authenticateAdmi
         newSlotNumber: slotNumber
       });
     }
+    
+    // Emit SSE event for serverless real-time updates
+    const broadcastEvent = req.app.get('broadcastEvent');
+    if (broadcastEvent) {
+      broadcastEvent(`tournament_${tournamentId}`, {
+        type: 'participantSlotUpdated',
+        tournamentId,
+        participantId,
+        newSlotNumber: slotNumber
+      });
+    }
 
     res.json({
       success: true,

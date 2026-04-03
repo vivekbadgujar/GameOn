@@ -28,7 +28,8 @@ const app = express();
 // Canonical production origins (no localhost fallbacks anywhere)
 const allowedOrigins = [
   'https://gameonesport.xyz',
-  'https://admin.gameonesport.xyz'
+  'https://admin.gameonesport.xyz',
+  'https://api.gameonesport.xyz'
 ];
 
 const isAllowedOrigin = (origin) => {
@@ -56,14 +57,18 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['polling'], // Use polling for serverless compatibility
+  transports: ['websocket', 'polling'], // Enable both for maximum compatibility
   allowEIO3: true,
   pingTimeout: 60000,
   pingInterval: 25000,
-  // Serverless-specific options
-  upgrade: false, // Disable WebSocket upgrades for serverless
-  rememberUpgrade: false,
-  forceJSONP: false
+  // Serverless-specific options - only disable upgrades if needed
+  ...(isServerless ? {
+    upgrade: false,
+    rememberUpgrade: false,
+    forceJSONP: false,
+    // Use polling transport for serverless compatibility
+    transports: ['polling']
+  } : {})
 });
 
 try {
@@ -530,15 +535,25 @@ app.set('sseManager', sseManager);
 app.get('/api/events', (req, res) => {
   const { room = 'global' } = req.query;
   
-  // Set SSE headers
+  // Set SSE headers with proper CORS for EventSource
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': allowedOrigins,
+    'Access-Control-Allow-Origin': '*', // EventSource needs wildcard
     'Access-Control-Allow-Headers': 'Cache-Control',
-    'Access-Control-Allow-Credentials': 'true'
+    'Access-Control-Allow-Methods': 'GET, OPTIONS'
   });
+
+  // Handle preflight for SSE
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+    return res.end();
+  }
 
   // Add client to room
   sseManager.addClient(room, res);
@@ -644,9 +659,9 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: !isServerless, // WebSocket Socket.IO disabled in serverless
-      realTimeEnabled: true, // Real-time features enabled via SSE
-      realTimeMethod: isServerless ? 'SSE' : 'Socket.IO'
+      socketEnabled: true, // Socket.IO enabled (polling in serverless)
+      realTimeEnabled: true, // Real-time features enabled
+      realTimeMethod: isServerless ? 'Socket.IO-Polling' : 'Socket.IO-WebSocket'
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash

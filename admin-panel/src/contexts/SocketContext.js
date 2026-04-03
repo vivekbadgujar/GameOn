@@ -88,14 +88,7 @@ export const SocketProvider = ({ children }) => {
           return;
         }
 
-        // Use SSE for serverless environments
-        if (realTimeEnabled && realTimeMethod === 'SSE') {
-          console.log('[Socket] Using Server-Sent Events for real-time updates');
-          connectSSE(apiBase);
-          return;
-        }
-
-        // Use Socket.IO for persistent servers
+        // Always use Socket.IO (polling works in serverless)
         if (!socketEnabled || cancelled) return;
 
         const wsUrl = apiBase.replace(/\/api$/, '');
@@ -105,7 +98,8 @@ export const SocketProvider = ({ children }) => {
 
         const newSocket = io(wsUrl, {
           path: '/socket.io/',
-          transports: ['websocket', 'polling'],
+          // Prioritize polling for serverless compatibility
+          transports: realTimeMethod === 'Socket.IO-Polling' ? ['polling'] : ['websocket', 'polling'],
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 3000,
