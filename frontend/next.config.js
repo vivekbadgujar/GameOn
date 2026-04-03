@@ -47,6 +47,10 @@ const nextConfig = {
         destination: 'https://api.gameonesport.xyz/api/:path*',
       },
       {
+        source: '/uploads/:path*',
+        destination: 'https://api.gameonesport.xyz/uploads/:path*',
+      },
+      {
         source: '/socket.io/:path*',
         destination: 'https://api.gameonesport.xyz/socket.io/:path*',
       },
