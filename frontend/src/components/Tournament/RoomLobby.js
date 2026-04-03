@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
 
 import {
   Box,
@@ -55,25 +55,31 @@ const RoomLobby = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (!isSocketFeatureEnabled()) {
-      setIsConnected(false);
-      return;
-    }
+    let newSocket = null;
+    let cancelled = false;
 
-    const newSocket = io(config.WS_URL, {
-      reconnection: false,
-      reconnectionAttempts: 0,
-      timeout: 5000,
-      auth: {
-        token: localStorage.getItem('token')
+    const initSocket = async () => {
+      if (!(await canUseRealtimeSockets())) {
+        setIsConnected(false);
+        return;
       }
-    });
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      newSocket.emit('join_tournament', tournamentId);
-      console.log('Connected to room lobby');
-    });
+      if (cancelled) return;
+
+      newSocket = io(config.WS_URL, {
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
+
+      newSocket.on('connect', () => {
+        setIsConnected(true);
+        newSocket.emit('join_tournament', tournamentId);
+        console.log('Connected to room lobby');
+      });
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
@@ -124,11 +130,17 @@ const RoomLobby = ({
       }
     });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
+    };
+
+    initSocket();
 
     return () => {
-      newSocket.emit('leave_tournament', tournamentId);
-      newSocket.close();
+      cancelled = true;
+      if (newSocket) {
+        newSocket.emit('leave_tournament', tournamentId);
+        newSocket.close();
+      }
     };
   }, [tournamentId]);
 

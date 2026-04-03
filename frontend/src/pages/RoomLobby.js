@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../config';
 
 import {
   Box,
@@ -84,20 +84,26 @@ const RoomLobby = () => {
 
     if (typeof window === 'undefined') return;
 
-    if (!isSocketFeatureEnabled()) {
-      setIsConnected(false);
-      return;
-    }
+    let newSocket = null;
+    let cancelled = false;
 
-    const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-    const newSocket = io(apiUrl, {
-      reconnection: false,
-      reconnectionAttempts: 0,
-      timeout: 5000,
-      auth: {
-        token: localStorage.getItem('token')
+    const initSocket = async () => {
+      if (!(await canUseRealtimeSockets())) {
+        setIsConnected(false);
+        return;
       }
-    });
+
+      if (cancelled) return;
+
+      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+      newSocket = io(apiUrl, {
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -151,11 +157,17 @@ const RoomLobby = () => {
       }
     });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
+    };
+
+    initSocket();
 
     return () => {
-      newSocket.emit('leave_tournament', tournamentId);
-      newSocket.close();
+      cancelled = true;
+      if (newSocket) {
+        newSocket.emit('leave_tournament', tournamentId);
+        newSocket.close();
+      }
     };
   }, [tournamentId, showSuccess, showError, showInfo]);
 

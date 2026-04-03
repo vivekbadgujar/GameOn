@@ -39,7 +39,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import io from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
 import dayjs from 'dayjs';
 
 const BGMIWaitingRoom = ({ tournament, onLeave }) => {
@@ -63,42 +63,48 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (!isSocketFeatureEnabled()) {
-      setIsConnected(false);
-      return;
-    }
+    let newSocket = null;
+    let cancelled = false;
 
-    const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-    const newSocket = io(apiUrl, {
-      reconnection: false,
-      reconnectionAttempts: 0,
-      timeout: 5000,
-      auth: {
-        token: localStorage.getItem('token')
+    const initSocket = async () => {
+      if (!(await canUseRealtimeSockets())) {
+        setIsConnected(false);
+        return;
       }
-    });
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      console.log('Connected to waiting room');
-    });
+      if (cancelled) return;
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+      newSocket = io(apiUrl, {
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
 
-    newSocket.on('connect_error', () => {
-      if (!hasLoggedSocketDisableRef.current) {
-        hasLoggedSocketDisableRef.current = true;
-        console.warn('[Socket] BGMIWaitingRoom disabled for this session (connection failed)');
-      }
-      disableSocketFeatureForSession();
-      setIsConnected(false);
-      try {
-        newSocket.disconnect();
-      } catch (_) {
-      }
-    });
+      newSocket.on('connect', () => {
+        setIsConnected(true);
+        console.log('Connected to waiting room');
+      });
+
+      newSocket.on('disconnect', () => {
+        setIsConnected(false);
+      });
+
+      newSocket.on('connect_error', () => {
+        if (!hasLoggedSocketDisableRef.current) {
+          hasLoggedSocketDisableRef.current = true;
+          console.warn('[Socket] BGMIWaitingRoom disabled for this session (connection failed)');
+        }
+        disableSocketFeatureForSession();
+        setIsConnected(false);
+        try {
+          newSocket.disconnect();
+        } catch (_) {
+        }
+      });
 
     // Listen for real-time updates
     newSocket.on('participantJoined', (data) => {
@@ -136,10 +142,16 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
       }
     });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
+    };
+
+    initSocket();
 
     return () => {
-      newSocket.close();
+      cancelled = true;
+      if (newSocket) {
+        newSocket.close();
+      }
     };
   }, [tournament._id, showSuccess, showError, showInfo]);
 

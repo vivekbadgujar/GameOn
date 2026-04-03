@@ -31,7 +31,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { RoomSlotLayout } from './Room';
 import dayjs from 'dayjs';
 import io from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
 import { buildSlotMovePayload } from '../../utils/slotMove';
 
 const SlotEditModal = ({ 
@@ -60,25 +60,31 @@ const SlotEditModal = ({
 
     if (typeof window === 'undefined') return;
 
-    if (!isSocketFeatureEnabled()) {
-      setIsConnected(false);
-      return;
-    }
+    let newSocket = null;
+    let cancelled = false;
 
-    const wsUrl = config.WS_URL;
-    if (!wsUrl) {
-      return;
-    }
-
-    const newSocket = io(wsUrl, {
-      transports: ['websocket'],
-      reconnection: false,
-      reconnectionAttempts: 0,
-      timeout: 5000,
-      auth: {
-        token: localStorage.getItem('token')
+    const initSocket = async () => {
+      if (!(await canUseRealtimeSockets())) {
+        setIsConnected(false);
+        return;
       }
-    });
+
+      if (cancelled) return;
+
+      const wsUrl = config.WS_URL;
+      if (!wsUrl) {
+        return;
+      }
+
+      newSocket = io(wsUrl, {
+        transports: ['websocket'],
+        reconnection: false,
+        reconnectionAttempts: 0,
+        timeout: 5000,
+        auth: {
+          token: localStorage.getItem('token')
+        }
+      });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
@@ -128,11 +134,17 @@ const SlotEditModal = ({
       }
     });
 
-    setSocket(newSocket);
+      setSocket(newSocket);
+    };
+
+    initSocket();
 
     return () => {
-      newSocket.emit('leave_tournament', tournamentId);
-      newSocket.close();
+      cancelled = true;
+      if (newSocket) {
+        newSocket.emit('leave_tournament', tournamentId);
+        newSocket.close();
+      }
     };
   }, [open, tournamentId]);
 

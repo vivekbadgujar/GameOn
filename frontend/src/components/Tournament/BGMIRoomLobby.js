@@ -33,7 +33,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import io from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../../config';
+import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
 import { buildSlotMovePayload } from '../../utils/slotMove';
 
 const BGMIRoomLobby = ({ tournament, onClose }) => {
@@ -53,44 +53,56 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     if (tournament?._id) {
       if (typeof window === 'undefined') return;
 
-      if (!isSocketFeatureEnabled()) {
-        return;
-      }
+      let newSocket = null;
+      let cancelled = false;
 
-      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-      const newSocket = io(apiUrl, {
-        reconnection: false,
-        reconnectionAttempts: 0,
-        timeout: 5000,
-        auth: {
-          token: localStorage.getItem('token')
+      const initSocket = async () => {
+        if (!(await canUseRealtimeSockets())) {
+          return;
         }
-      });
 
-      newSocket.on('connect_error', () => {
-        if (!hasLoggedSocketDisableRef.current) {
-          hasLoggedSocketDisableRef.current = true;
-          console.warn('[Socket] BGMIRoomLobby disabled for this session (connection failed)');
-        }
-        disableSocketFeatureForSession();
-        try {
-          newSocket.disconnect();
-        } catch (_) {
-        }
-      });
+        if (cancelled) return;
 
-      newSocket.emit('joinTournamentRoom', tournament._id);
+        const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+        newSocket = io(apiUrl, {
+          reconnection: false,
+          reconnectionAttempts: 0,
+          timeout: 5000,
+          auth: {
+            token: localStorage.getItem('token')
+          }
+        });
+
+        newSocket.on('connect_error', () => {
+          if (!hasLoggedSocketDisableRef.current) {
+            hasLoggedSocketDisableRef.current = true;
+            console.warn('[Socket] BGMIRoomLobby disabled for this session (connection failed)');
+          }
+          disableSocketFeatureForSession();
+          try {
+            newSocket.disconnect();
+          } catch (_) {
+          }
+        });
+
+        newSocket.emit('joinTournamentRoom', tournament._id);
       
       // Listen for real-time updates
       newSocket.on('slotChanged', handleSlotUpdate);
       newSocket.on('playerAssigned', handleSlotUpdate);
       newSocket.on('slotsLocked', handleSlotsLocked);
 
-      setSocket(newSocket);
+        setSocket(newSocket);
+      };
+
+      initSocket();
 
       return () => {
-        newSocket.emit('leaveTournamentRoom', tournament._id);
-        newSocket.disconnect();
+        cancelled = true;
+        if (newSocket) {
+          newSocket.emit('leaveTournamentRoom', tournament._id);
+          newSocket.disconnect();
+        }
       };
     }
   }, [tournament?._id]);

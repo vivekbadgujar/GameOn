@@ -150,4 +150,24 @@ export const disableSocketFeatureForSession = () => {
   }
 };
 
+export const canUseRealtimeSockets = async () => {
+  if (typeof window === 'undefined') return false;
+  if (!isSocketFeatureEnabled()) return false;
+
+  try {
+    const healthUrl = `${config.API_BASE_URL.replace(/\/$/, '')}/health`;
+    const response = await fetch(healthUrl, { cache: 'no-store' });
+    const health = await response.json();
+
+    const allowed = health?.serverless !== true && health?.websocketSupported === true;
+    if (!allowed) {
+      disableSocketFeatureForSession();
+    }
+    return allowed;
+  } catch (_) {
+    disableSocketFeatureForSession();
+    return false;
+  }
+};
+
 export default config;
