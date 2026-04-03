@@ -62,17 +62,10 @@ const io = new Server(server, {
   forceJSONP: false
 });
 
-try {
-  const SyncServiceClass = require('./services/syncService');
-  const PushNotificationServiceClass = require('./services/pushNotificationService');
-  syncService = new SyncServiceClass(io);
-  pushNotificationService = new PushNotificationServiceClass();
-  console.log('[Server] Platform services initialized');
-} catch (svcErr) {
-  console.warn('[Server] Platform services unavailable:', svcErr.message);
-  syncService = { syncTournamentUpdate: () => {}, syncUserUpdate: () => {}, unregisterUser: () => {}, updateLastSeen: () => {}, cleanup: () => {} };
-  pushNotificationService = { sendPushNotification: () => {} };
-}
+// Disable sync services temporarily to isolate initialization error
+console.log('[Server] Platform services disabled for debugging');
+syncService = { syncTournamentUpdate: () => {}, syncUserUpdate: () => {}, unregisterUser: () => {}, updateLastSeen: () => {}, cleanup: () => {} };
+pushNotificationService = { sendPushNotification: () => {} };
 
 // Use environment PORT for deployment (Render/Vercel) or default to 5000
 const PORT = process.env.PORT || 5000;
