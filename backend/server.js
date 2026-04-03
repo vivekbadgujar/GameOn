@@ -44,6 +44,11 @@ let syncService, pushNotificationService;
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const server = createServer(app);
+
+// Use serverless adapter if in serverless mode
+const ServerlessSocketAdapter = require('./services/serverlessSocketAdapter');
+const serverlessAdapter = new ServerlessSocketAdapter();
+
 const io = new Server(server, {
   path: '/socket.io/',
   cors: {
@@ -51,8 +56,16 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['polling', 'websocket'],
-  allowEIO3: true
+  transports: ['polling'], // Use polling for serverless compatibility
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  // Serverless-specific options
+  upgrade: false, // Disable WebSocket upgrades for serverless
+  rememberUpgrade: false,
+  forceJSONP: false,
+  // Custom adapter for serverless
+  adapter: isServerless ? serverlessAdapter : undefined
 });
 
 try {
@@ -431,22 +444,27 @@ app.get('/universal-socket-fix.js', (req, res) => {
 });
 
 
-
-// Socket.IO Connection Handler
 io.on('connection', (socket) => {
   console.log('🔗 Socket connected:', socket.id);
 
   // Handle authentication from both frontend and admin panel
-  socket.on('authenticate', (data) => {
+  socket.on('authenticate', async (data) => {
     try {
       if (data.role === 'admin' && data.token) {
-        socket.join('admin_room');
-        console.log(`✅ Admin authenticated: ${socket.id}`);
-        socket.emit('authenticated', { 
-          status: 'ok', 
-          role: 'admin',
-          socketId: socket.id 
-        });
+        // Verify admin token
+        const jwt = require('jsonwebtoken');
+        const Admin = require('./models/Admin');
+        const decoded = jwt.verify(data.token, process.env.JWT_SECRET.trim());
+        const admin = await Admin.findById(decoded.userId).select('-password');
+        
+        if (admin && admin.status === 'active') {
+          socket.adminId = admin._id;
+          socket.adminRole = admin.role;
+          socket.emit('authenticated', { success: true, admin: { id: admin._id, name: admin.name, role: admin.role } });
+          console.log('✅ Admin authenticated:', socket.id, admin.name);
+        } else {
+          socket.emit('authentication_error', { message: 'Invalid admin credentials' });
+        }
       } else if (data.userId) {
         socket.join(`user_${data.userId}`);
         console.log(`✅ User authenticated: ${data.userId} (${socket.id})`);
@@ -469,7 +487,7 @@ io.on('connection', (socket) => {
   // Room management
   socket.on('join_room', (room) => {
     socket.join(room);
-    console.log(`Socket ${socket.id} joined room: ${room}`);
+    console.log('📌 Socket joined room:', room, 'Socket:', socket.id);
   });
 
   socket.on('leave_room', (room) => {
@@ -508,6 +526,41 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('syncService', syncService);
 app.set('pushNotificationService', pushNotificationService);
+app.set('serverlessAdapter', serverlessAdapter);
+
+// Serverless Socket.IO endpoints
+if (isServerless) {
+  // Socket.IO connection endpoint for serverless
+  app.post('/socket.io/', (req, res) => {
+    const socket = serverlessAdapter.handleConnection(req, res);
+    
+    // Handle authentication
+    socket.on('authenticate', (data) => {
+      // Verify JWT token here if needed
+      console.log('Socket authenticated:', socket.id);
+    });
+
+    // Handle room joins
+    socket.on('join_room', (room) => {
+      socket.join(room);
+      console.log('Socket joined room:', room);
+    });
+  });
+
+  // Socket.IO polling endpoint
+  app.get('/socket.io/', (req, res) => {
+    res.set({
+      'Content-Type': 'text/plain',
+      'Access-Control-Allow-Origin': allowedOrigins,
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true'
+    });
+    
+    // Return polling response for Socket.IO
+    res.send('0{"sid":"serverless","upgrades":[],"pingInterval":25000,"pingTimeout":60000}');
+  });
+}
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -598,7 +651,7 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: true // Enable Socket.IO even in serverless mode
+      socketEnabled: true // Socket.IO enabled with serverless adapter
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash
