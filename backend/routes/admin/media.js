@@ -171,7 +171,7 @@ router.post('/upload',
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
-        url: `/uploads/media/${req.file.filename}`,
+        url: `https://api.gameonesport.xyz/uploads/media/${req.file.filename}`,
         tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
         uploadedBy: req.admin._id,
         isVisible: true

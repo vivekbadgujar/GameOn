@@ -45,9 +45,10 @@ export const SocketProvider = ({ children }) => {
         if (cancelled) return;
 
         const newSocket = io(wsUrl, {
-          transports: ['polling', 'websocket'],
+          path: '/socket.io/',
+          transports: ['websocket', 'polling'],
           reconnection: true,
-          reconnectionAttempts: 5,
+          reconnectionAttempts: 10,
           reconnectionDelay: 3000,
           reconnectionDelayMax: 15000,
           autoConnect: true,

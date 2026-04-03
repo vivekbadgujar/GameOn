@@ -113,7 +113,7 @@ export default function ManualPaymentPage() {
   };
 
   const UPI_ID = tournament?.upiId?.trim() || 'gameon@upi';
-  const UPI_QR_IMAGE = getAssetUrl(tournament?.upiQrImage);
+  const UPI_QR_IMAGE = getAssetUrl(tournament?.qrCode || tournament?.upiQrImage);
   const ENTRY_FEE = tournament?.entryFee || 0;
 
   const validate = () => {

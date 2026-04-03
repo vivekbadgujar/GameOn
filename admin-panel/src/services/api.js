@@ -119,6 +119,12 @@ export const tournamentAPI = {
 
     return api.post('/admin/tournaments/payment-qr-upload', formData);
   },
+  uploadThumbnail: (file) => {
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    return api.post('/admin/tournaments/thumbnail-upload', formData);
+  },
 };
 
 // User APIs

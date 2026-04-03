@@ -109,7 +109,7 @@ const TournamentList = ({ tournaments, user, onJoinTournament, showSuccess, show
                 <CardMedia
                   component="img"
                   height="160"
-                  image={tournament.poster || tournament.posterUrl || getDefaultThumbnail(tournament.game)}
+                  image={tournament.thumbnail || tournament.thumbnail || tournament.poster || tournament.posterUrl || getDefaultThumbnail(tournament.game)}
                   alt={tournament.title}
                   sx={{
                     objectFit: 'cover',

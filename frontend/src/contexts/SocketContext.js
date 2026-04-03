@@ -53,11 +53,12 @@ export const SocketProvider = ({ children }) => {
     setSyncStatus('connecting');
     
     const newSocket = io(config.WS_URL, {
-      transports: ['polling', 'websocket'],
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 0,
       autoConnect: true,
       forceNew: true,
-      timeout: 5000,
+      timeout: 10000,
       withCredentials: true,
     });
 

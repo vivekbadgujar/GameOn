@@ -91,10 +91,10 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
 
       {/* Tournament Image/Game Icon */}
       <div className="relative h-44 sm:h-48 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500 rounded-t-2xl overflow-hidden">
-        {tournament.poster || tournament.posterUrl || tournament.image ? (
+        {tournament.thumbnail || tournament.poster || tournament.posterUrl || tournament.image ? (
           <>
             <img 
-              src={tournament.poster || tournament.posterUrl || tournament.image} 
+              src={tournament.thumbnail || tournament.poster || tournament.posterUrl || tournament.image} 
               alt={tournament.title || tournament.name || 'Tournament'}
               className="w-full h-full object-cover"
               loading="lazy"

@@ -11,11 +11,13 @@ const path = require('path');
 const { validationResult } = require('express-validator');
 const Tournament = require('../../models/Tournament');
 const User = require('../../models/User');
+const Admin = require('../../models/Admin');
 const Transaction = require('../../models/Transaction');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');
 const { validateTournament, validateRoomDetails, validateWinnerDistribution } = require('../../middleware/tournamentValidation');
 const router = express.Router();
 const PAYMENT_QR_SUBDIR = 'payment_qr';
+const THUMBNAIL_SUBDIR = 'thumbnails';
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 const resolveUploadBaseDir = () => {
@@ -61,6 +63,36 @@ const paymentQrUpload = multer({
       return cb(null, true);
     }
 
+    cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
+  }
+});
+
+const thumbnailStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(resolveUploadBaseDir(), THUMBNAIL_SUBDIR);
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (error) {
+      cb(error);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    cb(null, `thumb-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const thumbnailUpload = multer({
+  storage: thumbnailStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    if (allowedTypes.test(path.extname(file.originalname).toLowerCase()) && allowedTypes.test(file.mimetype)) {
+      return cb(null, true);
+    }
     cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
   }
 });
@@ -124,8 +156,32 @@ router.post(
       success: true,
       message: 'UPI QR image uploaded successfully',
       data: {
-        url: `/uploads/${PAYMENT_QR_SUBDIR}/${req.file.filename}`
+        url: `https://api.gameonesport.xyz/uploads/${PAYMENT_QR_SUBDIR}/${req.file.filename}`
       }
+    });
+  }
+);
+
+router.post(
+  '/thumbnail-upload',
+  requirePermission('tournaments_manage'),
+  auditLog('upload_tournament_thumbnail'),
+  (req, res, next) => {
+    thumbnailUpload.single('thumbnail')(req, res, (error) => {
+      if (error) {
+        return res.status(400).json({ success: false, message: error.message || 'Thumbnail upload failed' });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Thumbnail image is required' });
+    }
+    return res.json({
+      success: true,
+      message: 'Thumbnail image uploaded successfully',
+      data: { url: `https://api.gameonesport.xyz/uploads/${THUMBNAIL_SUBDIR}/${req.file.filename}` }
     });
   }
 );
@@ -386,10 +442,10 @@ router.post('/',
         winners: [],
         isVisible: req.body.isVisible !== undefined ? req.body.isVisible : true,
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true,
-        poster: req.body.poster || req.body.posterUrl || req.body.image || '',
-        posterUrl: req.body.posterUrl || req.body.poster || req.body.image || '',
-        upiId: typeof req.body.upiId === 'string' ? req.body.upiId.trim() : (req.body.upi_id || ''),
-        upiQrImage: req.body.upiQrImage || req.body.upi_qr_image || ''
+        thumbnail: req.body.thumbnail || req.body.poster || req.body.posterUrl || req.body.image || '',
+        qrCode: req.body.qrCode || req.body.upiQrImage || req.body.upi_qr_image || '',
+        media: req.body.media || [],
+        upiId: typeof req.body.upiId === 'string' ? req.body.upiId.trim() : (req.body.upi_id || '')
       };
 
       console.log('Creating tournament with data:', JSON.stringify(tournamentData, null, 2));
@@ -400,7 +456,7 @@ router.post('/',
       console.log('Tournament saved to database:', tournament._id);
 
       // Update admin stats
-      await req.admin.updateOne({ $inc: { totalTournamentsCreated: 1 } });
+      await Admin.updateOne({ _id: req.admin._id }, { $inc: { totalTournamentsCreated: 1 } });
 
       // Emit Socket.IO events for real-time updates
       const io = req.app.get('io');
@@ -492,7 +548,7 @@ router.put('/:id',
 
       // If tournament is live, only allow updating certain fields
       if (tournament.status === 'live') {
-        const allowedUpdates = ['endDate', 'rules', 'roomDetails', 'upiId', 'upiQrImage', 'poster', 'posterUrl'];
+        const allowedUpdates = ['endDate', 'rules', 'roomDetails', 'upiId', 'qrCode', 'thumbnail', 'media'];
         Object.keys(updates).forEach(key => {
           if (!allowedUpdates.includes(key)) {
             delete updates[key];
@@ -508,23 +564,27 @@ router.put('/:id',
         updates.upiId = updates.upi_id;
       }
 
-      if (updates.upi_qr_image && !updates.upiQrImage) {
-        updates.upiQrImage = updates.upi_qr_image;
-      }
+      if (updates.upiQrImage) updates.qrCode = updates.upiQrImage;
+      if (updates.upi_qr_image) updates.qrCode = updates.upi_qr_image;
+      if (updates.poster) updates.thumbnail = updates.poster;
+      if (updates.posterUrl) updates.thumbnail = updates.posterUrl;
 
       delete updates.upi_id;
       delete updates.upi_qr_image;
+      delete updates.upiQrImage;
+      delete updates.poster;
+      delete updates.posterUrl;
 
       // Preserve existing image fields if empty strings are sent
       // (don't overwrite existing images with empty values)
-      if (!updates.poster && tournament.poster) {
-        delete updates.poster;
+      if (!updates.thumbnail && tournament.thumbnail) {
+        delete updates.thumbnail;
       }
-      if (!updates.posterUrl && tournament.posterUrl) {
-        delete updates.posterUrl;
+      if (!updates.qrCode && tournament.qrCode) {
+        delete updates.qrCode;
       }
-      if (!updates.upiQrImage && tournament.upiQrImage) {
-        delete updates.upiQrImage;
+      if (!updates.media && tournament.media) {
+        delete updates.media;
       }
 
       Object.assign(tournament, updates);

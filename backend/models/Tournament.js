@@ -14,19 +14,18 @@ const TournamentSchema = new mongoose.Schema({
     type: String,
     maxlength: 500
   },
-  poster: {
+  thumbnail: {
     type: String,
     default: ''
   },
-  posterUrl: {
+  qrCode: {
     type: String,
     default: ''
   },
+  media: [{
+    type: String
+  }],
   upiId: {
-    type: String,
-    default: ''
-  },
-  upiQrImage: {
     type: String,
     default: ''
   },
@@ -158,4 +157,3 @@ TournamentSchema.methods.getUserParticipation = function(userId) {
 };
 
 module.exports = mongoose.model('Tournament', TournamentSchema);
-

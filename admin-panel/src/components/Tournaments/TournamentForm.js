@@ -94,9 +94,9 @@ const TournamentForm = () => {
     requireScreenshots: true,
     autoStart: false,
     upiId: '',
-    upiQrImage: '',
-    poster: '',
-    posterUrl: '',
+    qrCode: '',
+    thumbnail: '',
+    media: [],
     prizeDistribution: [
       { position: 1, percentage: 50, amount: 0 },
       { position: 2, percentage: 30, amount: 0 },
@@ -189,9 +189,9 @@ const TournamentForm = () => {
         requireScreenshots: data.requireScreenshots ?? true,
         autoStart: data.autoStart ?? false,
         upiId: data.upiId || '',
-        upiQrImage: data.upiQrImage || '',
-        poster: data.poster || data.posterUrl || '',
-        posterUrl: data.posterUrl || data.poster || '',
+        qrCode: data.qrCode || data.upiQrImage || '',
+        thumbnail: data.thumbnail || data.poster || data.posterUrl || '',
+        media: data.media || [],
         prizeDistribution: data.prizeDistribution || [
           { position: 1, percentage: 50, amount: 0 },
           { position: 2, percentage: 30, amount: 0 },
@@ -203,14 +203,15 @@ const TournamentForm = () => {
       });
 
       // Load poster/thumbnail preview from existing DB data
-      const existingPoster = data.poster || data.posterUrl || '';
+      const existingPoster = data.thumbnail || data.poster || data.posterUrl || '';
       if (existingPoster) {
         setImagePreview(getAssetUrl(existingPoster));
       }
 
       // Load UPI QR preview from existing DB data
-      if (data.upiQrImage) {
-        setUpiQrPreview(getAssetUrl(data.upiQrImage));
+      const existingQr = data.qrCode || data.upiQrImage || '';
+      if (existingQr) {
+        setUpiQrPreview(getAssetUrl(existingQr));
       }
     }
   }, [tournament, isEditing]);
@@ -372,6 +373,7 @@ const TournamentForm = () => {
       isVisible: true,
       isPublic: true,
       upiId: formData.upiId.trim(),
+      media: formData.media || [],
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
@@ -381,22 +383,20 @@ const TournamentForm = () => {
     };
 
     // Only include image fields if they have a value — prevents overwriting existing DB values with empty strings
-    if (formData.upiQrImage) submitData.upiQrImage = formData.upiQrImage;
-    if (formData.poster) submitData.poster = formData.poster;
-    if (formData.posterUrl) submitData.posterUrl = formData.posterUrl;
+    if (formData.qrCode) submitData.qrCode = formData.qrCode;
+    if (formData.thumbnail) submitData.thumbnail = formData.thumbnail;
 
     // Handle poster/thumbnail upload if user selected a new image
     if (imageFile) {
       try {
-        const uploadResponse = await mediaAPI.upload(imageFile, { type: 'poster' });
+        const uploadResponse = await tournamentAPI.uploadThumbnail(imageFile);
         const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
         if (uploadUrl) {
-          submitData.poster = uploadUrl;
-          submitData.posterUrl = uploadUrl;
+          submitData.thumbnail = uploadUrl;
         }
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
-        // Continue — keep existing poster from formData
+        // Continue — keep existing thumbnail from formData
       }
     }
 
@@ -406,7 +406,7 @@ const TournamentForm = () => {
         const uploadResponse = await tournamentAPI.uploadPaymentQr(upiQrFile);
         const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
         if (uploadUrl) {
-          submitData.upiQrImage = uploadUrl;
+          submitData.qrCode = uploadUrl;
         }
       } catch (uploadError) {
         console.error('UPI QR upload failed:', uploadError);

@@ -45,6 +45,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const server = createServer(app);
 const io = new Server(server, {
+  path: '/socket.io/',
   cors: {
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
@@ -281,10 +282,10 @@ app.use('/uploads', (req, res, next) => {
   ];
   
   // Allow any origin for static files (images, documents)
-  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
   res.header('Access-Control-Max-Age', '86400');
   
   // Cache control for static assets
