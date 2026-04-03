@@ -132,7 +132,7 @@ router.post(
       }
 
       const normalizedEmail = email.trim().toLowerCase();
-      const screenshotUrl = `/uploads/${PAYMENT_SCREENSHOT_SUBDIR}/${file.filename}`;
+      const screenshotUrl = `https://api.gameonesport.xyz/uploads/${PAYMENT_SCREENSHOT_SUBDIR}/${file.filename}`;
       const userId = req.user._id;
       const existing = await Payment.findOne({
         $or: [
@@ -269,14 +269,14 @@ router.get('/debug/payment/:paymentId', async (req, res) => {
 
 /**
  * User can check status of their submission - Enhanced with better error handling
+ * No authentication required - users can check payment status with email/phone
  */
-router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) => {
+router.get('/manual/status/:tournamentId', async (req, res) => {
   try {
     const { tournamentId } = req.params;
-    const userEmail = req.user.email?.trim().toLowerCase();
-    const userId = req.user._id;
+    const { email, phone } = req.query; // Allow email/phone as query params for status check
 
-    console.log(`[PAYMENT STATUS] Checking status for tournament: ${tournamentId}, user: ${userId}, email: ${userEmail}`);
+    console.log(`[PAYMENT STATUS] Checking status for tournament: ${tournamentId}`);
 
     // Validate tournamentId format
     if (!mongoose.Types.ObjectId.isValid(tournamentId)) {
@@ -311,17 +311,36 @@ router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) =
       });
     }
 
+    // Build payment query
+    const paymentQuery = { tournament: tournamentId };
+    
+    // If user is authenticated, use their ID
+    if (req.user) {
+      const userEmail = req.user.email?.trim().toLowerCase();
+      const userId = req.user._id;
+      paymentQuery.$or = [
+        { user: userId },
+        ...(userEmail ? [{ email: userEmail }] : [])
+      ];
+    } else if (email || phone) {
+      // For unauthenticated users, use email/phone from query
+      if (email) {
+        paymentQuery.email = email.trim().toLowerCase();
+      }
+      if (phone) {
+        paymentQuery.phone = phone;
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Authentication required or provide email/phone to check status',
+        error: 'MISSING_IDENTIFIER'
+      });
+    }
+
     // Find payment with detailed error handling
     let payment;
     try {
-      const paymentQuery = {
-        tournament: tournamentId,
-        $or: [
-          { user: userId },
-          ...(userEmail ? [{ email: userEmail }] : [])
-        ]
-      };
-      
       payment = await Payment.findOne(paymentQuery)
         .sort({ updatedAt: -1, createdAt: -1 })
         .populate('user', 'username email')
@@ -337,7 +356,7 @@ router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) =
     }
     
     if (!payment) {
-      console.log(`[PAYMENT STATUS] No payment found for tournament: ${tournamentId}, user: ${userId}`);
+      console.log(`[PAYMENT STATUS] No payment found for tournament: ${tournamentId}`);
       return res.status(404).json({ 
         success: false, 
         message: 'No payment record found for this tournament',

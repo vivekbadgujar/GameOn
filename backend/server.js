@@ -644,7 +644,9 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: !isServerless // Socket.IO limited in serverless mode
+      socketEnabled: !isServerless, // WebSocket Socket.IO disabled in serverless
+      realTimeEnabled: true, // Real-time features enabled via SSE
+      realTimeMethod: isServerless ? 'SSE' : 'Socket.IO'
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash

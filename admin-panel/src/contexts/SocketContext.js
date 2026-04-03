@@ -20,6 +20,49 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
+  const eventSourceRef = useRef(null);
+
+  // SSE Connection Function
+  const connectSSE = (apiBase) => {
+    try {
+      const eventSource = new EventSource(`${apiBase}/events?room=admin_room`);
+      eventSourceRef.current = eventSource;
+
+      eventSource.onopen = () => {
+        console.log('📡 SSE Connection opened');
+        setIsConnected(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📡 SSE Event received:', data);
+
+          // Forward SSE events as window CustomEvents
+          window.dispatchEvent(new CustomEvent(data.type, { detail: data }));
+        } catch (err) {
+          console.error('Error parsing SSE event:', err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('SSE Connection error:', err);
+        setIsConnected(false);
+        
+        // Attempt to reconnect after 3 seconds
+        setTimeout(() => {
+          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+            connectSSE(apiBase);
+          }
+        }, 3000);
+      };
+
+      return eventSource;
+    } catch (err) {
+      console.error('Failed to create SSE connection:', err);
+      setIsConnected(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +80,22 @@ export const SocketProvider = ({ children }) => {
         const health = await healthRes.json();
 
         const socketEnabled = health?.socketEnabled !== false;
+        const realTimeEnabled = health?.realTimeEnabled === true;
+        const realTimeMethod = health?.realTimeMethod || 'Socket.IO';
+        
+        if (!socketEnabled && !realTimeEnabled) {
+          console.warn('[Socket] Real-time features disabled');
+          return;
+        }
+
+        // Use SSE for serverless environments
+        if (realTimeEnabled && realTimeMethod === 'SSE') {
+          console.log('[Socket] Using Server-Sent Events for real-time updates');
+          connectSSE(apiBase);
+          return;
+        }
+
+        // Use Socket.IO for persistent servers
         if (!socketEnabled || cancelled) return;
 
         const wsUrl = apiBase.replace(/\/api$/, '');
@@ -147,9 +206,17 @@ export const SocketProvider = ({ children }) => {
 
     return () => {
       cancelled = true;
+      
+      // Cleanup Socket.IO connection
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
+      }
+      
+      // Cleanup SSE connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     };
   }, []);
