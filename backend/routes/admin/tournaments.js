@@ -377,13 +377,16 @@ router.get('/:id',
         tournamentId: tournament._id
       }).populate('user', 'username displayName');
 
-      // Calculate tournament statistics
+      // Calculate tournament statistics (guard against division-by-zero → NaN)
+      const participantCount = tournament.currentParticipants || 0;
+      const maxParticipants = tournament.maxParticipants || 1;
+      const totalKills = tournament.participants.reduce((sum, p) => sum + (p.kills || 0), 0);
       const stats = {
-        fillRate: (tournament.currentParticipants / tournament.maxParticipants) * 100,
+        fillRate: maxParticipants > 0 ? Math.min(100, (participantCount / maxParticipants) * 100) : 0,
         totalPrize: tournament.winners.reduce((sum, w) => sum + (w.prize || 0), 0),
-        averageKills: tournament.participants.reduce((sum, p) => sum + p.kills, 0) / tournament.currentParticipants || 0,
+        averageKills: participantCount > 0 ? (totalKills / participantCount) : 0,
         totalTransactions: transactions.length,
-        totalRevenue: tournament.currentParticipants * tournament.entryFee
+        totalRevenue: participantCount * (tournament.entryFee || 0)
       };
 
       res.json({

@@ -24,7 +24,7 @@ export const SocketProvider = ({ children }) => {
   const heartbeatRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const [connectionRetries, setConnectionRetries] = useState(0);
-  const maxRetries = 5;
+  const maxRetries = 15; // Allow up to 15 reconnect attempts with exponential back-off
 
   useEffect(() => {
     if (user && token) {
@@ -55,7 +55,11 @@ export const SocketProvider = ({ children }) => {
     const newSocket = io(config.WS_URL, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 0,
+      // Socket.IO built-in reconnection — let it handle transient drops automatically
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
       autoConnect: true,
       forceNew: true,
       timeout: 10000,
@@ -113,14 +117,12 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect_error', (error) => {
       clearTimeout(connectionTimeout);
-      console.error('❌ Socket connection error:', error);
+      console.warn('[Socket] Connection error (will retry):', error?.message || error);
       setIsConnected(false);
       setSyncStatus('disconnected');
-      disableSocketFeatureForSession();
-      try {
-        newSocket.disconnect();
-      } catch (_) {
-      }
+      // NOTE: do NOT call disableSocketFeatureForSession() here — that permanently
+      // kills the socket for the whole browser session. Instead let scheduleReconnect
+      // handle the retry with exponential back-off.
     });
 
     // Unified Platform Sync Events

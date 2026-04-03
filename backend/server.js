@@ -271,6 +271,24 @@ app.use(morgan('combined'));
 const defaultUploadDir = process.env.MANUAL_PAYMENT_UPLOAD_DIR
   || (isServerless ? path.join(os.tmpdir(), 'gameon-uploads') : path.join(__dirname, 'uploads'));
 
+// Ensure all upload subdirectories exist at startup (critical for first Render deploy)
+const fs = require('fs');
+[
+  path.join(defaultUploadDir, 'thumbnails'),
+  path.join(defaultUploadDir, 'payment_qr'),
+  path.join(defaultUploadDir, 'media'),
+  path.join(defaultUploadDir, 'payment_screenshots')
+].forEach(dir => {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log('[Server] Created upload directory:', dir);
+    }
+  } catch (e) {
+    console.warn('[Server] Could not create upload directory:', dir, e.message);
+  }
+});
+
 // Enhanced static file serving with comprehensive CORS headers
 app.use('/uploads', (req, res, next) => {
   // Set comprehensive CORS headers for static files
@@ -515,8 +533,12 @@ app.use('/api/sync', require('./routes/sync'));
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));
 app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
-app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
+// IMPORTANT: tournamentParticipants MUST be mounted BEFORE tournaments.
+// The tournaments router has a /:id wildcard that would otherwise intercept
+// paths like /:id/participants, returning "Tournament not found" instead of
+// delegating to the participants router.
 app.use('/api/admin/tournaments', require('./routes/admin/tournamentParticipants'));
+app.use('/api/admin/tournaments', require('./routes/admin/tournaments'));
 app.use('/api/admin/notifications', require('./routes/admin/notifications'));
 app.use('/api/admin/tournament-videos', require('./routes/admin/tournamentVideos'));
 app.use('/api/admin/users', require('./routes/admin/users'));

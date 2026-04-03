@@ -74,10 +74,20 @@ const validateTournament = [
     .trim()
     .isLength({ max: 100 }).withMessage('UPI ID cannot exceed 100 characters'),
 
-  body('upiQrImage')
+  body('thumbnail')
     .optional()
     .trim()
-    .isLength({ max: 300 }).withMessage('UPI QR image URL cannot exceed 300 characters')
+    .isLength({ max: 500 }).withMessage('Thumbnail URL cannot exceed 500 characters'),
+
+  body('qrCode')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('QR code URL cannot exceed 500 characters'),
+
+  // Legacy field aliases — still accepted but silently ignored
+  body('upiQrImage').optional(),
+  body('poster').optional(),
+  body('posterUrl').optional()
 ];
 
 // Validation for room details

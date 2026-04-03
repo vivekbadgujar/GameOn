@@ -678,10 +678,12 @@ input[type="file"]::file-selector-button {
 }
 
 @media (max-width: 640px) {
-  .btn-primary,
-  .btn-secondary,
-  .btn-ghost {
+  /* Full-width buttons only when explicitly stacked with .btn-block 
+     or inside a form/modal context. Do NOT blanket-force all buttons
+     to 100% — that breaks nav pills, hero CTAs, and icon buttons. */
+  .btn-block {
     width: 100%;
+    justify-content: center;
   }
 
   .auth-modal-container {

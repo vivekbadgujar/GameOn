@@ -211,7 +211,7 @@ const Dashboard = () => {
       <div className="container-custom">
         {/* Hero Section */}
         <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 leading-tight">
             Welcome back,{' '}
             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
               {user?.username || 'Gamer'}
@@ -225,7 +225,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (

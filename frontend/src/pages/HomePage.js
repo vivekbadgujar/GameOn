@@ -224,59 +224,73 @@ export default function HomePage() {
   if (error) return <div className="text-center text-accent-red py-12">{error}</div>;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-8 sm:gap-12 px-4 sm:px-0">
       {/* Hero Section */}
-      <motion.section initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, type: 'spring' }} className="bg-glass rounded-glass shadow-glass p-8 mt-8 flex flex-col items-center text-center">
-        <h1 className="font-display text-5xl md:text-6xl font-bold text-primary mb-4">Compete. Win. Repeat.</h1>
-        <p className="text-xl text-secondary mb-6 max-w-2xl">The most premium esports tournaments platform. Real-time, pro-level, and built for gamers who want to win big.</p>
-        <button className="px-8 py-3 rounded-xl bg-gradient-to-tr from-accent-blue to-accent-purple text-lg font-bold text-primary shadow-neon hover:scale-105 transition-transform">Join Now</button>
+      <motion.section
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, type: 'spring' }}
+        className="glass-card shadow-lg p-6 sm:p-10 mt-6 sm:mt-8 flex flex-col items-center text-center"
+      >
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-3 sm:mb-4 leading-tight">
+          Compete. Win. Repeat.
+        </h1>
+        <p className="text-base sm:text-lg md:text-xl text-white/70 mb-5 sm:mb-6 max-w-2xl">
+          The most premium esports tournaments platform. Real-time, pro-level, and built for gamers who want to win big.
+        </p>
+        <button className="btn-primary w-auto px-8 py-3 text-base sm:text-lg font-bold hover:scale-105 transition-transform">
+          Join Now
+        </button>
       </motion.section>
-      {/* Featured Tournaments Slider */}
+
+      {/* Featured Tournaments */}
       <section>
-        <h2 className="font-display text-3xl mb-4">Featured Tournaments</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Featured Tournaments</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {tournaments.map(t => (
-            <div key={t._id} className="bg-card-bg rounded-card shadow-glass p-6 flex flex-col gap-2 hover:scale-105 transition-transform">
-              <div className="h-40 bg-gradient-to-tr from-accent-blue to-accent-purple rounded-xl mb-3" />
-              <h3 className="font-bold text-xl">{t.name}</h3>
-              <p className="text-secondary">Prize: <span className="text-accent-green font-bold">₹{t.prizePool}</span></p>
-              <button className="mt-2 px-4 py-2 rounded-lg bg-accent-blue text-primary font-semibold hover:bg-accent-purple transition">View</button>
+            <div key={t._id} className="glass-card-hover p-4 sm:p-6 flex flex-col gap-2 rounded-2xl">
+              <div className="h-32 sm:h-40 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-xl mb-3" />
+              <h3 className="font-bold text-base sm:text-xl text-white">{t.name || t.title}</h3>
+              <p className="text-white/60 text-sm">Prize: <span className="text-green-400 font-bold">₹{t.prizePool?.toLocaleString()}</span></p>
+              <button className="mt-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-400 transition text-sm min-h-[44px]">View</button>
             </div>
           ))}
         </div>
       </section>
+
       {/* Video Highlights */}
       <section>
-        <h2 className="font-display text-3xl mb-4">Video Highlights</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Video Highlights</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {videos.map((v, i) => (
-            <div key={v.id || i} className="bg-glass rounded-xl shadow-glass p-4 flex flex-col items-center">
-              <div className="w-full aspect-video bg-secondary-bg rounded-lg mb-2 flex items-center justify-center">
+            <div key={v.id || i} className="glass-card p-3 sm:p-4 flex flex-col items-center rounded-xl">
+              <div className="w-full aspect-video bg-white/5 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
                 {v.thumbnail ? <img src={v.thumbnail} alt={v.title} className="rounded-lg w-full h-full object-cover" /> : null}
               </div>
-              <span className="text-lg font-semibold line-clamp-2">{v.title || `Highlight ${i+1}`}</span>
+              <span className="text-sm sm:text-base font-semibold line-clamp-2 text-white text-center">{v.title || `Highlight ${i + 1}`}</span>
             </div>
           ))}
         </div>
       </section>
-      {/* Leaderboard Slider */}
+
+      {/* Top Players */}
       <section>
-        <h2 className="font-display text-3xl mb-4">Top Players</h2>
-        <div className="overflow-x-hidden relative">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Top Players</h2>
+        <div className="overflow-x-auto pb-2 -mx-4 sm:mx-0 px-4 sm:px-0" style={{ scrollbarWidth: 'none' }}>
           <motion.div
-            className="flex gap-6"
+            className="flex gap-3 sm:gap-6"
             ref={sliderRef}
             drag="x"
-            dragConstraints={{ left: -((players.length-1)*220), right: 0 }}
+            dragConstraints={{ left: -((players.length - 1) * 220), right: 0 }}
             animate={controls}
             transition={{ type: 'spring', stiffness: 100, damping: 20 }}
             style={{ cursor: 'grab' }}
           >
             {players.map((p, i) => (
-              <div key={p._id || i} className="bg-glass rounded-xl shadow-neon px-6 py-4 flex flex-col items-center min-w-[200px]">
-                <span className="text-2xl font-bold text-accent-blue">#{i+1}</span>
-                <span className="font-semibold text-lg mt-2">{p.username || p.name || `Player ${i+1}`}</span>
-                <span className="text-secondary text-sm">Points: {p.points || p.totalPoints || 0}</span>
+              <div key={p._id || i} className="glass-card px-4 sm:px-6 py-3 sm:py-4 flex flex-col items-center min-w-[160px] sm:min-w-[200px] shrink-0 rounded-xl">
+                <span className="text-xl sm:text-2xl font-bold text-blue-400">#{i + 1}</span>
+                <span className="font-semibold text-sm sm:text-lg mt-1 sm:mt-2 text-white">{p.username || p.name || `Player ${i + 1}`}</span>
+                <span className="text-white/60 text-xs sm:text-sm">Points: {p.points || p.totalPoints || 0}</span>
               </div>
             ))}
           </motion.div>
@@ -284,4 +298,5 @@ export default function HomePage() {
       </section>
     </div>
   );
+
 } 

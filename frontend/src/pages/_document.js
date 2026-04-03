@@ -11,6 +11,7 @@ export default function Document() {
         <meta property="og:image" content="https://gameonesport.xyz/logo.png" />
         <meta property="og:url" content="https://gameonesport.xyz" />
         <meta property="og:type" content="website" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/logo192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/logo512.png" />
