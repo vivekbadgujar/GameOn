@@ -20,49 +20,6 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
-  const eventSourceRef = useRef(null);
-
-  // SSE Connection Function
-  const connectSSE = (apiBase) => {
-    try {
-      const eventSource = new EventSource(`${apiBase}/events?room=admin_room`);
-      eventSourceRef.current = eventSource;
-
-      eventSource.onopen = () => {
-        console.log('📡 SSE Connection opened');
-        setIsConnected(true);
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📡 SSE Event received:', data);
-
-          // Forward SSE events as window CustomEvents
-          window.dispatchEvent(new CustomEvent(data.type, { detail: data }));
-        } catch (err) {
-          console.error('Error parsing SSE event:', err);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error('SSE Connection error:', err);
-        setIsConnected(false);
-        
-        // Attempt to reconnect after 3 seconds
-        setTimeout(() => {
-          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-            connectSSE(apiBase);
-          }
-        }, 3000);
-      };
-
-      return eventSource;
-    } catch (err) {
-      console.error('Failed to create SSE connection:', err);
-      setIsConnected(false);
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -80,16 +37,15 @@ export const SocketProvider = ({ children }) => {
         const health = await healthRes.json();
 
         const socketEnabled = health?.socketEnabled !== false;
-        const realTimeEnabled = health?.realTimeEnabled === true;
-        const realTimeMethod = health?.realTimeMethod || 'Socket.IO';
+        const websocketSupported = health?.websocketSupported === true;
         
-        if (!socketEnabled && !realTimeEnabled) {
-          console.warn('[Socket] Real-time features disabled');
+        if (!socketEnabled) {
+          console.warn('[Socket] Socket.IO disabled');
           return;
         }
 
-        // Always use Socket.IO (polling works in serverless)
-        if (!socketEnabled || cancelled) return;
+        // Always use Socket.IO with proper transport configuration
+        if (cancelled) return;
 
         const wsUrl = apiBase.replace(/\/api$/, '');
 
@@ -98,8 +54,8 @@ export const SocketProvider = ({ children }) => {
 
         const newSocket = io(wsUrl, {
           path: '/socket.io/',
-          // Prioritize polling for serverless compatibility
-          transports: realTimeMethod === 'Socket.IO-Polling' ? ['polling'] : ['websocket', 'polling'],
+          // Use WebSocket if supported, fallback to polling
+          transports: websocketSupported ? ['websocket', 'polling'] : ['polling'],
           reconnection: true,
           reconnectionAttempts: 10,
           reconnectionDelay: 3000,
@@ -107,6 +63,10 @@ export const SocketProvider = ({ children }) => {
           autoConnect: true,
           withCredentials: true,
           timeout: 10000,
+          // Force polling if WebSocket fails
+          forceNew: true,
+          upgrade: websocketSupported,
+          rememberUpgrade: websocketSupported
         });
 
         newSocket.on('connect', () => {
@@ -122,12 +82,23 @@ export const SocketProvider = ({ children }) => {
         newSocket.on('disconnect', (reason) => {
           console.log('🔌 Admin Panel Socket disconnected:', reason);
           setIsConnected(false);
+          
+          // Reconnect with polling if disconnection was transport-related
+          if (reason === 'transport error' && websocketSupported) {
+            newSocket.io.opts.transports = ['polling'];
+          }
         });
 
         newSocket.on('connect_error', (err) => {
           console.warn('[Admin Socket] Connection error:', err.message);
-          // Don't give up — let the built-in reconnection handle it
           setIsConnected(false);
+          
+          // If WebSocket fails, force polling
+          if (err.message.includes('WebSocket') && websocketSupported) {
+            console.log('[Admin Socket] WebSocket failed, switching to polling');
+            newSocket.io.opts.transports = ['polling'];
+            newSocket.connect();
+          }
         });
 
         // ---- Forward ALL relevant events as window CustomEvents ----
@@ -200,17 +171,9 @@ export const SocketProvider = ({ children }) => {
 
     return () => {
       cancelled = true;
-      
-      // Cleanup Socket.IO connection
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
-      }
-      
-      // Cleanup SSE connection
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
       }
     };
   }, []);

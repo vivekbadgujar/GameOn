@@ -45,9 +45,7 @@ const SSEManager = require('./services/sseManager');
 const sseManager = new SSEManager();
 
 // Always create HTTP Server + Socket.IO unconditionally
-// isServerless only prevents listen() — Socket.IO must always be mounted
 const { createServer } = require('http');
-const { Server } = require('socket.io');
 const server = createServer(app);
 
 const io = new Server(server, {
@@ -55,20 +53,17 @@ const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
-  transports: ['websocket', 'polling'], // Enable both for maximum compatibility
+  transports: ['websocket', 'polling'],
   allowEIO3: true,
   pingTimeout: 60000,
   pingInterval: 25000,
-  // Serverless-specific options - only disable upgrades if needed
-  ...(isServerless ? {
-    upgrade: false,
-    rememberUpgrade: false,
-    forceJSONP: false,
-    // Use polling transport for serverless compatibility
-    transports: ['polling']
-  } : {})
+  // Enable WebSocket upgrades in production
+  upgrade: true,
+  rememberUpgrade: true,
+  forceJSONP: false
 });
 
 try {
@@ -659,9 +654,11 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: true, // Socket.IO enabled (polling in serverless)
-      realTimeEnabled: true, // Real-time features enabled
-      realTimeMethod: isServerless ? 'Socket.IO-Polling' : 'Socket.IO-WebSocket'
+      socketEnabled: true, // Socket.IO always enabled
+      realTimeEnabled: true,
+      realTimeMethod: 'Socket.IO',
+      transports: ['websocket', 'polling'],
+      websocketSupported: !isServerless // WebSocket works on persistent servers
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash
