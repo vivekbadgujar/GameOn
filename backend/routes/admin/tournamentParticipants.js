@@ -81,10 +81,21 @@ router.post('/:tournamentId/participants/:participantId/kick', authenticateAdmin
 
     await tournament.save();
 
-    // Emit Socket.IO event for real-time updates
     const io = req.app.get('io');
+    const broadcastEvent = req.app.get('broadcastEvent');
+    
     if (io) {
       io.emit('participantKicked', {
+        tournamentId,
+        participantId,
+        reason,
+        kickedBy: req.admin.name
+      });
+    }
+    
+    if (broadcastEvent) {
+      broadcastEvent(`tournament_${tournamentId}`, {
+        type: 'participantKicked',
         tournamentId,
         participantId,
         reason,
@@ -241,10 +252,21 @@ router.patch('/:tournamentId/participants/:participantId', authenticateAdmin, as
       await tournament.save();
     }
 
-    // Emit Socket.IO event for real-time updates
+    // Emit real-time update (Socket.IO or SSE)
     const io = req.app.get('io');
+    const broadcastEvent = req.app.get('broadcastEvent');
+    
     if (io) {
       io.emit('participantUpdated', {
+        tournamentId,
+        participantId,
+        updates: { bgmiName, bgmiId, slotNumber }
+      });
+    }
+    
+    if (broadcastEvent) {
+      broadcastEvent(`tournament_${tournamentId}`, {
+        type: 'participantUpdated',
         tournamentId,
         participantId,
         updates: { bgmiName, bgmiId, slotNumber }

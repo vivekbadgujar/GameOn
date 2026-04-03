@@ -39,15 +39,15 @@ const isAllowedOrigin = (origin) => {
 // Import unified platform services
 let syncService, pushNotificationService;
 
+// Import SSE Manager for serverless real-time updates
+const SSEManager = require('./services/sseManager');
+const sseManager = new SSEManager();
+
 // Always create HTTP Server + Socket.IO unconditionally
 // isServerless only prevents listen() — Socket.IO must always be mounted
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const server = createServer(app);
-
-// Use serverless adapter if in serverless mode
-const ServerlessSocketAdapter = require('./services/serverlessSocketAdapter');
-const serverlessAdapter = new ServerlessSocketAdapter();
 
 const io = new Server(server, {
   path: '/socket.io/',
@@ -63,9 +63,7 @@ const io = new Server(server, {
   // Serverless-specific options
   upgrade: false, // Disable WebSocket upgrades for serverless
   rememberUpgrade: false,
-  forceJSONP: false,
-  // Custom adapter for serverless
-  adapter: isServerless ? serverlessAdapter : undefined
+  forceJSONP: false
 });
 
 try {
@@ -526,41 +524,36 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('syncService', syncService);
 app.set('pushNotificationService', pushNotificationService);
-app.set('serverlessAdapter', serverlessAdapter);
+app.set('sseManager', sseManager);
 
-// Serverless Socket.IO endpoints
-if (isServerless) {
-  // Socket.IO connection endpoint for serverless
-  app.post('/socket.io/', (req, res) => {
-    const socket = serverlessAdapter.handleConnection(req, res);
-    
-    // Handle authentication
-    socket.on('authenticate', (data) => {
-      // Verify JWT token here if needed
-      console.log('Socket authenticated:', socket.id);
-    });
-
-    // Handle room joins
-    socket.on('join_room', (room) => {
-      socket.join(room);
-      console.log('Socket joined room:', room);
-    });
+// SSE endpoint for real-time updates (serverless compatible)
+app.get('/api/events', (req, res) => {
+  const { room = 'global' } = req.query;
+  
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': allowedOrigins,
+    'Access-Control-Allow-Headers': 'Cache-Control',
+    'Access-Control-Allow-Credentials': 'true'
   });
 
-  // Socket.IO polling endpoint
-  app.get('/socket.io/', (req, res) => {
-    res.set({
-      'Content-Type': 'text/plain',
-      'Access-Control-Allow-Origin': allowedOrigins,
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Credentials': 'true'
-    });
-    
-    // Return polling response for Socket.IO
-    res.send('0{"sid":"serverless","upgrades":[],"pingInterval":25000,"pingTimeout":60000}');
-  });
-}
+  // Add client to room
+  sseManager.addClient(room, res);
+  
+  console.log(`📡 SSE client connected to room: ${room}`);
+});
+
+// Helper function for routes to broadcast events
+app.set('broadcastEvent', (room, event) => {
+  sseManager.broadcast(room, event);
+});
+
+app.set('broadcastAll', (event) => {
+  sseManager.broadcastAll(event);
+});
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -651,7 +644,7 @@ app.get('/api/health', async (req, res) => {
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
       serverless: isServerless,
-      socketEnabled: true // Socket.IO enabled with serverless adapter
+      socketEnabled: !isServerless // Socket.IO limited in serverless mode
     });
   } catch (err) {
     // Ultimate fallback - never let health check crash
