@@ -81,28 +81,6 @@ router.post('/:tournamentId/participants/:participantId/kick', authenticateAdmin
 
     await tournament.save();
 
-    const io = req.app.get('io');
-    const broadcastEvent = req.app.get('broadcastEvent');
-    
-    if (io) {
-      io.emit('participantKicked', {
-        tournamentId,
-        participantId,
-        reason,
-        kickedBy: req.admin.name
-      });
-    }
-    
-    if (broadcastEvent) {
-      broadcastEvent(`tournament_${tournamentId}`, {
-        type: 'participantKicked',
-        tournamentId,
-        participantId,
-        reason,
-        kickedBy: req.admin.name
-      });
-    }
-
     res.json({
       success: true,
       message: 'Participant kicked successfully'

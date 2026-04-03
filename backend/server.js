@@ -40,10 +40,6 @@ const isAllowedOrigin = (origin) => {
 // Import unified platform services
 let syncService, pushNotificationService;
 
-// Import SSE Manager for serverless real-time updates
-const SSEManager = require('./services/sseManager');
-const sseManager = new SSEManager();
-
 // Always create HTTP Server + Socket.IO unconditionally
 const { createServer } = require('http');
 const server = createServer(app);
@@ -524,46 +520,6 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('syncService', syncService);
 app.set('pushNotificationService', pushNotificationService);
-app.set('sseManager', sseManager);
-
-// SSE endpoint for real-time updates (serverless compatible)
-app.get('/api/events', (req, res) => {
-  const { room = 'global' } = req.query;
-  
-  // Set SSE headers with proper CORS for EventSource
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*', // EventSource needs wildcard
-    'Access-Control-Allow-Headers': 'Cache-Control',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS'
-  });
-
-  // Handle preflight for SSE
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Cache-Control'
-    });
-    return res.end();
-  }
-
-  // Add client to room
-  sseManager.addClient(room, res);
-  
-  console.log(`📡 SSE client connected to room: ${room}`);
-});
-
-// Helper function for routes to broadcast events
-app.set('broadcastEvent', (room, event) => {
-  sseManager.broadcast(room, event);
-});
-
-app.set('broadcastAll', (event) => {
-  sseManager.broadcastAll(event);
-});
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -783,5 +739,8 @@ if (!isServerless && server) {
 
 // Export app for serverless deployment (Vercel)
 // Export server for persistent deployment (Render) where Socket.IO works
-module.exports = app;
-module.exports.server = server;
+if (isServerless) {
+  module.exports = app;
+} else {
+  module.exports = { app, server };
+}
