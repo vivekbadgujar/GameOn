@@ -357,11 +357,12 @@ router.get('/manual/status/:tournamentId', optionalAuth, async (req, res) => {
     
     if (!payment) {
       console.log(`[PAYMENT STATUS] No payment found for tournament: ${tournamentId}`);
-      return res.status(404).json({ 
-        success: false, 
+      return res.json({
+        success: true,
+        data: null,
+        paymentExists: false,
         message: 'No payment record found for this tournament',
-        error: 'PAYMENT_NOT_FOUND',
-        tournamentInfo: {
+        tournament: {
           id: tournament._id,
           title: tournament.title,
           entryFee: tournament.entryFee
