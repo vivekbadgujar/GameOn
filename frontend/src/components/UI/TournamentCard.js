@@ -77,6 +77,8 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
     return gameIcons[game?.toLowerCase()] || '🎮';
   };
 
+
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -5 }}
@@ -96,13 +98,11 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
         {tournament.thumbnail || tournament.poster || tournament.posterUrl || tournament.image ? (
           <>
             <img 
-              src={tournament.thumbnail || tournament.poster || tournament.posterUrl || tournament.image} 
+              src={getAssetUrl(tournament.thumbnail || tournament.poster || tournament.posterUrl || tournament.image)} 
               alt={tournament.title || tournament.name || 'Tournament'}
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
               }}
             />
             <div className="absolute inset-0 bg-black/30" />

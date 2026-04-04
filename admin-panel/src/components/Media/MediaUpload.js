@@ -50,6 +50,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mediaAPI } from '../../services/api';
+import { getAssetUrl } from '../../utils/urlUtils';
 import dayjs from 'dayjs';
 
 const MediaUpload = () => {
@@ -401,7 +402,7 @@ const MediaUpload = () => {
                 <ImageListItem key={index} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                   <Box
                     component="img"
-                    src={media.url || 'https://via.placeholder.com/300x200?text=Media'}
+                    src={media.url ? getAssetUrl(media.url) : 'https://via.placeholder.com/300x200?text=Media'}
                     alt={media.title}
                     sx={{
                       width: '100%',
@@ -666,7 +667,7 @@ const MediaUpload = () => {
             <Box>
               <Box
                 component="img"
-                src={selectedMedia.url || 'https://via.placeholder.com/800x600?text=Media'}
+                src={selectedMedia.url ? getAssetUrl(selectedMedia.url) : 'https://via.placeholder.com/800x600?text=Media'}
                 alt={selectedMedia.title}
                 sx={{
                   width: '100%',
