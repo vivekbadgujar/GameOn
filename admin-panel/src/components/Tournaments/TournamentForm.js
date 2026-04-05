@@ -338,6 +338,9 @@ const TournamentForm = () => {
 
     if (!validateForm()) return;
 
+    setImageError('');
+    setUpiQrError('');
+
     // Build submit payload — preserve existing poster/upiQrImage when no new file uploaded
     const submitData = {
       title: formData.title.trim(),
@@ -375,10 +378,14 @@ const TournamentForm = () => {
         const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
         if (uploadUrl) {
           submitData.thumbnail = uploadUrl;
+        } else {
+          setImageError('Thumbnail upload succeeded but no image URL was returned.');
+          return;
         }
       } catch (uploadError) {
         console.error('Image upload failed:', uploadError);
-        // Continue — keep existing thumbnail from formData
+        setImageError(uploadError.response?.data?.message || 'Failed to upload tournament image');
+        return;
       }
     }
 
@@ -389,6 +396,9 @@ const TournamentForm = () => {
         const uploadUrl = uploadResponse.data?.data?.url || uploadResponse.data?.url || '';
         if (uploadUrl) {
           submitData.qrCode = uploadUrl;
+        } else {
+          setUpiQrError('UPI QR upload succeeded but no image URL was returned.');
+          return;
         }
       } catch (uploadError) {
         console.error('UPI QR upload failed:', uploadError);
@@ -900,6 +910,12 @@ const TournamentForm = () => {
                   </Button>
                 </label>
                 
+                {imageError && (
+                  <FormHelperText error sx={{ mt: 1 }}>
+                    {imageError}
+                  </FormHelperText>
+                )}
+
                 {imagePreview && (
                   <Box sx={{ mt: 2, textAlign: 'center' }}>
                     <img

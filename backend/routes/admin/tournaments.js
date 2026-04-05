@@ -501,11 +501,19 @@ router.post('/',
         winners: [],
         isVisible: req.body.isVisible !== undefined ? req.body.isVisible : true,
         isPublic: req.body.isPublic !== undefined ? req.body.isPublic : true,
+        // Fix image field mapping - prioritize the correct field names
         thumbnail: req.body.thumbnail || req.body.poster || req.body.posterUrl || req.body.image || '',
         qrCode: req.body.qrCode || req.body.upiQrImage || req.body.upi_qr_image || '',
         media: req.body.media || [],
         upiId: typeof req.body.upiId === 'string' ? req.body.upiId.trim() : (req.body.upi_id || '')
       };
+
+      // Debug logging for image fields
+      console.log('Tournament Creation - Image Fields Debug:');
+      console.log('req.body.thumbnail:', req.body.thumbnail);
+      console.log('req.body.qrCode:', req.body.qrCode);
+      console.log('Final tournamentData.thumbnail:', tournamentData.thumbnail);
+      console.log('Final tournamentData.qrCode:', tournamentData.qrCode);
 
       console.log('Creating tournament with data:', JSON.stringify(tournamentData, null, 2));
       
