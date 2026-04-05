@@ -1,40 +1,30 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const Media = require('../../models/Media');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');
+const { uploadImage, uploadVideo } = require('../../config/cloudinary');
 const router = express.Router();
 
 // Middleware to protect all admin media routes
 router.use(authenticateAdmin);
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Handle serverless environment
-    const os = require('os');
-    const path = require('path');
-    const isServerless = !!process.env.VERCEL;
-    
-    const uploadDir = isServerless 
-      ? path.join(os.tmpdir(), 'gameon-uploads', 'media')
-      : path.join(__dirname, '../../uploads/media');
-    
-    if (!require('fs').existsSync(uploadDir)) {
-      require('fs').mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Cloudinary-only storage - no local files
+const hasCloudinaryConfig = () => (
+  !!process.env.CLOUDINARY_CLOUD_NAME &&
+  !!process.env.CLOUDINARY_API_KEY &&
+  !!process.env.CLOUDINARY_API_SECRET &&
+  process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
+  process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
+  process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
+);
+
+// Memory storage for multer - files go directly to Cloudinary
+const memoryStorage = multer.memoryStorage();
 
 const upload = multer({
-  storage: storage,
+  storage: memoryStorage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -50,6 +40,35 @@ const upload = multer({
     }
   }
 });
+
+// Upload file directly to Cloudinary
+const uploadToCloudinary = async (file, title) => {
+  if (!hasCloudinaryConfig()) {
+    throw new Error('Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+  }
+
+  try {
+    console.log(`Uploading media to Cloudinary: ${title}`);
+    console.log('File details:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+
+    let result;
+    if (file.mimetype.startsWith('video/')) {
+      result = await uploadVideo(file, 'gameon/media');
+    } else {
+      result = await uploadImage(file, 'gameon/media');
+    }
+
+    console.log('Cloudinary media upload successful:', result.url);
+    return result;
+  } catch (error) {
+    console.error('Cloudinary media upload failed:', error);
+    throw new Error(`Failed to upload media to Cloudinary: ${error.message}`);
+  }
+};
 
 // Get all media files
 router.get('/', 
@@ -162,16 +181,24 @@ router.post('/upload',
                       req.file.mimetype.startsWith('video/') ? 'video' :
                       req.file.mimetype.startsWith('application/') ? 'document' : 'other';
 
+      // Upload to Cloudinary
+      const cloudinaryResult = await uploadToCloudinary(req.file, title || req.file.originalname);
+
       // Create media record
       const media = new Media({
         title: title || req.file.originalname,
         description: description || '',
         type: type || fileType,
-        filename: req.file.filename,
+        filename: req.file.originalname,
         originalName: req.file.originalname,
         mimeType: req.file.mimetype,
         size: req.file.size,
-        url: `/uploads/media/${req.file.filename}`,
+        url: cloudinaryResult.url,
+        publicId: cloudinaryResult.publicId,
+        width: cloudinaryResult.width,
+        height: cloudinaryResult.height,
+        format: cloudinaryResult.format,
+        duration: cloudinaryResult.duration,
         tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
         uploadedBy: req.admin._id,
         isVisible: true
@@ -181,7 +208,7 @@ router.post('/upload',
 
       res.json({
         success: true,
-        message: 'File uploaded successfully',
+        message: 'File uploaded successfully to Cloudinary',
         data: media
       });
     } catch (error) {

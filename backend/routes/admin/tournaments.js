@@ -4,10 +4,7 @@
  */
 
 const express = require('express');
-const fs = require('fs');
 const multer = require('multer');
-const os = require('os');
-const path = require('path');
 const { validationResult } = require('express-validator');
 const Tournament = require('../../models/Tournament');
 const User = require('../../models/User');
@@ -17,10 +14,9 @@ const { authenticateAdmin, requirePermission, auditLog } = require('../../middle
 const { validateTournament, validateRoomDetails, validateWinnerDistribution } = require('../../middleware/tournamentValidation');
 const { uploadImage } = require('../../config/cloudinary');
 const router = express.Router();
-const PAYMENT_QR_SUBDIR = 'payment_qr';
-const THUMBNAIL_SUBDIR = 'thumbnails';
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
+// Cloudinary-only storage - no local files
 const hasCloudinaryConfig = () => (
   !!process.env.CLOUDINARY_CLOUD_NAME &&
   !!process.env.CLOUDINARY_API_KEY &&
@@ -30,118 +26,55 @@ const hasCloudinaryConfig = () => (
   process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
 );
 
-const cleanupTempUpload = async (filePath) => {
-  if (!filePath) return;
-  try {
-    await fs.promises.unlink(filePath);
-  } catch (_) {
+// Memory storage for multer - files go directly to Cloudinary
+const memoryStorage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|webp/;
+  const extname = allowedTypes.test(require('path').extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (extname && mimetype) {
+    return cb(null, true);
   }
+
+  cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
 };
-
-const buildLocalUploadUrl = (subdir, filename) =>
-  `/uploads/${subdir}/${filename}`;
-
-const persistTournamentImage = async (file, folder, subdir) => {
-  if (!file) {
-    throw new Error('Image file is required');
-  }
-
-  if (hasCloudinaryConfig()) {
-    const uploaded = await uploadImage(file, folder);
-    await cleanupTempUpload(file.path);
-    return uploaded.url;
-  }
-
-  // For serverless environments without Cloudinary, 
-  // we'll still save locally but warn about persistence
-  if (isServerless) {
-    console.warn('Serverless environment detected: Images may not persist between deployments. Consider configuring Cloudinary for production.');
-    // Continue with local storage instead of throwing error
-    return buildLocalUploadUrl(subdir, file.filename);
-  }
-
-  return buildLocalUploadUrl(subdir, file.filename);
-};
-
-const resolveUploadBaseDir = () => {
-  if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
-    return process.env.MANUAL_PAYMENT_UPLOAD_DIR;
-  }
-
-  if (isServerless) {
-    // In serverless, use a persistent directory if available
-    // This might be a mounted volume or persistent storage
-    const persistentDir = process.env.UPLOAD_DIR || '/tmp/uploads';
-    return persistentDir;
-  }
-
-  return path.join(__dirname, '../../uploads');
-};
-
-const paymentQrStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(resolveUploadBaseDir(), PAYMENT_QR_SUBDIR);
-
-    try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `upi-qr-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
 
 const paymentQrUpload = multer({
-  storage: paymentQrStorage,
+  storage: memoryStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (extname && mimetype) {
-      return cb(null, true);
-    }
-
-    cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
-  }
-});
-
-const thumbnailStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(resolveUploadBaseDir(), THUMBNAIL_SUBDIR);
-    try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `thumb-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
+  fileFilter
 });
 
 const thumbnailUpload = multer({
-  storage: thumbnailStorage,
+  storage: memoryStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp/;
-    if (allowedTypes.test(path.extname(file.originalname).toLowerCase()) && allowedTypes.test(file.mimetype)) {
-      return cb(null, true);
-    }
-    cb(new Error('Only JPG, PNG, or WEBP images are allowed'));
-  }
+  fileFilter
 });
+
+// Upload image directly to Cloudinary
+const uploadToCloudinary = async (file, folder) => {
+  if (!hasCloudinaryConfig()) {
+    throw new Error('Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+  }
+
+  try {
+    console.log(`Uploading to Cloudinary folder: ${folder}`);
+    console.log('File details:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+
+    const result = await uploadImage(file, folder);
+    console.log('Cloudinary upload successful:', result.url);
+    return result.url;
+  } catch (error) {
+    console.error('Cloudinary upload failed:', error);
+    throw new Error(`Failed to upload image to Cloudinary: ${error.message}`);
+  }
+};
 
 // Debug route - no authentication required (must be before middleware)
 router.get('/debug', async (req, res) => {
@@ -201,25 +134,24 @@ router.post(
     try {
       console.log('QR upload - File info:', {
         originalname: req.file.originalname,
-        filename: req.file.filename,
-        path: req.file.path,
+        mimetype: req.file.mimetype,
         size: req.file.size
       });
       
-      const url = await persistTournamentImage(req.file, 'gameon/tournaments/payment_qr', PAYMENT_QR_SUBDIR);
+      const url = await uploadToCloudinary(req.file, 'gameon/tournaments/payment_qr');
       
-      console.log('QR upload - Generated URL:', url);
+      console.log('QR upload - Generated Cloudinary URL:', url);
       
       return res.json({
         success: true,
-        message: 'UPI QR image uploaded successfully',
+        message: 'UPI QR image uploaded successfully to Cloudinary',
         data: { url }
       });
     } catch (error) {
-      console.error('UPI QR upload persistence error:', error);
+      console.error('UPI QR upload error:', error);
       return res.status(503).json({
         success: false,
-        message: error.message || 'Failed to persist UPI QR image'
+        message: error.message || 'Failed to upload UPI QR image'
       });
     }
   }
@@ -244,25 +176,24 @@ router.post(
     try {
       console.log('Thumbnail upload - File info:', {
         originalname: req.file.originalname,
-        filename: req.file.filename,
-        path: req.file.path,
+        mimetype: req.file.mimetype,
         size: req.file.size
       });
       
-      const url = await persistTournamentImage(req.file, 'gameon/tournaments/thumbnails', THUMBNAIL_SUBDIR);
+      const url = await uploadToCloudinary(req.file, 'gameon/tournaments/thumbnails');
       
-      console.log('Thumbnail upload - Generated URL:', url);
+      console.log('Thumbnail upload - Generated Cloudinary URL:', url);
       
       return res.json({
         success: true,
-        message: 'Thumbnail image uploaded successfully',
+        message: 'Thumbnail image uploaded successfully to Cloudinary',
         data: { url }
       });
     } catch (error) {
-      console.error('Thumbnail upload persistence error:', error);
+      console.error('Thumbnail upload error:', error);
       return res.status(503).json({
         success: false,
-        message: error.message || 'Failed to persist thumbnail image'
+        message: error.message || 'Failed to upload thumbnail image'
       });
     }
   }

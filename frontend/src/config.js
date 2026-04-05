@@ -121,22 +121,18 @@ export const isSocketFeatureEnabled = () => {
 export const getAssetUrl = (assetPath) => {
   if (!assetPath) return '';
   
-  // Extract base URL from API_BASE_URL (removing /api suffix if present)
-  let baseUrl = config.API_BASE_URL || 'https://api.gameonesport.xyz';
-  baseUrl = baseUrl.replace(/\/api\/?$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
-
-  // Normalize stale production asset URLs that incorrectly point at the
-  // frontend domain instead of the API/uploads host.
-  if (/^https?:/i.test(assetPath)) {
-    // Handle both api.gameonesport.xyz and gameonesport.xyz/uploads patterns
-    if (/^https?:\/\/(api\.)?gameonesport\.xyz\/uploads\//i.test(assetPath)) {
-      return assetPath.replace(/^https?:\/\/(api\.)?gameonesport\.xyz/i, baseUrl);
-    }
+  // If it's already a full Cloudinary URL, return as-is
+  if (/^https?:\/\//i.test(assetPath)) {
     return assetPath;
   }
 
-  // Allow data URLs through unchanged.
+  // Handle data URLs
   if (/^data:/i.test(assetPath)) return assetPath;
+
+  // For any relative paths (legacy support), prepend API base URL
+  // This handles any old data that might still have relative paths
+  let baseUrl = config.API_BASE_URL || 'https://api.gameonesport.xyz';
+  baseUrl = baseUrl.replace(/\/api\/$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
 
   // Ensure path starts with slash
   const path = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
