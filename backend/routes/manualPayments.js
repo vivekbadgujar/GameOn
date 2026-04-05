@@ -132,7 +132,7 @@ router.post(
       }
 
       const normalizedEmail = email.trim().toLowerCase();
-      const screenshotUrl = `https://api.gameonesport.xyz/uploads/${PAYMENT_SCREENSHOT_SUBDIR}/${file.filename}`;
+      const screenshotUrl = `/uploads/${PAYMENT_SCREENSHOT_SUBDIR}/${file.filename}`;
       const userId = req.user._id;
       const existing = await Payment.findOne({
         $or: [

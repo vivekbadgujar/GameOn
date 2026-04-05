@@ -103,11 +103,28 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
+                console.error('Image load error:', {
+                  src: e.target.src,
+                  tournamentId: tournament._id,
+                  thumbnail: tournament.thumbnail,
+                  poster: tournament.poster,
+                  posterUrl: tournament.posterUrl,
+                  image: tournament.image
+                });
+                e.target.style.display = 'none';
+                // Show fallback content
+                const fallbackDiv = e.target.parentElement.querySelector('.fallback-content');
+                if (fallbackDiv) {
+                  fallbackDiv.style.display = 'flex';
+                }
+              }}
+              onLoad={(e) => {
+                console.log('Image loaded successfully:', e.target.src);
               }}
             />
             <div className="absolute inset-0 bg-black/30" />
-            {/* Fallback content - hidden by default */}
-            <div className="absolute inset-0 flex items-center justify-center" style={{ display: 'none' }}>
+            {/* Fallback content - shown on error */}
+            <div className="absolute inset-0 flex items-center justify-center fallback-content" style={{ display: 'none' }}>
               <div className="text-6xl opacity-80">
                 {getGameIcon(tournament.game)}
               </div>

@@ -39,7 +39,7 @@ const cleanupTempUpload = async (filePath) => {
 };
 
 const buildLocalUploadUrl = (subdir, filename) =>
-  `https://api.gameonesport.xyz/uploads/${subdir}/${filename}`;
+  `/uploads/${subdir}/${filename}`;
 
 const persistTournamentImage = async (file, folder, subdir) => {
   if (!file) {
