@@ -128,8 +128,9 @@ export const getAssetUrl = (assetPath) => {
   // Normalize stale production asset URLs that incorrectly point at the
   // frontend domain instead of the API/uploads host.
   if (/^https?:/i.test(assetPath)) {
-    if (/^https?:\/\/gameonesport\.xyz\/uploads\//i.test(assetPath)) {
-      return assetPath.replace(/^https?:\/\/gameonesport\.xyz/i, baseUrl);
+    // Handle both api.gameonesport.xyz and gameonesport.xyz/uploads patterns
+    if (/^https?:\/\/(api\.)?gameonesport\.xyz\/uploads\//i.test(assetPath)) {
+      return assetPath.replace(/^https?:\/\/(api\.)?gameonesport\.xyz/i, baseUrl);
     }
     return assetPath;
   }
