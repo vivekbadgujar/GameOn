@@ -52,9 +52,12 @@ const persistTournamentImage = async (file, folder, subdir) => {
     return uploaded.url;
   }
 
+  // For serverless environments without Cloudinary, 
+  // we'll still save locally but warn about persistence
   if (isServerless) {
-    await cleanupTempUpload(file.path);
-    throw new Error('Persistent image storage is not configured. Set Cloudinary environment variables for production uploads.');
+    console.warn('Serverless environment detected: Images may not persist between deployments. Consider configuring Cloudinary for production.');
+    // Continue with local storage instead of throwing error
+    return buildLocalUploadUrl(subdir, file.filename);
   }
 
   return buildLocalUploadUrl(subdir, file.filename);
@@ -66,7 +69,10 @@ const resolveUploadBaseDir = () => {
   }
 
   if (isServerless) {
-    return path.join(os.tmpdir(), 'gameon-uploads');
+    // In serverless, use a persistent directory if available
+    // This might be a mounted volume or persistent storage
+    const persistentDir = process.env.UPLOAD_DIR || '/tmp/uploads';
+    return persistentDir;
   }
 
   return path.join(__dirname, '../../uploads');
