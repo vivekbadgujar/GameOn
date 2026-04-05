@@ -199,7 +199,17 @@ router.post(
     }
 
     try {
+      console.log('QR upload - File info:', {
+        originalname: req.file.originalname,
+        filename: req.file.filename,
+        path: req.file.path,
+        size: req.file.size
+      });
+      
       const url = await persistTournamentImage(req.file, 'gameon/tournaments/payment_qr', PAYMENT_QR_SUBDIR);
+      
+      console.log('QR upload - Generated URL:', url);
+      
       return res.json({
         success: true,
         message: 'UPI QR image uploaded successfully',
@@ -232,7 +242,17 @@ router.post(
       return res.status(400).json({ success: false, message: 'Thumbnail image is required' });
     }
     try {
+      console.log('Thumbnail upload - File info:', {
+        originalname: req.file.originalname,
+        filename: req.file.filename,
+        path: req.file.path,
+        size: req.file.size
+      });
+      
       const url = await persistTournamentImage(req.file, 'gameon/tournaments/thumbnails', THUMBNAIL_SUBDIR);
+      
+      console.log('Thumbnail upload - Generated URL:', url);
+      
       return res.json({
         success: true,
         message: 'Thumbnail image uploaded successfully',
@@ -518,6 +538,8 @@ router.post('/',
       console.log('Tournament Creation - Image Fields Debug:');
       console.log('req.body.thumbnail:', req.body.thumbnail);
       console.log('req.body.qrCode:', req.body.qrCode);
+      console.log('req.body.poster:', req.body.poster);
+      console.log('req.body.upiQrImage:', req.body.upiQrImage);
       console.log('Final tournamentData.thumbnail:', tournamentData.thumbnail);
       console.log('Final tournamentData.qrCode:', tournamentData.qrCode);
 
