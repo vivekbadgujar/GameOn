@@ -115,9 +115,11 @@ mongoose.set('debug', false);
 
 let mongoConnectPromise = null;
 let isConnecting = false;
+let lastMongoError = null;
 
 // Connection event handlers
 mongoose.connection.on('error', (err) => {
+  lastMongoError = err.message;
   console.error('MongoDB connection error:', err.message);
 });
 
@@ -127,6 +129,7 @@ mongoose.connection.on('disconnected', () => {
 });
 
 mongoose.connection.on('connected', () => {
+  lastMongoError = null;
   console.log('✅ MongoDB connected successfully');
 });
 
@@ -134,15 +137,17 @@ mongoose.connection.on('connected', () => {
 async function ensureMongoConnected() {
   // Already connected
   if (mongoose.connection.readyState === 1) {
+    lastMongoError = null;
     return true;
   }
 
   // Connection in progress
   if (isConnecting && mongoConnectPromise) {
     try {
-      await mongoConnectPromise;
-      return true;
+      const didConnect = await mongoConnectPromise;
+      return didConnect === true;
     } catch (err) {
+      lastMongoError = err.message;
       console.error('Failed to connect to MongoDB:', err.message);
       return false;
     }
@@ -150,6 +155,7 @@ async function ensureMongoConnected() {
 
   // No MongoDB URI configured
   if (!MONGODB_URI) {
+    lastMongoError = 'MONGODB_URI not configured';
     console.error('❌ MONGODB_URI not configured');
     return false;
   }
@@ -171,10 +177,12 @@ async function ensureMongoConnected() {
       }
 
       await mongoose.connect(MONGODB_URI, connectionOptions);
+      lastMongoError = null;
       console.log('🍃 Connected to MongoDB successfully');
       isConnecting = false;
       return true;
     } catch (err) {
+      lastMongoError = err.message;
       console.error('MongoDB connection error:', {
         name: err.name,
         message: err.message,
@@ -187,9 +195,10 @@ async function ensureMongoConnected() {
   })();
 
   try {
-    await mongoConnectPromise;
-    return true;
+    const didConnect = await mongoConnectPromise;
+    return didConnect === true;
   } catch (err) {
+    lastMongoError = err.message;
     return false;
   }
 }
@@ -363,7 +372,7 @@ if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
   }
 }
 
-// Ensure MongoDB connection middleware (skip for health check)
+// Ensure MongoDB connection middleware (health checks manage their own probe)
 app.use('/api', async (req, res, next) => {
   if (req.path === '/health') {
     return next();
@@ -575,6 +584,12 @@ app.use('/api/friends', require('./routes/friends-simple'));
 // Health check endpoint - NEVER crashes, always returns JSON
 app.get('/api/health', async (req, res) => {
   try {
+    // In serverless, the health check may be the first request after a cold start.
+    // Probe Mongo here so the response reflects actual DB availability.
+    if (mongoose.connection.readyState !== 1 && MONGODB_URI) {
+      await ensureMongoConnected();
+    }
+
     // Safely check MongoDB connection state
     let dbConnected = false;
     let mongoReady = 0;
@@ -608,8 +623,10 @@ app.get('/api/health', async (req, res) => {
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime ? process.uptime() : 0,
       dbStatus: dbConnected ? 'connected' : 'disconnected',
+      dbConfigured: !!MONGODB_URI,
       mongoReady: mongoReady,
       paymentsCollection: paymentsExists ? 'present' : 'absent',
+      dbError: dbConnected ? null : (lastMongoError || null),
       serverless: isServerless,
       socketEnabled: true, // Socket.IO always enabled
       realTimeEnabled: true,
