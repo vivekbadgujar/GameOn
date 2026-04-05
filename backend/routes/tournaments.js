@@ -113,10 +113,12 @@ router.get('/', async (req, res) => {
       startDate: tournament.startDate,
       endDate: tournament.endDate,
       scheduledAt: tournament.startDate,
-      poster: tournament.poster || '',
-      posterUrl: tournament.posterUrl || '',
+      thumbnail: tournament.thumbnail || tournament.poster || tournament.posterUrl || '',
+      poster: tournament.thumbnail || tournament.poster || '',
+      posterUrl: tournament.thumbnail || tournament.posterUrl || '',
       upiId: tournament.upiId || '',
-      upiQrImage: tournament.upiQrImage || '',
+      qrCode: tournament.qrCode || tournament.upiQrImage || '',
+      upiQrImage: tournament.qrCode || tournament.upiQrImage || '',
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
       createdAt: tournament.createdAt
     }));
@@ -252,8 +254,12 @@ router.get('/:id', async (req, res) => {
       endDate: tournament.endDate,
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
       roomDetails: tournament.roomDetails,
+      thumbnail: tournament.thumbnail || tournament.poster || tournament.posterUrl || '',
+      poster: tournament.thumbnail || tournament.poster || '',
+      posterUrl: tournament.thumbnail || tournament.posterUrl || '',
       upiId: tournament.upiId || '',
-      upiQrImage: tournament.upiQrImage || '',
+      qrCode: tournament.qrCode || tournament.upiQrImage || '',
+      upiQrImage: tournament.qrCode || tournament.upiQrImage || '',
       createdAt: tournament.createdAt
     };
 

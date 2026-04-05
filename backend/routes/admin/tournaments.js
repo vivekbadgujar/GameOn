@@ -15,10 +15,50 @@ const Admin = require('../../models/Admin');
 const Transaction = require('../../models/Transaction');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');
 const { validateTournament, validateRoomDetails, validateWinnerDistribution } = require('../../middleware/tournamentValidation');
+const { uploadImage } = require('../../config/cloudinary');
 const router = express.Router();
 const PAYMENT_QR_SUBDIR = 'payment_qr';
 const THUMBNAIL_SUBDIR = 'thumbnails';
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+const hasCloudinaryConfig = () => (
+  !!process.env.CLOUDINARY_CLOUD_NAME &&
+  !!process.env.CLOUDINARY_API_KEY &&
+  !!process.env.CLOUDINARY_API_SECRET &&
+  process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
+  process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
+  process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
+);
+
+const cleanupTempUpload = async (filePath) => {
+  if (!filePath) return;
+  try {
+    await fs.promises.unlink(filePath);
+  } catch (_) {
+  }
+};
+
+const buildLocalUploadUrl = (subdir, filename) =>
+  `https://api.gameonesport.xyz/uploads/${subdir}/${filename}`;
+
+const persistTournamentImage = async (file, folder, subdir) => {
+  if (!file) {
+    throw new Error('Image file is required');
+  }
+
+  if (hasCloudinaryConfig()) {
+    const uploaded = await uploadImage(file, folder);
+    await cleanupTempUpload(file.path);
+    return uploaded.url;
+  }
+
+  if (isServerless) {
+    await cleanupTempUpload(file.path);
+    throw new Error('Persistent image storage is not configured. Set Cloudinary environment variables for production uploads.');
+  }
+
+  return buildLocalUploadUrl(subdir, file.filename);
+};
 
 const resolveUploadBaseDir = () => {
   if (process.env.MANUAL_PAYMENT_UPLOAD_DIR) {
@@ -152,13 +192,20 @@ router.post(
       });
     }
 
-    return res.json({
-      success: true,
-      message: 'UPI QR image uploaded successfully',
-      data: {
-        url: `https://api.gameonesport.xyz/uploads/${PAYMENT_QR_SUBDIR}/${req.file.filename}`
-      }
-    });
+    try {
+      const url = await persistTournamentImage(req.file, 'gameon/tournaments/payment_qr', PAYMENT_QR_SUBDIR);
+      return res.json({
+        success: true,
+        message: 'UPI QR image uploaded successfully',
+        data: { url }
+      });
+    } catch (error) {
+      console.error('UPI QR upload persistence error:', error);
+      return res.status(503).json({
+        success: false,
+        message: error.message || 'Failed to persist UPI QR image'
+      });
+    }
   }
 );
 
@@ -178,11 +225,20 @@ router.post(
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Thumbnail image is required' });
     }
-    return res.json({
-      success: true,
-      message: 'Thumbnail image uploaded successfully',
-      data: { url: `https://api.gameonesport.xyz/uploads/${THUMBNAIL_SUBDIR}/${req.file.filename}` }
-    });
+    try {
+      const url = await persistTournamentImage(req.file, 'gameon/tournaments/thumbnails', THUMBNAIL_SUBDIR);
+      return res.json({
+        success: true,
+        message: 'Thumbnail image uploaded successfully',
+        data: { url }
+      });
+    } catch (error) {
+      console.error('Thumbnail upload persistence error:', error);
+      return res.status(503).json({
+        success: false,
+        message: error.message || 'Failed to persist thumbnail image'
+      });
+    }
   }
 );
 
