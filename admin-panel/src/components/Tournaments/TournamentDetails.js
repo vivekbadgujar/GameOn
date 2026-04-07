@@ -44,6 +44,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
 import { tournamentAPI } from '../../services/api';
+import { getAssetUrl } from '../../utils/urlUtils';
 import dayjs from 'dayjs';
 import TournamentParticipants from './TournamentParticipants';
 import BGMIRoomLayout from './BGMIRoomLayout';
@@ -237,6 +238,9 @@ const TournamentDetails = () => {
 
   const tournamentData = tournament?.data;
   const stats = participantStats?.data;
+  const tournamentImage = getAssetUrl(
+    tournamentData?.thumbnail || tournamentData?.poster || tournamentData?.posterUrl || ''
+  ) || '/placeholder-tournament.jpg';
 
   const canCompleteTournament = Boolean(
     tournamentData &&
@@ -385,7 +389,7 @@ const TournamentDetails = () => {
                 sx={{
                   width: '100%',
                   height: 200,
-                  backgroundImage: `url(${tournamentData?.posterUrl || '/placeholder-tournament.jpg'})`,
+                  backgroundImage: `url(${tournamentImage})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   borderRadius: 2,

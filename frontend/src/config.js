@@ -132,7 +132,7 @@ export const getAssetUrl = (assetPath) => {
   // For any relative paths (legacy support), prepend API base URL
   // This handles any old data that might still have relative paths
   let baseUrl = config.API_BASE_URL || 'https://api.gameonesport.xyz';
-  baseUrl = baseUrl.replace(/\/api\/$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
+  baseUrl = baseUrl.replace(/\/api\/?$/, ''); // e.g. https://api.gameonesport.xyz/api -> https://api.gameonesport.xyz
 
   // Ensure path starts with slash
   const path = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;

@@ -854,7 +854,7 @@ const TournamentForm = () => {
                       </Button>
                     </label>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                      Stored in uploads/payment_qr and shown to players during join payment.
+                      Stored in Cloudinary and shown to players during join payment.
                     </Typography>
                     {upiQrError && (
                       <FormHelperText error sx={{ mt: 1 }}>

@@ -219,7 +219,9 @@ process.on('SIGINT', async () => {
 app.use(compression());
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // CORS Configuration - Enhanced for all platforms
 const corsOptions = {
@@ -283,7 +285,16 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 // Logging middleware
 app.use(morgan('combined'));
 
-// No more local file serving - all images served from Cloudinary
+// Legacy uploads compatibility:
+// keep serving any existing local files while new uploads are stored in Cloudinary.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  fallthrough: true,
+  setHeaders: (res) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 
 // Ensure MongoDB connection middleware (health checks manage their own probe)
 app.use('/api', async (req, res, next) => {
