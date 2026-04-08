@@ -254,110 +254,205 @@ router.get('/manual/status/:tournamentId', authenticateToken, async (req, res) =
  * Admin routes for payment verification
  */
 
-// Get all payments for admin
-router.get('/admin/all', 
-  authenticateAdmin, 
-  requirePermission('payments_manage'),
-  async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const skip = (page - 1) * limit;
+const listPaymentsForAdmin = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-      // Build filter
-      const filter = {};
-      if (req.query.status && req.query.status !== 'all') {
-        filter.paymentStatus = req.query.status;
-      }
-      if (req.query.tournament) {
-        filter.tournament = req.query.tournament;
-      }
-
-      const payments = await Payment.find(filter)
-        .populate('tournament', 'title startDate')
-        .populate('user', 'username displayName')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit);
-
-      const total = await Payment.countDocuments(filter);
-
-      res.json({
-        success: true,
-        data: payments,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        total,
-        message: 'Payments fetched successfully'
-      });
-    } catch (error) {
-      console.error('Admin get payments error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch payments'
-      });
+    const filter = {};
+    if (req.query.status && req.query.status !== 'all') {
+      filter.paymentStatus = req.query.status;
     }
+    if (req.query.tournament) {
+      filter.tournament = req.query.tournament;
+    }
+
+    const payments = await Payment.find(filter)
+      .populate('tournament', 'title startDate status maxParticipants currentParticipants participants')
+      .populate('user', 'username displayName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Payment.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: payments,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      message: 'Payments fetched successfully'
+    });
+  } catch (error) {
+    console.error('Admin get payments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payments'
+    });
   }
-);
+};
 
-// Update payment status
-router.patch('/admin/:paymentId/status',
-  authenticateAdmin,
-  requirePermission('payments_manage'),
-  auditLog('update_payment_status'),
-  [
-    body('status').isIn(['pending', 'approved', 'rejected']).withMessage('Invalid status'),
-    body('rejectionReason').optional().isString().withMessage('Rejection reason must be a string')
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
-      }
+const applyPaymentStatusUpdate = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
 
-      const { status, rejectionReason } = req.body;
-      const { paymentId } = req.params;
+    const { status, rejectionReason } = req.body;
+    const { paymentId } = req.params;
 
-      const payment = await Payment.findById(paymentId).populate('tournament');
-      if (!payment) {
-        return res.status(404).json({ success: false, message: 'Payment not found' });
-      }
+    const payment = await Payment.findById(paymentId).populate('tournament');
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
 
-      const oldStatus = payment.paymentStatus;
-      payment.paymentStatus = status;
+    const tournament = await Tournament.findById(payment.tournament._id);
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: 'Tournament not found' });
+    }
 
-      if (status === 'rejected' && rejectionReason) {
-        payment.rejectionReason = rejectionReason;
-      }
+    const oldStatus = payment.paymentStatus;
 
-      await payment.save();
-
-      // Emit Socket.IO event for real-time updates
-      const io = req.app.get('io');
-      if (io) {
-        io.emit('paymentStatusUpdated', {
-          paymentId: payment._id,
-          tournamentId: payment.tournament._id,
-          userId: payment.user,
-          status: payment.paymentStatus,
-          oldStatus
+    if (status === 'approved') {
+      if (['completed', 'cancelled'].includes(tournament.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot approve payment for a completed or cancelled tournament'
         });
       }
 
-      res.json({
-        success: true,
-        message: `Payment status updated to ${status}`,
-        data: payment
-      });
-    } catch (error) {
-      console.error('Update payment status error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update payment status'
-      });
+      const existingParticipant = tournament.participants.find((participant) =>
+        participant.user.toString() === payment.user.toString()
+      );
+
+      if (!existingParticipant && tournament.currentParticipants >= tournament.maxParticipants) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot approve payment because the tournament is already full'
+        });
+      }
+
+      if (!existingParticipant) {
+        tournament.participants.push({
+          user: payment.user,
+          joinedAt: new Date(),
+          slotNumber: tournament.currentParticipants + 1,
+          paymentStatus: 'completed',
+          paymentData: {
+            method: 'manual',
+            paymentId: payment._id,
+            transactionId: payment.transactionId
+          }
+        });
+        tournament.currentParticipants += 1;
+      } else {
+        existingParticipant.paymentStatus = 'completed';
+        existingParticipant.paymentData = {
+          ...(existingParticipant.paymentData || {}),
+          method: 'manual',
+          paymentId: payment._id,
+          transactionId: payment.transactionId
+        };
+      }
+
+      await tournament.save();
+    } else if (oldStatus === 'approved') {
+      const participantIndex = tournament.participants.findIndex((participant) =>
+        participant.user.toString() === payment.user.toString()
+      );
+
+      if (participantIndex !== -1) {
+        tournament.participants.splice(participantIndex, 1);
+        tournament.currentParticipants = Math.max(0, tournament.currentParticipants - 1);
+        await tournament.save();
+      }
     }
+
+    payment.paymentStatus = status;
+    if (status === 'rejected' && rejectionReason) {
+      payment.rejectionReason = rejectionReason;
+    } else if (status !== 'rejected') {
+      payment.rejectionReason = '';
+    }
+    await payment.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('paymentStatusUpdated', {
+        paymentId: payment._id,
+        tournamentId: tournament._id,
+        userId: payment.user,
+        status: payment.paymentStatus,
+        oldStatus
+      });
+
+      if (status === 'approved') {
+        io.emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournament
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Payment status updated to ${status}`,
+      data: payment
+    });
+  } catch (error) {
+    console.error('Update payment status error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update payment status'
+    });
   }
+};
+
+const paymentStatusValidation = [
+  body('status').isIn(['pending', 'approved', 'rejected']).withMessage('Invalid status'),
+  body('rejectionReason').optional().isString().withMessage('Rejection reason must be a string')
+];
+
+// Current admin route
+router.get(
+  '/admin/all',
+  authenticateAdmin,
+  requirePermission('payments_manage'),
+  listPaymentsForAdmin
+);
+
+// Legacy admin route for backward compatibility with old deployed admin bundles
+router.get(
+  '/admin/payments',
+  authenticateAdmin,
+  requirePermission('payments_manage'),
+  listPaymentsForAdmin
+);
+
+router.patch(
+  '/admin/:paymentId/status',
+  authenticateAdmin,
+  requirePermission('payments_manage'),
+  auditLog('update_payment_status'),
+  paymentStatusValidation,
+  applyPaymentStatusUpdate
+);
+
+// Legacy approve/reject aliases for backward compatibility
+router.post(
+  '/admin/payments/:paymentId/:action(approve|reject)',
+  authenticateAdmin,
+  requirePermission('payments_manage'),
+  auditLog('update_payment_status'),
+  (req, res, next) => {
+    req.body.status = req.params.action === 'approve' ? 'approved' : 'rejected';
+    next();
+  },
+  paymentStatusValidation,
+  applyPaymentStatusUpdate
 );
 
 module.exports = router;
