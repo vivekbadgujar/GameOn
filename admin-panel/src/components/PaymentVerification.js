@@ -60,7 +60,7 @@ export default function PaymentVerification() {
       setError('');
       const token = localStorage.getItem('adminToken');
       const response = await fetch(
-        `${API_BASE_URL}/payments/admin/payments?status=${statusFilter}`,
+        `${API_BASE_URL}/payments/admin/all?status=${statusFilter}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
@@ -95,11 +95,16 @@ export default function PaymentVerification() {
     try {
       setActionLoading(true);
       const token = localStorage.getItem('adminToken');
+      const nextStatus = action === 'approve' ? 'approved' : 'rejected';
       const response = await fetch(
-        `${API_BASE_URL}/payments/admin/payments/${selectedPayment._id}/${action}`,
+        `${API_BASE_URL}/payments/admin/${selectedPayment._id}/status`,
         {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: nextStatus })
         }
       );
       const data = await response.json();

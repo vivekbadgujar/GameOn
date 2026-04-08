@@ -1,30 +1,14 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const User = require('../models/User');
 const { authenticateToken } = require('../middleware/auth');
+const { uploadImage } = require('../config/cloudinary');
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../uploads/profiles');
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
-  storage: storage,
+  storage,
   limits: {
     fileSize: 2 * 1024 * 1024 // 2MB limit
   },
@@ -320,8 +304,9 @@ router.post('/upload-photo', authenticateToken, upload.single('profilePhoto'), a
       });
     }
 
-    const userId = req.user.userId;
-    const photoUrl = `/uploads/profiles/${req.file.filename}`;
+    const userId = req.user._id;
+    const uploadResult = await uploadImage(req.file, `gameon/profiles/${userId}`);
+    const photoUrl = uploadResult.url;
 
     // Update user's avatar in database
     const user = await User.findByIdAndUpdate(
@@ -331,8 +316,6 @@ router.post('/upload-photo', authenticateToken, upload.single('profilePhoto'), a
     ).select('-password');
 
     if (!user) {
-      // Delete uploaded file if user not found
-      fs.unlinkSync(req.file.path);
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -345,15 +328,6 @@ router.post('/upload-photo', authenticateToken, upload.single('profilePhoto'), a
       user: user
     });
   } catch (err) {
-    // Delete uploaded file on error
-    if (req.file) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (deleteErr) {
-        console.error('Error deleting file:', deleteErr);
-      }
-    }
-    
     res.status(500).json({ 
       success: false, 
       message: 'Failed to upload profile photo', 

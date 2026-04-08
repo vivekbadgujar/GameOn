@@ -1,5 +1,5 @@
 // Minimal test server to isolate initialization error
-require('dotenv').config();
+require('./config/loadEnv')();
 
 const express = require('express');
 const mongoose = require('mongoose');

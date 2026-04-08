@@ -1,5 +1,5 @@
 // Ultra-minimal server without MongoDB to test initialization
-require('dotenv').config();
+require('./config/loadEnv')();
 
 const express = require('express');
 const { createServer } = require('http');

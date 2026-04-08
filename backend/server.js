@@ -13,7 +13,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const os = require('os');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('./config/loadEnv')();
 
 // Check if we're in a serverless environment (Vercel)
 const isServerless = (!!process.env.VERCEL && !process.env.RENDER) || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
