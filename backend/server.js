@@ -479,7 +479,6 @@ app.use('/api/users', require('./routes/users'));
 // a small admin verification API.  any wallet / other payment routes are
 // now moved to their own modules (if needed) or can be added separately.
 app.use('/api/payments', require('./routes/manualPayments'));
-app.use('/api', require('./routes/notifications'));
 app.use('/api/media', require('./routes/media'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/chat', require('./routes/chat'));
@@ -490,6 +489,9 @@ app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/room-slots', require('./routes/roomSlots'));
 app.use('/api/sync', require('./routes/sync'));
+// Public tournament videos — frontend can access visible videos without admin auth.
+// MUST be mounted before the admin route to avoid auth middleware blocking /visible.
+app.use('/api/tournament-videos', require('./routes/admin/tournamentVideos'));
 
 // Admin API Routes
 app.use('/api/admin/auth', require('./routes/admin/auth'));

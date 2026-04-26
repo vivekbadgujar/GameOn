@@ -121,19 +121,9 @@ const TournamentForm = () => {
       const tournamentName = formData.title || 'Tournament';
       const action = isEditing ? 'update' : 'create';
       showTournamentSuccess(action, tournamentName);
+      // Single invalidation is sufficient — avoid hammering the API
       queryClient.invalidateQueries(['tournaments']);
-      queryClient.refetchQueries(['tournaments']);
-      setTimeout(() => {
-        queryClient.invalidateQueries(['tournaments']);
-        queryClient.refetchQueries(['tournaments']);
-      }, 500);
-      setTimeout(() => {
-        queryClient.invalidateQueries(['tournaments']);
-        queryClient.refetchQueries(['tournaments']);
-      }, 1500);
-      setTimeout(() => {
-        navigate('/tournaments');
-      }, 2000);
+      setTimeout(() => { navigate('/tournaments'); }, 1500);
     },
     onError: (error) => {
       console.error('Tournament creation/update failed:', error);
@@ -149,23 +139,23 @@ const TournamentForm = () => {
   // Populate form when editing an existing tournament
   useEffect(() => {
     if (tournament?.data && isEditing) {
-      const data = tournament.data?.data || tournament.data;
+      // Backend returns { success: true, tournament: {...} }
+      // tournamentAPI.getById wraps axios response, so tournament.data = API response body
+      const data = tournament.data?.tournament || tournament.data?.data || tournament.data;
       setFormData({
         title: data.title || '',
         description: data.description || '',
         game: data.game || '',
         map: data.map || '',
         tournamentType: data.tournamentType || 'squad',
-        entryFee: data.entryFee || '',
-        prizePool: data.prizePool || '',
-        maxParticipants: data.maxParticipants || '',
+        entryFee: data.entryFee ?? '',
+        prizePool: data.prizePool ?? '',
+        maxParticipants: data.maxParticipants ?? '',
         startDate: data.startDate ? dayjs(data.startDate) : dayjs(),
         endDate: data.endDate ? dayjs(data.endDate) : dayjs().add(2, 'hour'),
-        rules: data.rules || [
-          'No cheating or use of hacks',
-          'Respect all players and moderators'
-        ],
+        rules: data.rules || ['No cheating or use of hacks', 'Respect all players and moderators'],
         terms: data.terms || '',
+        // Preserve isVisible from DB — don't hardcode to true
         isPublic: data.isPublic ?? true,
         allowSpectators: data.allowSpectators ?? true,
         requireScreenshots: data.requireScreenshots ?? true,
@@ -174,27 +164,20 @@ const TournamentForm = () => {
         qrCode: data.qrCode || data.upiQrImage || '',
         thumbnail: data.thumbnail || data.poster || data.posterUrl || '',
         media: data.media || [],
-        prizeDistribution: data.prizeDistribution || [
-          { position: 1, percentage: 50, amount: 0 },
-          { position: 2, percentage: 30, amount: 0 },
-          { position: 3, percentage: 20, amount: 0 }
-        ],
+        prizeDistribution: data.prizeDistribution?.length
+          ? data.prizeDistribution
+          : [{ position: 1, percentage: 50, amount: 0 }, { position: 2, percentage: 30, amount: 0 }, { position: 3, percentage: 20, amount: 0 }],
         roomId: data.roomDetails?.roomId || '',
         roomPassword: data.roomDetails?.password || '',
-        manualRelease: data.roomDetails?.manualRelease || false
+        manualRelease: data.roomDetails?.manualRelease || false,
+        _isVisible: data.isVisible ?? true  // store for submit
       });
 
-      // Load poster/thumbnail preview from existing DB data
       const existingPoster = data.thumbnail || data.poster || data.posterUrl || '';
-      if (existingPoster) {
-        setImagePreview(getAssetUrl(existingPoster));
-      }
+      if (existingPoster) setImagePreview(getAssetUrl(existingPoster));
 
-      // Load UPI QR preview from existing DB data
       const existingQr = data.qrCode || data.upiQrImage || '';
-      if (existingQr) {
-        setUpiQrPreview(getAssetUrl(existingQr));
-      }
+      if (existingQr) setUpiQrPreview(getAssetUrl(existingQr));
     }
   }, [tournament, isEditing]);
 
@@ -354,11 +337,17 @@ const TournamentForm = () => {
       startDate: formData.startDate.toISOString(),
       endDate: formData.endDate.toISOString(),
       rules: Array.isArray(formData.rules) ? formData.rules.filter(rule => rule.trim()) : [],
-      status: 'upcoming',
-      isVisible: true,
-      isPublic: true,
+      terms: formData.terms || '',
+      status: isEditing ? undefined : 'upcoming',  // don't overwrite status on edit
+      // Preserve isVisible from the form state (populated from DB in edit mode)
+      isVisible: formData._isVisible ?? true,
+      isPublic: formData.isPublic,
+      allowSpectators: formData.allowSpectators,
+      requireScreenshots: formData.requireScreenshots,
+      autoStart: formData.autoStart,
       upiId: formData.upiId.trim(),
       media: formData.media || [],
+      prizeDistribution: formData.prizeDistribution || [],
       roomDetails: {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
@@ -366,6 +355,8 @@ const TournamentForm = () => {
         releaseTime: formData.manualRelease ? null : new Date(formData.startDate.valueOf() - 30 * 60 * 1000).toISOString()
       }
     };
+    // Remove undefined keys
+    Object.keys(submitData).forEach(k => submitData[k] === undefined && delete submitData[k]);
 
     // Only include image fields if they have a value — prevents overwriting existing DB values with empty strings
     if (formData.qrCode) submitData.qrCode = formData.qrCode;

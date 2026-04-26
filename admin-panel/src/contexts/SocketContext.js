@@ -52,7 +52,18 @@ export const SocketProvider = ({ children }) => {
           setSyncMode('polling');
           setIsConnected(false);
           setSocket(null);
-          return;
+
+          // Polling fallback: broadcast a generic refresh event every 30s so
+          // components that rely on window.addEventListener stay current.
+          const pollingInterval = setInterval(() => {
+            if (cancelled) {
+              clearInterval(pollingInterval);
+              return;
+            }
+            window.dispatchEvent(new CustomEvent('tournamentUpdated', { detail: { source: 'poll' } }));
+          }, 30000);
+
+          return () => { clearInterval(pollingInterval); };
         }
 
         if (cancelled) return;

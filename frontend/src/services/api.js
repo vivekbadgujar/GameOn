@@ -1,5 +1,5 @@
 import axios from 'axios';
-import config, { getAssetUrl } from '../config';
+import config from '../config';
 
 // Log API configuration for debugging (only in development)
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -12,195 +12,103 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 const api = axios.create({
   baseURL: config.API_BASE_URL,
   withCredentials: true,
-  timeout: 30000, // 30 second timeout
-  // Add default headers for build time
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   }
 });
+
 const shouldLogApiError = (error) => {
   const status = error?.response?.status;
   const url = error?.config?.url || '';
-
-  if (status === 404 && url.includes('/payments/manual/status/')) {
-    return false;
-  }
-
+  // Don't log 404 on payment status checks (expected when user hasn't paid)
+  if (status === 404 && url.includes('/payments/manual/status/')) return false;
   return true;
 };
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {
-  // Check if we're in browser environment
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Handle token expiration and authentication errors
+// Handle token expiration
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Enhanced error logging for debugging
     if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
       console.error('❌ Network Error - Backend not reachable:', {
         baseURL: error.config?.baseURL,
         url: error.config?.url,
-        fullURL: `${error.config?.baseURL}${error.config?.url}`,
         message: error.message,
         code: error.code
       });
     } else if (error.response) {
-      if (!shouldLogApiError(error)) {
-        return Promise.reject(error);
+      if (shouldLogApiError(error)) {
+        console.error('❌ API Error Response:', {
+          status: error.response.status,
+          url: error.config?.url,
+          data: error.response.data
+        });
       }
-      console.error('❌ API Error Response:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-        data: error.response.data
-      });
-    } else {
-      console.error('❌ API Error:', {
-        message: error.message,
-        code: error.code,
-        config: error.config
-      });
     }
-    
-    // Check if error is due to token expiration
+
     if (error.response?.status === 401) {
       const errorMessage = error.response?.data?.message;
-      
-      // Only handle specific token expiration messages (not all 401 errors)
       if (errorMessage && (
-        errorMessage.includes('Token has expired') || 
+        errorMessage.includes('Token has expired') ||
         errorMessage.includes('Invalid token') ||
         errorMessage.includes('Invalid or expired token') ||
         errorMessage.includes('Access token required')
       )) {
-        console.log('[API] Token expired or invalid, clearing auth data:', errorMessage);
-        
-        // Clear auth data (only in browser)
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          
-          // Clear axios headers
           delete api.defaults.headers.common['Authorization'];
-          
-          // Only redirect to login if not already on login/register pages
           const currentPath = window.location.pathname;
           if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
-            // Show a user-friendly message
-            const event = new CustomEvent('tokenExpired', {
+            window.dispatchEvent(new CustomEvent('tokenExpired', {
               detail: { message: 'Your session has expired. Please login again.' }
-            });
-            window.dispatchEvent(event);
-            
-            // Redirect to login after a short delay
-            setTimeout(() => {
-              window.location.href = '/login';
-            }, 1500);
+            }));
+            setTimeout(() => { window.location.href = '/login'; }, 1500);
           }
         }
-      } else {
-        // For other 401 errors (like invalid credentials), don't auto-logout
-        console.warn('[API] 401 error without token expiration message:', {
-          errorMessage,
-          status: error.response.status,
-          url: error.config?.url
-        });
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
 
-// Auth endpoints
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
 export const login = async (email, password) => {
   try {
-    console.log('API: Attempting login for:', email);
-    
-    // Validate input
-    if (!email || !password) {
-      throw new Error('Email and password are required');
-    }
-
-    // Make the request
-    const response = await api.post(config.ENDPOINTS.AUTH.LOGIN, { 
+    if (!email || !password) throw new Error('Email and password are required');
+    const response = await api.post('/auth/login', {
       email: email.trim(),
       password: password
     });
-
-    // Validate response
     const data = response.data;
-    if (!data) {
-      throw new Error('Invalid response from server');
-    }
-
-    if (!data.success) {
-      throw new Error(data.message || 'Login failed');
-    }
-
-    if (!data.token || !data.user) {
-      throw new Error('Invalid response format');
-    }
-
-    console.log('API: Login successful');
-    return {
-      success: true,
-      user: data.user,
-      token: data.token,
-      message: data.message || 'Login successful'
-    };
-
+    if (!data?.success) throw new Error(data?.message || 'Login failed');
+    if (!data.token || !data.user) throw new Error('Invalid response format');
+    return { success: true, user: data.user, token: data.token, message: data.message || 'Login successful' };
   } catch (error) {
-    console.error('Login API Error:', error);
-    
-    // Handle different types of errors
-    if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout. Please check your connection and try again.');
-    } else if (error.response) {
-      // Server responded with error status
-      if (error.response.status === 401) {
-        throw new Error('Invalid email or password');
-      } else if (error.response.status === 404) {
-        throw new Error('User does not exist');
-      } else if (error.response.status === 429) {
-        throw new Error('Too many login attempts. Please try again later.');
-      } else if (error.response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      } else {
-        throw new Error(error.response.data?.message || 'Login failed. Please try again.');
-      }
-    } else if (error.request) {
-      // Request was made but no response received
-      throw new Error('No response from server. Please check your connection.');
-    } else {
-      // Something else happened
-      throw new Error(error.message || 'An unexpected error occurred. Please try again.');
-    }
+    if (error.code === 'ECONNABORTED') throw new Error('Request timeout. Please check your connection and try again.');
+    if (error.response?.status === 401) throw new Error('Invalid email or password');
+    if (error.response?.status === 404) throw new Error('User does not exist');
+    if (error.response?.status === 429) throw new Error('Too many login attempts. Please try again later.');
+    throw new Error(error.response?.data?.message || error.message || 'Login failed. Please try again.');
   }
 };
 
 export const register = async (userData = {}) => {
-  try {
-    const response = await api.post('/auth/register', userData);
-    return response.data;
-  } catch (error) {
-    console.error('Registration API error:', error.response || error.message);
-    throw error;
-  }
+  const response = await api.post('/auth/register', userData);
+  return response.data;
 };
 
 export const sendOTP = (phone) => api.post('/auth/send-otp', { phone });
@@ -208,226 +116,115 @@ export const verifyOTP = (phone, otp) => api.post('/auth/verify-otp', { phone, o
 export const logout = () => api.post('/auth/logout');
 export const acceptPolicies = (userId, version = '1.0') => api.post('/auth/accept-policies', { userId, version });
 export const validateBgmiId = async (bgmiId) => {
-  try {
-    const response = await api.post('/auth/validate-bgmi-id', { bgmiId });
-    return response.data;
-  } catch (error) {
-    console.error('BGMI ID validation error:', error);
-    throw error;
-  }
+  const response = await api.post('/auth/validate-bgmi-id', { bgmiId });
+  return response.data;
 };
 
-// User endpoints
+// ─── User ────────────────────────────────────────────────────────────────────
+
 export const getUserProfile = async () => {
-  try {
-    const response = await api.get('/users/profile');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user profile:', error);
-    throw error;
-  }
+  const response = await api.get('/users/profile');
+  return response.data;
 };
 
 export const updateUserProfile = async (data) => {
-  try {
-    const response = await api.put('/users/profile', data);
-    return response;
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
+  const response = await api.put('/users/profile', data);
+  return response;
 };
 
 export const getUserStats = async () => {
-  try {
-    const response = await api.get('/users/stats');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user stats:', error);
-    throw error;
-  }
+  const response = await api.get('/users/stats');
+  return response.data;
 };
 
-// Tournament endpoints
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
 export const getTournaments = async (params = {}) => {
   try {
-    // Skip API calls during build time
     if (typeof window === 'undefined') {
-      return {
-        success: true,
-        tournaments: [],
-        message: 'Build time - no tournaments loaded'
-      };
+      return { success: true, tournaments: [], message: 'Build time - no tournaments loaded' };
     }
 
-    // Handle different parameter formats
     let queryParams = {};
-    
-    // If params is a string (status), convert to object
     if (typeof params === 'string') {
       queryParams.status = params;
     } else if (typeof params === 'object' && params !== null) {
       queryParams = { ...params };
     }
-    
-    console.log('API: Fetching tournaments with params:', queryParams);
-    
+
     const response = await api.get('/tournaments', { params: queryParams });
-    
-    // Handle 204 No Content or empty response
     if (response.status === 204 || !response.data) {
-      console.log('API: Tournaments endpoint returned 204 or empty response');
-      return {
-        success: true,
-        tournaments: [],
-        message: 'No tournaments available'
-      };
+      return { success: true, tournaments: [], message: 'No tournaments available' };
     }
-    
-    console.log('API: Full tournament response:', response.data);
-    console.log('API: Response structure:', {
-      success: response.data?.success,
-      tournaments: response.data?.tournaments?.length || 0,
-      message: response.data?.message
-    });
-    
-    // Return standardized response structure
+
     const tournaments = response.data?.tournaments || [];
-    console.log('API: Returning tournaments:', tournaments.length);
-    console.log('API: Tournament titles:', tournaments.map(t => t.title));
-    
     return {
-      success: response.data?.success !== false, // Default to true if not explicitly false
-      tournaments: tournaments,
+      success: response.data?.success !== false,
+      tournaments,
       message: response.data?.message || 'Tournaments fetched successfully',
       error: null
     };
   } catch (error) {
     console.error('API: Error fetching tournaments:', error);
-    console.error('API: Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      url: error.config?.url,
-      baseURL: error.config?.baseURL,
-      hasResponse: !!error.response
-    });
-    
-    // Return error object that preserves whether it was a network error
     return {
       success: false,
       tournaments: [],
-      error: error, // Preserve error object for proper checking
-      message: error.response?.status === 404 
-        ? 'Tournaments endpoint not found' 
+      error,
+      message: error.response?.status === 404
+        ? 'Tournaments endpoint not found'
         : error.response?.status === 500
         ? 'Server error'
-        : error.response?.status === 204
-        ? 'No tournaments available'
         : 'Failed to fetch tournaments'
     };
   }
 };
 
 export const getTournamentById = async (id) => {
-  try {
-    // Guard: Check if ID is valid
-    if (!id || typeof id !== 'string' || id.trim() === '') {
-      const error = new Error('Invalid tournament ID provided');
-      error.response = { status: 400, data: { error: 'Invalid tournament ID' } };
-      throw error;
-    }
-
-    console.log('API: Fetching tournament by ID:', id);
-    const response = await api.get(`/tournaments/${id}`);
-    console.log('API: Tournament response:', response.data);
-    
-    // Guard: Check response has success status
-    if (!response.data) {
-      throw new Error('Empty response from server');
-    }
-
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || 'Failed to fetch tournament');
-    }
-    
-    const tournament = response.data?.tournament;
-    // Guard: Check tournament data exists and is an object
-    if (!tournament || typeof tournament !== 'object') {
-      throw new Error('Tournament data not found in response');
-    }
-    
-    // Guard: Check tournament has required fields
-    if (!tournament._id) {
-      throw new Error('Tournament ID missing in response');
-    }
-    
-    console.log('API: Returning tournament:', tournament.title || tournament.name);
-    return tournament;
-  } catch (error) {
-    console.error('API: Error fetching tournament by ID:', error);
-    console.error('API: Error response:', error.response?.data);
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    const error = new Error('Invalid tournament ID provided');
+    error.response = { status: 400, data: { error: 'Invalid tournament ID' } };
     throw error;
   }
+  const response = await api.get(`/tournaments/${id}`);
+  if (!response.data?.success) throw new Error(response.data?.error || 'Failed to fetch tournament');
+  const tournament = response.data?.tournament;
+  if (!tournament || !tournament._id) throw new Error('Tournament data not found in response');
+  return tournament;
 };
 
 export const getTournamentParticipationStatus = async (id) => {
-  try {
-    const response = await api.get(`/tournaments/${id}/participation-status`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching tournament participation status:', error);
-    throw error;
-  }
+  const response = await api.get(`/tournaments/${id}/participation-status`);
+  return response.data;
 };
 
 export const joinTournament = (id, paymentData = null) => api.post(`/tournaments/${id}/join`, { paymentData });
 export const submitResult = (id, data) => api.post(`/tournaments/${id}/submit-result`, data);
 
-// Wallet endpoints
+// ─── Wallet ──────────────────────────────────────────────────────────────────
+
 export const getWalletHistory = async () => {
   const response = await api.get('/wallet/history');
   return response.data;
 };
 
 export const getWalletBalance = async () => {
-  try {
-    const response = await api.get('/wallet/balance');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching wallet balance:', error);
-    throw error;
-  }
+  const response = await api.get('/wallet/balance');
+  return response.data;
 };
 
 export const getTransactionHistory = async () => {
-  try {
-    const response = await api.get('/wallet/transactions');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching transaction history:', error);
-    throw error;
-  }
+  const response = await api.get('/wallet/transactions');
+  return response.data;
 };
 
 export const addFunds = async (data) => {
-  try {
-    const response = await api.post('/wallet/add-funds', data);
-    return response.data;
-  } catch (error) {
-    console.error('Error adding funds:', error);
-    throw error;
-  }
+  const response = await api.post('/wallet/add-funds', data);
+  return response.data;
 };
 
 export const withdrawFunds = async (data) => {
-  try {
-    const response = await api.post('/wallet/withdraw', data);
-    return response.data;
-  } catch (error) {
-    console.error('Error withdrawing funds:', error);
-    throw error;
-  }
+  const response = await api.post('/wallet/withdraw', data);
+  return response.data;
 };
 
 export const addMoneyToWallet = async (data) => {
@@ -435,18 +232,19 @@ export const addMoneyToWallet = async (data) => {
   return response.data;
 };
 
-// Payment endpoints
+// ─── Payments ────────────────────────────────────────────────────────────────
+
 export const createPaymentOrder = (amount) => api.post('/payments/create-order', { amount });
+
 export const getManualPaymentStatus = async (tournamentId) => {
   const response = await api.get(`/payments/manual/status/${tournamentId}`);
   return response.data;
 };
+
 export const submitManualPayment = async (formData) => {
   try {
     const response = await api.post('/payments/manual/submit', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   } catch (error) {
@@ -455,83 +253,34 @@ export const submitManualPayment = async (formData) => {
   }
 };
 
-// YouTube API
+// ─── YouTube ─────────────────────────────────────────────────────────────────
+
 export const getYouTubeVideos = async (searchTerm = '') => {
   try {
-    // Skip API calls during build time
     if (typeof window === 'undefined') {
       return { success: true, videos: [], message: 'Build time - no videos loaded' };
     }
-
     const response = await api.get(`/youtube/videos${searchTerm ? `?search=${searchTerm}` : ''}`);
-    
-    // Handle 204 No Content or empty response
     if (response.status === 204 || !response.data) {
-      console.log('API: YouTube videos endpoint returned 204 or empty response');
       return { success: true, videos: [], message: 'No videos available' };
     }
-    
-    // Ensure videos array exists
-    const videos = response.data?.videos || [];
     return {
       success: response.data?.success !== false,
-      videos: videos,
+      videos: response.data?.videos || [],
       message: response.data?.message || 'Videos fetched successfully',
       error: null
     };
   } catch (error) {
     console.error('Error fetching YouTube videos:', error);
-    return { 
-      success: false, 
-      videos: [], 
-      error: error, // Preserve error object for proper checking
-      message: error.message 
-    };
+    return { success: false, videos: [], error, message: error.message };
   }
 };
 
-// Tournament Videos API
-export const getTournamentVideos = async (params = {}) => {
-  try {
-    console.log('API: Fetching tournament videos with params:', params);
-    const response = await api.get('/admin/tournament-videos/visible', { params });
-    console.log('API: Tournament videos response:', response.data);
-    
-    // Ensure proper YouTube ID extraction and embed URL format
-    const videos = (response.data?.data || []).map(video => {
-      // Extract YouTube ID if not present
-      let youtubeId = video.youtubeId;
-      if (!youtubeId && video.youtubeUrl) {
-        youtubeId = extractYouTubeIdFromUrl(video.youtubeUrl);
-      }
-      
-      return {
-        ...video,
-        youtubeId,
-        embedUrl: youtubeId ? `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1` : null,
-        thumbnail: video.thumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null)
-      };
-    });
-    
-    return {
-      success: response.data?.success || true,
-      videos: videos,
-      message: response.data?.message || 'Videos fetched successfully'
-    };
-  } catch (error) {
-    console.error('API: Error fetching tournament videos:', error);
-    return {
-      success: false,
-      videos: [],
-      message: 'Failed to fetch videos'
-    };
-  }
-};
+// ─── Tournament Videos (public) ──────────────────────────────────────────────
 
 // Helper function to extract YouTube ID from URL
 const extractYouTubeIdFromUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
-  
   const patterns = [
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*[&?]v=([a-zA-Z0-9_-]{11})/,
@@ -541,18 +290,36 @@ const extractYouTubeIdFromUrl = (url) => {
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
     /[?&]v=([a-zA-Z0-9_-]{11})/
   ];
-  
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match && match[1] && match[1].length === 11) {
-      return match[1];
-    }
+    if (match && match[1] && match[1].length === 11) return match[1];
   }
-  
   return null;
 };
 
-// Stats API
+export const getTournamentVideos = async (params = {}) => {
+  try {
+    // Uses public route /api/tournament-videos/visible — no admin auth required
+    const response = await api.get('/tournament-videos/visible', { params });
+    const videos = (response.data?.data || []).map(video => {
+      let youtubeId = video.youtubeId;
+      if (!youtubeId && video.youtubeUrl) youtubeId = extractYouTubeIdFromUrl(video.youtubeUrl);
+      return {
+        ...video,
+        youtubeId,
+        embedUrl: youtubeId ? `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1` : null,
+        thumbnail: video.thumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null)
+      };
+    });
+    return { success: response.data?.success || true, videos, message: response.data?.message || 'Videos fetched successfully' };
+  } catch (error) {
+    console.error('API: Error fetching tournament videos:', error);
+    return { success: false, videos: [], message: 'Failed to fetch videos' };
+  }
+};
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
 export const getPlatformStats = async () => {
   const response = await api.get('/stats/platform');
   return response.data;
@@ -565,49 +332,27 @@ export const getRecentWinners = async () => {
 
 export const getLeaderboard = async (type = 'overall', timeFilter = 'all', limit = 50) => {
   try {
-    // Skip API calls during build time
     if (typeof window === 'undefined') {
       return { success: true, players: [], message: 'Build time - no leaderboard loaded' };
     }
-
-    const response = await api.get('/stats/leaderboard', {
-      params: { type, timeFilter, limit }
-    });
-    
-    // Handle 204 No Content or empty response
+    // Route is /api/leaderboard (mounted directly, not under /stats)
+    const response = await api.get('/leaderboard', { params: { type, timeFilter, limit } });
     if (response.status === 204 || !response.data) {
-      console.log('API: Leaderboard endpoint returned 204 or empty response');
       return { success: true, players: [], message: 'No leaderboard data available' };
     }
-    
-    // Handle different response structures
     let players = [];
-    if (response.data?.players) {
-      players = Array.isArray(response.data.players) ? response.data.players : [];
-    } else if (response.data?.data?.leaderboard) {
-      players = Array.isArray(response.data.data.leaderboard) ? response.data.data.leaderboard : [];
-    } else if (Array.isArray(response.data)) {
-      players = response.data;
-    }
-    
-    return {
-      success: response.data?.success !== false,
-      players: players,
-      message: response.data?.message || 'Leaderboard fetched successfully',
-      error: null
-    };
+    if (response.data?.players) players = Array.isArray(response.data.players) ? response.data.players : [];
+    else if (response.data?.data?.leaderboard) players = Array.isArray(response.data.data.leaderboard) ? response.data.data.leaderboard : [];
+    else if (Array.isArray(response.data)) players = response.data;
+    return { success: response.data?.success !== false, players, message: response.data?.message || 'Leaderboard fetched successfully', error: null };
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
-    return { 
-      success: false, 
-      players: [], 
-      error: error, // Preserve error object for proper checking
-      message: error.message 
-    };
+    return { success: false, players: [], error, message: error.message };
   }
 };
 
-// Notifications API
+// ─── Notifications ───────────────────────────────────────────────────────────
+
 export const getNotifications = async () => {
   try {
     const response = await api.get('/notifications');
@@ -620,7 +365,8 @@ export const getNotifications = async () => {
 
 export const markNotificationAsRead = async (notificationId) => {
   try {
-    const response = await api.patch(`/user/notifications/${notificationId}/read`);
+    // Backend route: PATCH /api/notifications/:id/read
+    const response = await api.patch(`/notifications/${notificationId}/read`);
     return response.data;
   } catch (error) {
     console.error('Error marking notification as read:', error);
@@ -630,7 +376,7 @@ export const markNotificationAsRead = async (notificationId) => {
 
 export const getUserNotifications = async () => {
   try {
-    const response = await api.get('/user/notifications');
+    const response = await api.get('/notifications');
     return {
       success: response.data?.success || true,
       notifications: response.data?.notifications || [],
@@ -638,140 +384,237 @@ export const getUserNotifications = async () => {
     };
   } catch (error) {
     console.error('Error fetching user notifications:', error);
-    return {
-      success: false,
-      notifications: [],
-      unreadCount: 0
-    };
+    return { success: false, notifications: [], unreadCount: 0 };
   }
 };
 
-// Media API for frontend
+// ─── Media ───────────────────────────────────────────────────────────────────
+
 export const getPublicMedia = async (params = {}) => {
   try {
     const response = await api.get('/media/public', { params });
-    return {
-      success: response.data?.success || true,
-      media: response.data?.data || [],
-      total: response.data?.total || 0
-    };
+    return { success: response.data?.success || true, media: response.data?.data || [], total: response.data?.total || 0 };
   } catch (error) {
     console.error('Error fetching public media:', error);
-    return {
-      success: false,
-      media: [],
-      total: 0
-    };
+    return { success: false, media: [], total: 0 };
   }
 };
 
-// Password Reset API functions
+// ─── Auth (password reset) ───────────────────────────────────────────────────
+
 export const forgotPassword = async (email) => {
-  try {
-    const response = await api.post('/auth/forgot-password', { email });
-    return response.data;
-  } catch (error) {
-    console.error('Error sending password reset request:', error);
-    throw error;
-  }
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
 };
 
 export const resetPassword = async (token, newPassword) => {
-  try {
-    const response = await api.post('/auth/reset-password', { token, newPassword });
-    return response.data;
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    throw error;
-  }
+  const response = await api.post('/auth/reset-password', { token, newPassword });
+  return response.data;
 };
 
 export const verifyResetToken = async (token) => {
-  try {
-    const response = await api.post('/auth/verify-reset-token', { token });
-    return response.data;
-  } catch (error) {
-    console.error('Error verifying reset token:', error);
-    throw error;
-  }
+  const response = await api.post('/auth/verify-reset-token', { token });
+  return response.data;
 };
 
-// Chat API functions
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
 export const getTournamentMessages = async (tournamentId, page = 1, limit = 50) => {
-  try {
-    const response = await api.get(`/chat/tournament/${tournamentId}`, {
-      params: { page, limit }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching tournament messages:', error);
-    throw error;
-  }
+  const response = await api.get(`/chat/tournament/${tournamentId}`, { params: { page, limit } });
+  return response.data;
 };
 
 export const sendTournamentMessage = async (tournamentId, messageData) => {
-  try {
-    const response = await api.post(`/chat/tournament/${tournamentId}`, messageData);
-    return response.data;
-  } catch (error) {
-    console.error('Error sending tournament message:', error);
-    throw error;
-  }
+  const response = await api.post(`/chat/tournament/${tournamentId}`, messageData);
+  return response.data;
 };
 
 export const getDirectMessages = async (userId1, userId2, page = 1, limit = 50) => {
-  try {
-    const response = await api.get(`/chat/direct/${userId1}/${userId2}`, {
-      params: { page, limit }
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching direct messages:', error);
-    throw error;
-  }
+  const response = await api.get(`/chat/direct/${userId1}/${userId2}`, { params: { page, limit } });
+  return response.data;
 };
 
 export const sendDirectMessage = async (messageData) => {
-  try {
-    const response = await api.post('/chat/direct', messageData);
-    return response.data;
-  } catch (error) {
-    console.error('Error sending direct message:', error);
-    throw error;
-  }
+  const response = await api.post('/chat/direct', messageData);
+  return response.data;
 };
 
 export const markMessagesAsRead = async (userId, messageIds) => {
-  try {
-    const response = await api.put(`/chat/read/${userId}`, { messageIds });
-    return response.data;
-  } catch (error) {
-    console.error('Error marking messages as read:', error);
-    throw error;
-  }
+  const response = await api.put(`/chat/read/${userId}`, { messageIds });
+  return response.data;
 };
 
 export const getUserConversations = async (userId) => {
-  try {
-    const response = await api.get(`/chat/conversations/${userId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user conversations:', error);
-    throw error;
-  }
+  const response = await api.get(`/chat/conversations/${userId}`);
+  return response.data;
 };
 
 export const reportMessage = async (messageId, reportData) => {
-  try {
-    const response = await api.post(`/chat/report/${messageId}`, reportData);
-    return response.data;
-  } catch (error) {
-    console.error('Error reporting message:', error);
-    throw error;
-  }
+  const response = await api.post(`/chat/report/${messageId}`, reportData);
+  return response.data;
 };
 
-// Tournament API object for easier imports
+// ─── Friends ─────────────────────────────────────────────────────────────────
+
+export const getFriendsList = async (status = 'accepted', page = 1, limit = 20) => {
+  const response = await api.get(`/friends/list?status=${status}&page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+export const searchUsers = async (query, page = 1, limit = 10) => {
+  const response = await api.get(`/friends/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+export const sendFriendRequest = async (recipientId) => {
+  const response = await api.post('/friends/request', { recipientId });
+  return response.data;
+};
+
+export const getFriendRequests = async (type = 'received', page = 1, limit = 20) => {
+  const response = await api.get(`/friends/requests/${type}?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+export const acceptFriendRequest = async (requestId) => {
+  const response = await api.post(`/friends/requests/${requestId}/accept`);
+  return response.data;
+};
+
+export const declineFriendRequest = async (requestId) => {
+  const response = await api.post(`/friends/requests/${requestId}/decline`);
+  return response.data;
+};
+
+export const removeFriend = async (friendId) => {
+  const response = await api.delete(`/friends/${friendId}`);
+  return response.data;
+};
+
+export const getReferralInfo = async () => {
+  const response = await api.get('/friends/referral');
+  return response.data;
+};
+
+export const getFriendsLeaderboard = async (type = 'xp', timeframe = 'week') => {
+  const response = await api.get(`/friends/leaderboard?type=${type}&timeframe=${timeframe}`);
+  return response.data;
+};
+
+// ─── Challenges ──────────────────────────────────────────────────────────────
+
+export const getChallenges = async (status, type, page = 1, limit = 20) => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (type) params.append('type', type);
+  params.append('page', page);
+  params.append('limit', limit);
+  const response = await api.get(`/challenges?${params}`);
+  return response.data;
+};
+
+export const createChallenge = async (challengeData) => {
+  const response = await api.post('/challenges/create', challengeData);
+  return response.data;
+};
+
+export const acceptChallenge = async (challengeId) => {
+  const response = await api.post(`/challenges/${challengeId}/accept`);
+  return response.data;
+};
+
+export const declineChallenge = async (challengeId) => {
+  const response = await api.post(`/challenges/${challengeId}/decline`);
+  return response.data;
+};
+
+export const getChallengeDetails = async (challengeId) => {
+  const response = await api.get(`/challenges/${challengeId}`);
+  return response.data;
+};
+
+// ─── Achievements ────────────────────────────────────────────────────────────
+
+export const getUserAchievements = async (category, type, rarity, page = 1, limit = 20) => {
+  const params = new URLSearchParams();
+  if (category) params.append('category', category);
+  if (type) params.append('type', type);
+  if (rarity) params.append('rarity', rarity);
+  params.append('page', page);
+  params.append('limit', limit);
+  const response = await api.get(`/achievements?${params}`);
+  return response.data;
+};
+
+export const getAchievementsFeed = async (page = 1, limit = 20) => {
+  const response = await api.get(`/achievements/feed?page=${page}&limit=${limit}`);
+  return response.data;
+};
+
+export const likeAchievement = async (achievementId) => {
+  const response = await api.post(`/achievements/${achievementId}/like`);
+  return response.data;
+};
+
+export const unlikeAchievement = async (achievementId) => {
+  const response = await api.delete(`/achievements/${achievementId}/like`);
+  return response.data;
+};
+
+export const commentOnAchievement = async (achievementId, comment) => {
+  const response = await api.post(`/achievements/${achievementId}/comments`, { comment });
+  return response.data;
+};
+
+export const shareAchievement = async (achievementId, platform) => {
+  const response = await api.post(`/achievements/${achievementId}/share`, { platform });
+  return response.data;
+};
+
+// ─── Groups ──────────────────────────────────────────────────────────────────
+
+export const getUserGroups = async () => {
+  const response = await api.get('/groups/my-groups');
+  return response.data;
+};
+
+export const getPublicGroups = async (type, page = 1, limit = 20) => {
+  const params = new URLSearchParams();
+  if (type) params.append('type', type);
+  params.append('page', page);
+  params.append('limit', limit);
+  const response = await api.get(`/groups/public?${params}`);
+  return response.data;
+};
+
+export const searchGroups = async (query, privacy, type, page = 1, limit = 10) => {
+  const params = new URLSearchParams();
+  params.append('q', query);
+  if (privacy) params.append('privacy', privacy);
+  if (type) params.append('type', type);
+  params.append('page', page);
+  params.append('limit', limit);
+  const response = await api.get(`/groups/search?${params}`);
+  return response.data;
+};
+
+export const createGroup = async (groupData) => {
+  const response = await api.post('/groups/create', groupData);
+  return response.data;
+};
+
+export const joinGroup = async (groupId, message) => {
+  const response = await api.post(`/groups/${groupId}/join`, { message });
+  return response.data;
+};
+
+export const getGroupDetails = async (groupId) => {
+  const response = await api.get(`/groups/${groupId}`);
+  return response.data;
+};
+
+// ─── API Object Exports ──────────────────────────────────────────────────────
+
 export const tournamentAPI = {
   getTournaments,
   getTournamentById,
@@ -780,7 +623,6 @@ export const tournamentAPI = {
   submitResult
 };
 
-// Chat API object for easier imports
 export const chatAPI = {
   getTournamentMessages,
   sendTournamentMessage,
@@ -791,296 +633,6 @@ export const chatAPI = {
   reportMessage
 };
 
-// Friends API
-export const getFriendsList = async (status = 'accepted', page = 1, limit = 20) => {
-  try {
-    const response = await api.get(`/friends/list?status=${status}&page=${page}&limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching friends list:', error);
-    throw error;
-  }
-};
-
-export const searchUsers = async (query, page = 1, limit = 10) => {
-  try {
-    const response = await api.get(`/friends/search?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error searching users:', error);
-    throw error;
-  }
-};
-
-export const sendFriendRequest = async (recipientId) => {
-  try {
-    const response = await api.post('/friends/request', { recipientId });
-    return response.data;
-  } catch (error) {
-    console.error('Error sending friend request:', error);
-    throw error;
-  }
-};
-
-export const getFriendRequests = async (type = 'received', page = 1, limit = 20) => {
-  try {
-    const response = await api.get(`/friends/requests/${type}?page=${page}&limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching friend requests:', error);
-    throw error;
-  }
-};
-
-export const acceptFriendRequest = async (requestId) => {
-  try {
-    const response = await api.post(`/friends/requests/${requestId}/accept`);
-    return response.data;
-  } catch (error) {
-    console.error('Error accepting friend request:', error);
-    throw error;
-  }
-};
-
-export const declineFriendRequest = async (requestId) => {
-  try {
-    const response = await api.post(`/friends/requests/${requestId}/decline`);
-    return response.data;
-  } catch (error) {
-    console.error('Error declining friend request:', error);
-    throw error;
-  }
-};
-
-export const removeFriend = async (friendId) => {
-  try {
-    const response = await api.delete(`/friends/${friendId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error removing friend:', error);
-    throw error;
-  }
-};
-
-export const getReferralInfo = async () => {
-  try {
-    const response = await api.get('/friends/referral');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching referral info:', error);
-    throw error;
-  }
-};
-
-export const getFriendsLeaderboard = async (type = 'xp', timeframe = 'week') => {
-  try {
-    const response = await api.get(`/friends/leaderboard?type=${type}&timeframe=${timeframe}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching friends leaderboard:', error);
-    throw error;
-  }
-};
-
-// Challenges API
-export const getChallenges = async (status, type, page = 1, limit = 20) => {
-  try {
-    const params = new URLSearchParams();
-    if (status) params.append('status', status);
-    if (type) params.append('type', type);
-    params.append('page', page);
-    params.append('limit', limit);
-    
-    const response = await api.get(`/challenges?${params}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching challenges:', error);
-    throw error;
-  }
-};
-
-export const createChallenge = async (challengeData) => {
-  try {
-    const response = await api.post('/challenges/create', challengeData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating challenge:', error);
-    throw error;
-  }
-};
-
-export const acceptChallenge = async (challengeId) => {
-  try {
-    const response = await api.post(`/challenges/${challengeId}/accept`);
-    return response.data;
-  } catch (error) {
-    console.error('Error accepting challenge:', error);
-    throw error;
-  }
-};
-
-export const declineChallenge = async (challengeId) => {
-  try {
-    const response = await api.post(`/challenges/${challengeId}/decline`);
-    return response.data;
-  } catch (error) {
-    console.error('Error declining challenge:', error);
-    throw error;
-  }
-};
-
-export const getChallengeDetails = async (challengeId) => {
-  try {
-    const response = await api.get(`/challenges/${challengeId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching challenge details:', error);
-    throw error;
-  }
-};
-
-// Achievements API
-export const getUserAchievements = async (category, type, rarity, page = 1, limit = 20) => {
-  try {
-    const params = new URLSearchParams();
-    if (category) params.append('category', category);
-    if (type) params.append('type', type);
-    if (rarity) params.append('rarity', rarity);
-    params.append('page', page);
-    params.append('limit', limit);
-    
-    const response = await api.get(`/achievements?${params}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user achievements:', error);
-    throw error;
-  }
-};
-
-export const getAchievementsFeed = async (page = 1, limit = 20) => {
-  try {
-    const response = await api.get(`/achievements/feed?page=${page}&limit=${limit}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching achievements feed:', error);
-    throw error;
-  }
-};
-
-export const likeAchievement = async (achievementId) => {
-  try {
-    const response = await api.post(`/achievements/${achievementId}/like`);
-    return response.data;
-  } catch (error) {
-    console.error('Error liking achievement:', error);
-    throw error;
-  }
-};
-
-export const unlikeAchievement = async (achievementId) => {
-  try {
-    const response = await api.delete(`/achievements/${achievementId}/like`);
-    return response.data;
-  } catch (error) {
-    console.error('Error unliking achievement:', error);
-    throw error;
-  }
-};
-
-export const commentOnAchievement = async (achievementId, comment) => {
-  try {
-    const response = await api.post(`/achievements/${achievementId}/comments`, { comment });
-    return response.data;
-  } catch (error) {
-    console.error('Error commenting on achievement:', error);
-    throw error;
-  }
-};
-
-export const shareAchievement = async (achievementId, platform) => {
-  try {
-    const response = await api.post(`/achievements/${achievementId}/share`, { platform });
-    return response.data;
-  } catch (error) {
-    console.error('Error sharing achievement:', error);
-    throw error;
-  }
-};
-
-// Groups API
-export const getUserGroups = async () => {
-  try {
-    const response = await api.get('/groups/my-groups');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user groups:', error);
-    throw error;
-  }
-};
-
-export const getPublicGroups = async (type, page = 1, limit = 20) => {
-  try {
-    const params = new URLSearchParams();
-    if (type) params.append('type', type);
-    params.append('page', page);
-    params.append('limit', limit);
-    
-    const response = await api.get(`/groups/public?${params}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching public groups:', error);
-    throw error;
-  }
-};
-
-export const searchGroups = async (query, privacy, type, page = 1, limit = 10) => {
-  try {
-    const params = new URLSearchParams();
-    params.append('q', query);
-    if (privacy) params.append('privacy', privacy);
-    if (type) params.append('type', type);
-    params.append('page', page);
-    params.append('limit', limit);
-    
-    const response = await api.get(`/groups/search?${params}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error searching groups:', error);
-    throw error;
-  }
-};
-
-export const createGroup = async (groupData) => {
-  try {
-    const response = await api.post('/groups/create', groupData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating group:', error);
-    throw error;
-  }
-};
-
-export const joinGroup = async (groupId, message) => {
-  try {
-    const response = await api.post(`/groups/${groupId}/join`, { message });
-    return response.data;
-  } catch (error) {
-    console.error('Error joining group:', error);
-    throw error;
-  }
-};
-
-export const getGroupDetails = async (groupId) => {
-  try {
-    const response = await api.get(`/groups/${groupId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching group details:', error);
-    throw error;
-  }
-};
-
-// Friends API object for easier imports
 export const friendsAPI = {
   getFriendsList,
   searchUsers,
@@ -1093,7 +645,6 @@ export const friendsAPI = {
   getFriendsLeaderboard
 };
 
-// Challenges API object for easier imports
 export const challengesAPI = {
   getChallenges,
   createChallenge,
@@ -1102,7 +653,6 @@ export const challengesAPI = {
   getChallengeDetails
 };
 
-// Achievements API object for easier imports
 export const achievementsAPI = {
   getUserAchievements,
   getAchievementsFeed,
@@ -1112,7 +662,6 @@ export const achievementsAPI = {
   shareAchievement
 };
 
-// Groups API object for easier imports
 export const groupsAPI = {
   getUserGroups,
   getPublicGroups,
@@ -1123,5 +672,3 @@ export const groupsAPI = {
 };
 
 export default api;
-
-

@@ -63,23 +63,19 @@ const PaymentSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending',
     index: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
+}, {
+  // Use Mongoose built-in timestamps — correctly updates updatedAt on
+  // findOneAndUpdate / updateOne, not just on save()
+  timestamps: true
 });
 
 // ensure one entry per email per tournament
 PaymentSchema.index({ tournament: 1, email: 1 }, { unique: true });
 
-PaymentSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// Helper: detect MongoDB duplicate key errors (E11000)
+PaymentSchema.statics.isDuplicateKeyError = function(err) {
+  return err && err.code === 11000;
+};
 
 module.exports = mongoose.model('Payment', PaymentSchema);

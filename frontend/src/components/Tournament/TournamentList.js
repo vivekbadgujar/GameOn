@@ -73,13 +73,19 @@ const TournamentList = ({ tournaments, user, onJoinTournament, showSuccess, show
   };
 
   const getDefaultThumbnail = (game) => {
-    // Return a default thumbnail based on game type
-    const thumbnails = {
-      'BGMI': '/images/bgmi-thumbnail.jpg',
-      'Free Fire': '/images/freefire-thumbnail.jpg',
-      'PUBG': '/images/pubg-thumbnail.jpg'
+    // Generate a gradient placeholder as a CSS data URL — avoids broken static file deps
+    const colors = {
+      'BGMI': ['#1a1a2e', '#e94560'],
+      'Free Fire': ['#0f3460', '#e94560'],
+      'PUBG': ['#16213e', '#533483'],
+      'COD': ['#0a0a0a', '#e94560'],
+      'Valorant': ['#1a0020', '#ff4655'],
+      'CS:GO': ['#1a2634', '#4b69ff'],
     };
-    return thumbnails[game] || '/images/default-tournament.jpg';
+    const [bg1, bg2] = colors[game] || ['#1a1a2e', '#533483'];
+    // Return an SVG placeholder with the game name
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='200'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${bg1}'/><stop offset='100%' stop-color='${bg2}'/></linearGradient></defs><rect width='400' height='200' fill='url(#g)'/><text x='50%' y='50%' fill='white' font-size='24' font-family='sans-serif' text-anchor='middle' dominant-baseline='middle' opacity='0.8'>${game || 'Tournament'}</text></svg>`;
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
   };
 
   return (
@@ -109,7 +115,7 @@ const TournamentList = ({ tournaments, user, onJoinTournament, showSuccess, show
                 <CardMedia
                   component="img"
                   height="160"
-                  image={tournament.thumbnail || tournament.thumbnail || tournament.poster || tournament.posterUrl || getDefaultThumbnail(tournament.game)}
+                  image={tournament.thumbnail || tournament.poster || tournament.posterUrl || getDefaultThumbnail(tournament.game)}
                   alt={tournament.title}
                   sx={{
                     objectFit: 'cover',

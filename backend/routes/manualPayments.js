@@ -196,6 +196,13 @@ router.post(
       });
     } catch (error) {
       console.error('Manual payment submission error:', error);
+      // E11000 = MongoDB duplicate key — transactionId or tournament+email already exists
+      if (Payment.isDuplicateKeyError(error)) {
+        return res.status(409).json({
+          success: false,
+          message: 'A payment with this transaction ID or email already exists for this tournament.'
+        });
+      }
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to submit payment'
@@ -390,10 +397,21 @@ const applyPaymentStatusUpdate = async (req, res) => {
       });
 
       if (status === 'approved') {
-        io.emit('tournamentUpdated', {
-          type: 'tournamentUpdated',
-          data: tournament
-        });
+        // Re-fetch tournament with populated participants so clients get current counts
+        const updatedTournament = await Tournament.findById(tournament._id)
+          .populate('participants.user', 'username displayName gameProfile.bgmiId')
+          .lean();
+        if (updatedTournament) {
+          io.emit('tournamentUpdated', {
+            type: 'tournamentUpdated',
+            data: updatedTournament
+          });
+          io.emit('participantsUpdated', {
+            tournamentId: tournament._id,
+            participants: updatedTournament.participants,
+            currentParticipants: updatedTournament.currentParticipants
+          });
+        }
       }
     }
 

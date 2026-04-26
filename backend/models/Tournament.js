@@ -85,6 +85,29 @@ const TournamentSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Settings toggles from TournamentForm
+  allowSpectators: {
+    type: Boolean,
+    default: true
+  },
+  requireScreenshots: {
+    type: Boolean,
+    default: true
+  },
+  autoStart: {
+    type: Boolean,
+    default: false
+  },
+  terms: {
+    type: String,
+    default: ''
+  },
+  // Prize distribution from TournamentForm
+  prizeDistribution: [{
+    position: { type: Number },
+    percentage: { type: Number },
+    amount: { type: Number }
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin'
@@ -92,8 +115,8 @@ const TournamentSchema = new mongoose.Schema({
   participants: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date, default: Date.now },
-    slotNumber: { type: Number, default: 0 }, // Changed from required: true to default: 0
-    teamNumber: { type: Number }, // BGMI team number (1-25)
+    slotNumber: { type: Number, default: 0 },
+    teamNumber: { type: Number },
     kills: { type: Number, default: 0 },
     rank: { type: Number },
     paymentData: { type: mongoose.Schema.Types.Mixed },
@@ -102,9 +125,9 @@ const TournamentSchema = new mongoose.Schema({
       enum: ['pending', 'completed', 'failed'], 
       default: 'pending' 
     },
-    paymentId: { type: String }, // Payment ID
-    hasEditedSlot: { type: Boolean, default: false }, // Track if user has used slot editing
-    slotUpdatedAt: { type: Date } // Track when slot was last updated
+    paymentId: { type: String },
+    hasEditedSlot: { type: Boolean, default: false },
+    slotUpdatedAt: { type: Date }
   }],
   winners: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
