@@ -17,14 +17,30 @@ const router = express.Router();
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 // Cloudinary-only storage - no local files
-const hasCloudinaryConfig = () => (
-  !!process.env.CLOUDINARY_CLOUD_NAME &&
-  !!process.env.CLOUDINARY_API_KEY &&
-  !!process.env.CLOUDINARY_API_SECRET &&
-  process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
-  process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
-  process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
-);
+// Reads env vars lazily at call-time so Render-injected vars are always current
+const CLOUDINARY_PLACEHOLDERS = new Set([
+  'your-cloud-name', 'your-api-key', 'your-api-secret',
+  'your_cloudinary_cloud_name', 'your_cloudinary_api_key', 'your_cloudinary_api_secret',
+]);
+
+const hasCloudinaryConfig = () => {
+  const name = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+  const key = (process.env.CLOUDINARY_API_KEY || '').trim();
+  const secret = (process.env.CLOUDINARY_API_SECRET || '').trim();
+  return (
+    Boolean(name) && Boolean(key) && Boolean(secret) &&
+    !CLOUDINARY_PLACEHOLDERS.has(name) &&
+    !CLOUDINARY_PLACEHOLDERS.has(key) &&
+    !CLOUDINARY_PLACEHOLDERS.has(secret)
+  );
+};
+
+// Log Cloudinary env-var status at startup for diagnostics
+console.log('[Admin/Tournaments] Cloudinary env var status:');
+console.log('  CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? `"${process.env.CLOUDINARY_CLOUD_NAME}"` : 'MISSING');
+console.log('  CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? `set (${process.env.CLOUDINARY_API_KEY.length} chars)` : 'MISSING');
+console.log('  CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'set' : 'MISSING');
+console.log('  hasCloudinaryConfig():', hasCloudinaryConfig());
 
 // Memory storage for multer - files go directly to Cloudinary
 const memoryStorage = multer.memoryStorage();
@@ -75,6 +91,31 @@ const uploadToCloudinary = async (file, folder) => {
     throw new Error(`Failed to upload image to Cloudinary: ${error.message}`);
   }
 };
+
+// Cloudinary status diagnostic route - no authentication required
+router.get('/cloudinary-status', (req, res) => {
+  const name = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+  const key = (process.env.CLOUDINARY_API_KEY || '').trim();
+  const secret = (process.env.CLOUDINARY_API_SECRET || '').trim();
+  const configured = hasCloudinaryConfig();
+
+  res.json({
+    success: true,
+    cloudinary: {
+      configured,
+      CLOUDINARY_CLOUD_NAME: name ? `"${name}"` : 'MISSING',
+      CLOUDINARY_API_KEY: key ? `set (${key.length} chars)` : 'MISSING',
+      CLOUDINARY_API_SECRET: secret ? 'set' : 'MISSING',
+      isPlaceholder: {
+        cloud_name: CLOUDINARY_PLACEHOLDERS.has(name),
+        api_key: CLOUDINARY_PLACEHOLDERS.has(key),
+        api_secret: CLOUDINARY_PLACEHOLDERS.has(secret),
+      },
+    },
+    node_env: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Debug route - no authentication required (must be before middleware)
 router.get('/debug', async (req, res) => {
@@ -149,9 +190,15 @@ router.post(
       });
     } catch (error) {
       console.error('UPI QR upload error:', error);
+      // Return the real error so the admin can see exactly what went wrong
+      // (e.g. Cloudinary auth failure, missing env vars, etc.)
       return res.status(503).json({
         success: false,
-        message: error.message || 'Failed to upload UPI QR image'
+        message: error.message || 'Failed to upload UPI QR image',
+        cloudinaryConfigured: hasCloudinaryConfig(),
+        hint: !hasCloudinaryConfig()
+          ? 'Cloudinary env vars (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) are missing or contain placeholder values. Set them in your Render dashboard.'
+          : 'Cloudinary credentials appear to be set but upload failed. Check server logs for the Cloudinary API error.'
       });
     }
   }
@@ -191,9 +238,14 @@ router.post(
       });
     } catch (error) {
       console.error('Thumbnail upload error:', error);
+      // Return the real error so the admin can see exactly what went wrong
       return res.status(503).json({
         success: false,
-        message: error.message || 'Failed to upload thumbnail image'
+        message: error.message || 'Failed to upload thumbnail image',
+        cloudinaryConfigured: hasCloudinaryConfig(),
+        hint: !hasCloudinaryConfig()
+          ? 'Cloudinary env vars (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) are missing or contain placeholder values. Set them in your Render dashboard.'
+          : 'Cloudinary credentials appear to be set but upload failed. Check server logs for the Cloudinary API error.'
       });
     }
   }

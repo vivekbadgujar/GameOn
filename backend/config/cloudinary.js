@@ -1,39 +1,77 @@
+/**
+ * Cloudinary configuration
+ *
+ * IMPORTANT: env vars are read lazily at call-time, NOT at module-load time.
+ * This prevents the bug where cloudinary.config() is called before the host
+ * (Render/Vercel) has injected the real env vars into process.env, which caused
+ * the SDK to be permanently stuck with empty/placeholder credentials and every
+ * upload to return a 503.
+ */
+
 const cloudinary = require('cloudinary').v2;
 
 const CLOUDINARY_PLACEHOLDERS = new Set([
   'your-cloud-name',
   'your-api-key',
-  'your-api-secret'
+  'your-api-secret',
+  'your_cloudinary_cloud_name',
+  'your_cloudinary_api_key',
+  'your_cloudinary_api_secret',
 ]);
 
-const cloudinaryConfig = {
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || '',
-  api_key: process.env.CLOUDINARY_API_KEY || '',
-  api_secret: process.env.CLOUDINARY_API_SECRET || '',
-  secure: true
+/**
+ * Returns true only when all three Cloudinary env vars are present and are not
+ * placeholder strings.
+ */
+const isCloudinaryConfigured = () => {
+  const name = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+  const key = (process.env.CLOUDINARY_API_KEY || '').trim();
+  const secret = (process.env.CLOUDINARY_API_SECRET || '').trim();
+
+  return (
+    Boolean(name) &&
+    Boolean(key) &&
+    Boolean(secret) &&
+    !CLOUDINARY_PLACEHOLDERS.has(name) &&
+    !CLOUDINARY_PLACEHOLDERS.has(key) &&
+    !CLOUDINARY_PLACEHOLDERS.has(secret)
+  );
 };
 
-cloudinary.config(cloudinaryConfig);
-
-const isCloudinaryConfigured = () => (
-  Boolean(cloudinaryConfig.cloud_name) &&
-  Boolean(cloudinaryConfig.api_key) &&
-  Boolean(cloudinaryConfig.api_secret) &&
-  !CLOUDINARY_PLACEHOLDERS.has(cloudinaryConfig.cloud_name) &&
-  !CLOUDINARY_PLACEHOLDERS.has(cloudinaryConfig.api_key) &&
-  !CLOUDINARY_PLACEHOLDERS.has(cloudinaryConfig.api_secret)
-);
+/**
+ * Apply the current env vars to the Cloudinary SDK.
+ * Called lazily before each upload so that Render-injected env vars are always
+ * picked up, even if this module was `require()`-d before them.
+ */
+const applyConfig = () => {
+  cloudinary.config({
+    cloud_name: (process.env.CLOUDINARY_CLOUD_NAME || '').trim(),
+    api_key: (process.env.CLOUDINARY_API_KEY || '').trim(),
+    api_secret: (process.env.CLOUDINARY_API_SECRET || '').trim(),
+    secure: true,
+  });
+};
 
 const ensureCloudinaryConfigured = () => {
   if (!isCloudinaryConfigured()) {
+    const name = process.env.CLOUDINARY_CLOUD_NAME;
+    const key = process.env.CLOUDINARY_API_KEY;
+    const secret = process.env.CLOUDINARY_API_SECRET;
+
     throw new Error(
-      'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.'
+      `Cloudinary credentials are not configured correctly. ` +
+      `CLOUDINARY_CLOUD_NAME=${name ? `"${name}"` : 'MISSING'}, ` +
+      `CLOUDINARY_API_KEY=${key ? `"${key.slice(0, 4)}..."` : 'MISSING'}, ` +
+      `CLOUDINARY_API_SECRET=${secret ? 'set' : 'MISSING'}. ` +
+      `Please set these in your Render/Vercel environment variable dashboard.`
     );
   }
 };
 
 const uploadFromMulterFile = (file, options = {}) => {
   ensureCloudinaryConfigured();
+  // Re-apply config lazily so any env-var changes since module load are picked up
+  applyConfig();
 
   if (!file) {
     throw new Error('No file provided for upload.');
@@ -68,7 +106,7 @@ const mapUploadResult = (result) => ({
   format: result.format,
   duration: result.duration,
   bytes: result.bytes,
-  resourceType: result.resource_type
+  resourceType: result.resource_type,
 });
 
 const uploadImage = async (file, folder = 'gameon') => {
@@ -79,8 +117,8 @@ const uploadImage = async (file, folder = 'gameon') => {
       transformation: [
         { width: 1200, height: 800, crop: 'limit' },
         { quality: 'auto:good' },
-        { format: 'auto' }
-      ]
+        { format: 'auto' },
+      ],
     });
 
     return mapUploadResult(result);
@@ -93,6 +131,7 @@ const uploadImage = async (file, folder = 'gameon') => {
 const deleteImage = async (publicId) => {
   try {
     ensureCloudinaryConfigured();
+    applyConfig();
     return await cloudinary.uploader.destroy(publicId);
   } catch (error) {
     console.error('Cloudinary delete error:', error);
@@ -108,8 +147,8 @@ const uploadVideo = async (file, folder = 'gameon/videos') => {
       transformation: [
         { width: 1920, height: 1080, crop: 'limit' },
         { quality: 'auto:good' },
-        { format: 'auto' }
-      ]
+        { format: 'auto' },
+      ],
     });
 
     return mapUploadResult(result);
@@ -121,13 +160,14 @@ const uploadVideo = async (file, folder = 'gameon/videos') => {
 
 const getOptimizedImageUrl = (publicId, options = {}) => {
   ensureCloudinaryConfigured();
+  applyConfig();
 
   const {
     width = 800,
     height = 600,
     crop = 'fill',
     quality = 'auto:good',
-    format = 'auto'
+    format = 'auto',
   } = options;
 
   return cloudinary.url(publicId, {
@@ -136,7 +176,7 @@ const getOptimizedImageUrl = (publicId, options = {}) => {
     crop,
     quality,
     format,
-    secure: true
+    secure: true,
   });
 };
 
@@ -147,5 +187,5 @@ module.exports = {
   getOptimizedImageUrl,
   isCloudinaryConfigured,
   uploadImage,
-  uploadVideo
+  uploadVideo,
 };

@@ -78,13 +78,28 @@ try {
 // Use environment PORT for deployment (Render/Vercel) or default to 5000
 const PORT = process.env.PORT || 5000;
 
-// Debug environment variables
+// ─── Startup Environment Diagnostics ─────────────────────────────────────────
 console.log('Environment check:');
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? `Set (length: ${process.env.JWT_SECRET.length})` : 'NOT SET');
 console.log('JWT_SECRET type:', typeof process.env.JWT_SECRET);
+
+// CLOUDINARY: Verify env vars are actually present at startup.
+// If these log MISSING on Render, the vars are not set in the Render dashboard.
+console.log('--- Cloudinary env-var check at startup ---');
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME
+  ? `"${process.env.CLOUDINARY_CLOUD_NAME}"`
+  : '⚠️  MISSING - uploads will fail with 503');
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY
+  ? `set (${process.env.CLOUDINARY_API_KEY.length} chars)`
+  : '⚠️  MISSING - uploads will fail with 503');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET
+  ? 'set'
+  : '⚠️  MISSING - uploads will fail with 503');
+console.log('-------------------------------------------');
+// ─────────────────────────────────────────────────────────────────────────────
 
 // CRITICAL: Validate JWT_SECRET at startup
 if (!process.env.JWT_SECRET || typeof process.env.JWT_SECRET !== 'string' || process.env.JWT_SECRET.trim() === '') {
