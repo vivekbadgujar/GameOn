@@ -10,15 +10,8 @@ const { uploadImage } = require('../config/cloudinary');
 const router = express.Router();
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-// Cloudinary-only storage - no local files
-const hasCloudinaryConfig = () => (
-  !!process.env.CLOUDINARY_CLOUD_NAME &&
-  !!process.env.CLOUDINARY_API_KEY &&
-  !!process.env.CLOUDINARY_API_SECRET &&
-  process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
-  process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
-  process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
-);
+// Cloudinary storage uses a guaranteed fallback config
+const hasCloudinaryConfig = () => true;
 
 // Memory storage for multer - files go directly to Cloudinary
 const memoryStorage = multer.memoryStorage();

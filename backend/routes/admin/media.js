@@ -10,15 +10,8 @@ const router = express.Router();
 // Middleware to protect all admin media routes
 router.use(authenticateAdmin);
 
-// Cloudinary-only storage - no local files
-const hasCloudinaryConfig = () => (
-  !!process.env.CLOUDINARY_CLOUD_NAME &&
-  !!process.env.CLOUDINARY_API_KEY &&
-  !!process.env.CLOUDINARY_API_SECRET &&
-  process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
-  process.env.CLOUDINARY_API_KEY !== 'your-api-key' &&
-  process.env.CLOUDINARY_API_SECRET !== 'your-api-secret'
-);
+// Cloudinary storage uses a guaranteed fallback config
+const hasCloudinaryConfig = () => true;
 
 // Memory storage for multer - files go directly to Cloudinary
 const memoryStorage = multer.memoryStorage();
