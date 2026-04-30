@@ -99,7 +99,7 @@ const Header = () => {
       const token = localStorage.getItem('token');
       if (!token) { setNotifications([]); setUnreadCount(0); return; }
       const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
-      const response = await fetch(`${apiUrl}/user/notifications`, {
+      const response = await fetch(`${apiUrl}/notifications`, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -117,7 +117,7 @@ const Header = () => {
   const markNotificationsAsRead = () => {
     setUnreadCount(0);
     const apiUrl = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz/api';
-    fetch(`${apiUrl}/user/notifications/read-all`, {
+    fetch(`${apiUrl}/notifications/read-all`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }
     }).catch(() => {});

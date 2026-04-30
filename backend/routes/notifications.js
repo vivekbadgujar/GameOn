@@ -9,7 +9,7 @@ const { Notification, UserNotification } = require('../models/Notification');
 const { authenticateToken } = require('../middleware/auth');
 
 // Get notifications (public endpoint for basic notifications)
-router.get('/', async (req, res) => {
+router.get('/public', async (req, res) => {
   try {
     // Return basic system notifications or empty array for unauthenticated users
     const notifications = await Notification.find({
@@ -36,8 +36,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get user notifications
-router.get('/user/notifications', authenticateToken, async (req, res) => {
+// Get user notifications (mapped to /api/notifications/)
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -77,6 +77,7 @@ router.get('/user/notifications', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       notifications,
+      data: notifications, // For backwards compatibility
       unreadCount,
       total: notifications.length
     });
@@ -89,8 +90,15 @@ router.get('/user/notifications', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user notifications alias for old frontend code
+router.get('/user/notifications', authenticateToken, async (req, res) => {
+  // redirect to the handler above internally
+  req.url = '/';
+  router.handle(req, res);
+});
+
 // Mark notification as read
-router.patch('/user/notifications/:id/read', authenticateToken, async (req, res) => {
+router.patch('/:id/read', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     const notificationId = req.params.id;
@@ -127,7 +135,7 @@ router.patch('/user/notifications/:id/read', authenticateToken, async (req, res)
 });
 
 // Mark all notifications as read
-router.patch('/user/notifications/read-all', authenticateToken, async (req, res) => {
+router.patch('/read-all', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -152,8 +160,14 @@ router.patch('/user/notifications/read-all', authenticateToken, async (req, res)
   }
 });
 
+// Mark all notifications as read alias
+router.patch('/user/notifications/read-all', authenticateToken, async (req, res) => {
+  req.url = '/read-all';
+  router.handle(req, res);
+});
+
 // Get notification count
-router.get('/user/notifications/count', authenticateToken, async (req, res) => {
+router.get('/count', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     

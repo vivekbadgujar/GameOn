@@ -99,9 +99,16 @@ export const login = async (email, password) => {
     return { success: true, user: data.user, token: data.token, message: data.message || 'Login successful' };
   } catch (error) {
     if (error.code === 'ECONNABORTED') throw new Error('Request timeout. Please check your connection and try again.');
+    if (error.response?.status === 400) throw new Error(error.response?.data?.message || 'Invalid email or password');
     if (error.response?.status === 401) throw new Error('Invalid email or password');
     if (error.response?.status === 404) throw new Error('User does not exist');
     if (error.response?.status === 429) throw new Error('Too many login attempts. Please try again later.');
+    
+    // Explicitly hide default Axios "Request failed with status code 400"
+    if (error.message && error.message.includes('400')) {
+      throw new Error('Invalid login details. Please try again.');
+    }
+    
     throw new Error(error.response?.data?.message || error.message || 'Login failed. Please try again.');
   }
 };
