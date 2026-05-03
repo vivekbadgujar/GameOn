@@ -88,7 +88,7 @@ export default function ManualPaymentPage() {
       setStatusLoading(true);
       const resolvedTournamentId = Array.isArray(tournamentId) ? tournamentId[0] : tournamentId;
       const response = await getManualPaymentStatus(resolvedTournamentId);
-      if (response?.success && response?.data) {
+      if (response?.success && response?.data && response?.data?.paymentStatus) {
         setExistingPayment(response.data);
         setAllowResubmission(false);
       } else {

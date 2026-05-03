@@ -102,8 +102,8 @@ const NotificationManager = () => {
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const url = editingNotification 
-        ? `/api/admin/notifications/${editingNotification._id}`
-        : '/api/admin/notifications';
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/notifications/${editingNotification._id}`
+        : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.gameonesport.xyz/api'}/admin/notifications`;
       
       const response = await fetch(url, {
         method: editingNotification ? 'PUT' : 'POST',

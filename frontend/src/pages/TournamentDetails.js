@@ -317,6 +317,7 @@ const TournamentDetails = () => {
   const canJoinTournament = () => {
     if (!tournament) return false;
     if (isUserJoined()) return false;
+    if (paymentStatus === 'pending') return false;
     if (tournament.status === 'completed' || tournament.status === 'finished') return false;
     if (tournament.participants?.length >= tournament.maxParticipants) return false;
     return true;

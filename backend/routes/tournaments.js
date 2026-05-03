@@ -164,11 +164,10 @@ router.get('/:id/participation-status', authenticateToken, async (req, res) => {
     );
 
     // Check for any payments
-    const Transaction = require('../models/Transaction');
-    const payments = await Transaction.find({
+    const Payment = require('../models/Payment');
+    const payments = await Payment.find({
       user: userId,
-      tournament: id,
-      type: 'tournament_entry'
+      tournament: id
     }).sort({ createdAt: -1 });
 
     // Determine payment status
