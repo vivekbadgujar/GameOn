@@ -124,25 +124,40 @@ router.post(
       const normalizedEmail = email.trim().toLowerCase();
       const screenshotUrl = await uploadScreenshotToCloudinary(file, tournamentId);
       const userId = req.user._id;
-      const existing = await Payment.findOne({
-        $or: [
-          { transactionId },
-          { tournament: tournamentId, user: userId },
-          { tournament: tournamentId, email: normalizedEmail }
-        ]
-      });
-
-      if (existing && existing.paymentStatus !== 'rejected') {
+      // 1. Check for global transaction ID duplicate
+      const existingTx = await Payment.findOne({ transactionId });
+      if (existingTx && existingTx.user.toString() !== userId.toString()) {
         return res.status(409).json({
           success: false,
-          message: existing.paymentStatus === 'approved'
-            ? 'You are already registered for this tournament.'
-            : 'Your payment has already been submitted and is pending verification.',
-          paymentStatus: existing.paymentStatus
+          message: 'This Transaction ID has already been used. Please provide a valid, unique transaction ID.'
         });
       }
 
-      if (existing && existing.paymentStatus === 'rejected') {
+      // 2. Find user's existing payment for this tournament
+      const existing = await Payment.findOne({
+        tournament: tournamentId,
+        $or: [{ user: userId }, { email: normalizedEmail }]
+      });
+
+      let paymentId;
+
+      if (existing) {
+        if (existing.user.toString() !== userId.toString()) {
+          return res.status(409).json({
+            success: false,
+            message: 'This email is already registered for this tournament by another user.'
+          });
+        }
+
+        if (existing.paymentStatus === 'approved') {
+          return res.status(409).json({
+            success: false,
+            message: 'You are already registered for this tournament.',
+            paymentStatus: existing.paymentStatus
+          });
+        }
+
+        // If pending or rejected, update it
         existing.playerName = playerName;
         existing.email = normalizedEmail;
         existing.phone = phone;
@@ -152,39 +167,50 @@ router.post(
         existing.paymentStatus = 'pending';
         existing.user = userId;
         await existing.save();
-
-        return res.json({
-          success: true,
-          message: 'Payment resubmitted successfully. Your payment is under verification.',
-          data: {
-            paymentStatus: existing.paymentStatus,
-            paymentId: existing._id,
-            tournamentId: existing.tournament
-          }
+        
+        paymentId = existing._id;
+      } else {
+        // If no existing record
+        const payment = new Payment({
+          tournament: tournamentId,
+          user: userId,
+          playerName,
+          email: normalizedEmail,
+          phone,
+          gameId,
+          transactionId,
+          screenshotUrl,
+          paymentStatus: 'pending'
         });
+        await payment.save();
+        paymentId = payment._id;
       }
 
-      const payment = new Payment({
-        tournament: tournamentId,
-        user: userId,
-        playerName,
-        email: normalizedEmail,
-        phone,
-        gameId,
-        transactionId,
-        screenshotUrl,
-        paymentStatus: 'pending'
-      });
-
-      await payment.save();
+      // 3. Add to or update participants with pending status
+      let existingParticipant = tournament.participants.find(p => p.user.toString() === userId.toString());
+      if (!existingParticipant && tournament.currentParticipants < tournament.maxParticipants) {
+        tournament.participants.push({
+          user: userId,
+          joinedAt: new Date(),
+          slotNumber: tournament.currentParticipants + 1,
+          paymentStatus: 'pending',
+          paymentData: { method: 'manual', paymentId, transactionId }
+        });
+        tournament.currentParticipants += 1;
+        await tournament.save();
+      } else if (existingParticipant) {
+        existingParticipant.paymentStatus = 'pending';
+        existingParticipant.paymentData = { method: 'manual', paymentId, transactionId };
+        await tournament.save();
+      }
 
       res.json({
         success: true,
-        message: 'Payment submitted successfully. Your payment is under verification.',
+        message: existing ? 'Payment resubmitted successfully. Your payment is under verification.' : 'Payment submitted successfully. Your payment is under verification.',
         data: {
-          paymentStatus: payment.paymentStatus,
-          paymentId: payment._id,
-          tournamentId: payment.tournament
+          paymentStatus: 'pending',
+          paymentId: paymentId,
+          tournamentId: tournamentId
         }
       });
     } catch (error) {
@@ -359,6 +385,59 @@ const applyPaymentStatusUpdate = async (req, res) => {
       }
 
       await tournament.save();
+
+      // Auto-assign player to room slot after manual payment is approved
+      try {
+        const RoomSlot = require('../models/RoomSlot');
+        let roomSlot = await RoomSlot.findOne({ tournament: tournament._id });
+        if (!roomSlot) {
+          roomSlot = await RoomSlot.createForTournament(
+            tournament._id,
+            tournament.tournamentType,
+            tournament.maxParticipants
+          );
+        }
+        
+        const existingSlot = roomSlot.getPlayerSlot(payment.user);
+        if (!existingSlot) {
+          roomSlot.autoAssignPlayer(payment.user);
+          await roomSlot.save();
+          console.log(`[Admin Payment Approve] Auto-assigned user ${payment.user} to room slot`);
+          
+          // Emit socket updates to sync the new player assignment instantly across clients
+          const io = req.app.get('io');
+          if (io) {
+            const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)
+              .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
+              .populate('teams.captain', 'username displayName gameProfile.bgmiName');
+            
+            const playerSlot = updatedRoomSlot.getPlayerSlot(payment.user);
+            const userModel = await require('../models/User').findById(payment.user).select('username');
+            
+            io.to(`tournament_${tournament._id}`).emit('playerAssigned', {
+              tournamentId: tournament._id,
+              playerId: payment.user.toString(),
+              username: userModel?.username || 'A player',
+              teamNumber: playerSlot.teamNumber,
+              slotNumber: playerSlot.slotNumber,
+              roomSlot: updatedRoomSlot,
+              playerSlot
+            });
+
+            io.emit('roomSlotUpdated', {
+              tournamentId: tournament._id,
+              playerId: payment.user.toString(),
+              action: 'assigned',
+              teamNumber: playerSlot.teamNumber,
+              slotNumber: playerSlot.slotNumber,
+              roomSlot: updatedRoomSlot,
+              timestamp: new Date()
+            });
+          }
+        }
+      } catch (roomSlotErr) {
+        console.error('[Admin Payment Approve] Failed to auto-assign player to room slot:', roomSlotErr.message);
+      }
     } else if (oldStatus === 'approved') {
       const participantIndex = tournament.participants.findIndex((participant) =>
         participant.user.toString() === payment.user.toString()

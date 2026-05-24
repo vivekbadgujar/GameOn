@@ -283,7 +283,7 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
               </Box>
               
               <Box display="flex" gap={1}>
-                {(tournament.status === 'upcoming' || tournament.status === 'registration') && (
+                {['upcoming', 'registration', 'active'].includes(tournament.status?.toLowerCase()) && (
                   <>
                     <Tooltip title="Edit Slot Position">
                       <IconButton 

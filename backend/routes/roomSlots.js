@@ -78,7 +78,39 @@ router.get('/tournament/:tournamentId', authenticateToken, requireTournamentPart
     }
     
     // Get current player's slot info
-    const playerSlot = roomSlot.getPlayerSlot(req.user._id);
+    let playerSlot = roomSlot.getPlayerSlot(req.user._id);
+    
+    if (!playerSlot) {
+      // Auto-assign player to room slot if they are a participant but don't have a slot yet
+      try {
+        console.log(`[GET Room Layout] Dynamic self-healing assignment triggered for user ${req.user._id}`);
+        roomSlot.autoAssignPlayer(req.user._id);
+        await roomSlot.save();
+        
+        // Repopulate layout after save
+        roomSlot = await RoomSlot.findById(roomSlot._id)
+          .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
+          .populate('teams.captain', 'username displayName gameProfile.bgmiName');
+          
+        playerSlot = roomSlot.getPlayerSlot(req.user._id);
+
+        // Emit real-time update that player was assigned
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
+            tournamentId,
+            playerId: req.user._id.toString(),
+            username: req.user.username || 'A player',
+            teamNumber: playerSlot.teamNumber,
+            slotNumber: playerSlot.slotNumber,
+            roomSlot,
+            playerSlot
+          });
+        }
+      } catch (assignError) {
+        console.error(`[GET Room Layout] Self-healing auto-assign failed for user ${req.user._id}:`, assignError.message);
+      }
+    }
     
     res.json({
       success: true,
@@ -349,6 +381,21 @@ router.post('/tournament/:tournamentId/move', [
       });
     }
 
+    // Enhanced unified platform sync
+    const syncService = req.app.get('syncService');
+    if (syncService) {
+      syncService.syncSlotUpdate(tournamentId, 'slot_changed', {
+        tournamentId,
+        playerId: playerId.toString(),
+        fromTeam: currentSlot.teamNumber,
+        fromSlot: currentSlot.slotNumber,
+        toTeam,
+        toSlot,
+        roomSlot: updatedRoomSlot,
+        playerSlot: updatedPlayerSlot
+      });
+    }
+
     console.log('Slot move saved successfully:', {
       tournamentId,
       playerId: playerId.toString(),
@@ -476,9 +523,11 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
       io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
         tournamentId,
         playerId: playerId.toString(),
+        username: req.user.username || 'A player',
         teamNumber: playerSlot.teamNumber,
         slotNumber: playerSlot.slotNumber,
-        roomSlot: updatedRoomSlot
+        roomSlot: updatedRoomSlot,
+        playerSlot // Emits the full playerSlot payload
       });
 
       // Emit to admin panel for live updates
@@ -489,7 +538,21 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
         teamNumber: playerSlot.teamNumber,
         slotNumber: playerSlot.slotNumber,
         roomSlot: updatedRoomSlot,
+        playerSlot,
         timestamp: new Date()
+      });
+    }
+
+    // Enhanced unified platform sync
+    const syncService = req.app.get('syncService');
+    if (syncService) {
+      syncService.syncSlotUpdate(tournamentId, 'slot_taken', {
+        tournamentId,
+        playerId: playerId.toString(),
+        teamNumber: playerSlot.teamNumber,
+        slotNumber: playerSlot.slotNumber,
+        roomSlot: updatedRoomSlot,
+        playerSlot
       });
     }
     

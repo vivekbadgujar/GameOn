@@ -235,7 +235,7 @@ const TournamentCard = ({ tournament, isAuthenticated, onRequireAuth }) => {
                   <span>Already Registered</span>
                 </div>
               </div>
-              {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
+              {paymentStatus === 'completed' && ['upcoming', 'active', 'registration', 'live'].includes(tournament.status?.toLowerCase()) && (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Link
                     href={`/tournaments/${tournament._id}/room-lobby`}

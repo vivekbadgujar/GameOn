@@ -99,7 +99,7 @@ const TournamentParticipationStatus = ({
 
       {/* Slot Edit Actions - Only show if payment is completed and tournament is active */}
       {paymentStatus === 'completed' && 
-       (tournament.status === 'upcoming' || tournament.status === 'live') && (
+       ['upcoming', 'active', 'registration', 'live'].includes(tournament.status?.toLowerCase()) && (
         <div className="flex space-x-2">
           <motion.button
             whileHover={{ scale: 1.05 }}

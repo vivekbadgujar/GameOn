@@ -214,7 +214,7 @@ const TournamentCardRedesigned = ({
                     <span>Already Registered</span>
                   </div>
                 </div>
-                {(tournament.status === 'upcoming' || tournament.status === 'live') && (
+                {['upcoming', 'active', 'registration', 'live'].includes(tournament.status?.toLowerCase()) && (
                   <button
                     onClick={(e) => {
                       e.preventDefault();

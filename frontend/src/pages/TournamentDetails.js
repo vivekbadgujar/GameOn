@@ -517,7 +517,7 @@ const TournamentDetails = () => {
                     </div>
                     
                     {/* Edit Slot Actions - Only show if payment is completed */}
-                    {paymentStatus === 'completed' && (tournament.status === 'upcoming' || tournament.status === 'live') && (
+                    {paymentStatus === 'completed' && ['upcoming', 'active', 'registration', 'live'].includes(tournament.status?.toLowerCase()) && (
                       <div className="flex space-x-2">
                         <button
                           onClick={handleOpenSlotEdit}

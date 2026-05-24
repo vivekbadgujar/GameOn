@@ -97,8 +97,10 @@ const RoomLobby = () => {
 
       const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
       newSocket = io(apiUrl, {
-        reconnection: false,
-        reconnectionAttempts: 0,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
         timeout: 5000,
         auth: {
           token: localStorage.getItem('token')
@@ -132,27 +134,42 @@ const RoomLobby = () => {
     newSocket.on('slotChanged', (data) => {
       if (data.tournamentId === tournamentId) {
         setRoomSlot(data.roomSlot);
+        if (data.playerId === user?._id) {
+          setPlayerSlot(data.playerSlot);
+        }
         showInfo(`Player moved to Team ${data.toTeam}, Slot ${data.toSlot}`);
       }
     });
 
     newSocket.on('playerAssigned', (data) => {
       if (data.tournamentId === tournamentId) {
-        fetchRoomData();
-        showInfo(`${data.username} joined Team ${data.teamNumber}`);
+        setRoomSlot(data.roomSlot);
+        if (data.playerId === user?._id) {
+          setPlayerSlot(data.playerSlot);
+        }
+        showInfo(`${data.username || 'A player'} joined Team ${data.teamNumber}`);
       }
     });
 
     newSocket.on('slotsLocked', (data) => {
       if (data.tournamentId === tournamentId) {
-        fetchRoomData();
-        showInfo('🔒 Slots are now locked! No more position changes allowed.');
+        setRoomSlot(data.roomSlot);
+        showInfo(data.action === 'lock'
+          ? '🔒 Slots are now locked! No more position changes allowed.'
+          : '🔓 Slots are now unlocked.');
       }
     });
 
     newSocket.on('roomCredentialsReleased', (data) => {
       if (data.tournamentId === tournamentId) {
-        fetchRoomData();
+        setTournament(prev => prev ? {
+          ...prev,
+          roomDetails: {
+            ...prev.roomDetails,
+            ...data.roomCredentials,
+            credentialsReleased: true
+          }
+        } : null);
         showSuccess('🎯 Room credentials are now available!');
       }
     });

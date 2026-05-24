@@ -160,7 +160,7 @@ const validateSlotEditPermissions = async (req, res, next) => {
 
     // Lock slot editing only when tournament is live/ongoing or has ended.
     // Admin explicit slot locks are enforced at the RoomSlot level.
-    const lockedStatuses = ['live', 'active', 'completed', 'cancelled'];
+    const lockedStatuses = ['live', 'completed', 'cancelled'];
     const tournamentStatus = (tournament.status || '').toLowerCase();
     if (lockedStatuses.includes(tournamentStatus)) {
       return res.status(403).json({

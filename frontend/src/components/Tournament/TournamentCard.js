@@ -96,7 +96,7 @@ const TournamentCard = ({
         />
         
         {/* Show Edit Slot button if user has joined and tournament is active */}
-        {userParticipation && (tournament.status === 'upcoming' || tournament.status === 'live') && (
+        {userParticipation && ['upcoming', 'active', 'registration', 'live'].includes(tournament.status?.toLowerCase()) && (
           <Tooltip title="Edit Slot Position">
             <IconButton 
               color="primary" 

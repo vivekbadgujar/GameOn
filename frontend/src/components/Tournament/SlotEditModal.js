@@ -77,9 +77,10 @@ const SlotEditModal = ({
       }
 
       newSocket = io(wsUrl, {
-        transports: ['websocket'],
-        reconnection: false,
-        reconnectionAttempts: 0,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
         timeout: 5000,
         auth: {
           token: localStorage.getItem('token')
@@ -122,15 +123,20 @@ const SlotEditModal = ({
 
     newSocket.on('playerAssigned', (data) => {
       if (data.tournamentId === tournamentId) {
-        fetchRoomData();
-        showInfo(`${data.username} joined Team ${data.teamNumber}`);
+        setRoomSlot(data.roomSlot);
+        if (data.playerId === user?._id) {
+          setPlayerSlot(data.playerSlot);
+        }
+        showInfo(`${data.username || 'A player'} joined Team ${data.teamNumber}`);
       }
     });
 
     newSocket.on('slotsLocked', (data) => {
       if (data.tournamentId === tournamentId) {
-        fetchRoomData();
-        showInfo(' Slots are now locked! No more position changes allowed.');
+        setRoomSlot(data.roomSlot);
+        showInfo(data.action === 'lock' 
+          ? 'Slots are now locked! No more position changes allowed.' 
+          : 'Slots are now unlocked.');
       }
     });
 
@@ -283,7 +289,7 @@ const SlotEditModal = ({
   if (!open) return null;
 
   const tournamentStatus = tournament?.status?.toLowerCase();
-  const isTournamentLockedByStatus = ['live', 'active', 'completed', 'cancelled'].includes(tournamentStatus);
+  const isTournamentLockedByStatus = ['live', 'completed', 'cancelled'].includes(tournamentStatus);
   const isParticipant = Boolean(playerSlot);
 
   const canEditSlots = isParticipant &&
