@@ -162,6 +162,8 @@ router.post('/tournament/:tournamentId/move', [
       requestedToTeam: payload.toTeam
     };
 
+    console.log('[Slot Move API] Received payload:', JSON.stringify(validationContext, null, 2));
+
     if (requestedTournamentId && requestedTournamentId.toString() !== tournamentId.toString()) {
       console.warn('Slot move rejected: tournamentId mismatch', validationContext);
       return res.status(400).json({

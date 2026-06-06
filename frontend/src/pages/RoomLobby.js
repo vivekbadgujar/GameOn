@@ -111,7 +111,7 @@ const RoomLobby = () => {
     newSocket.on('connect', () => {
       setIsConnected(true);
       newSocket.emit('join_tournament', tournamentId);
-      console.log('Connected to room lobby');
+      console.log('[Socket] Connected to room lobby socket. ID:', newSocket.id);
     });
 
     newSocket.on('disconnect', () => {
@@ -212,6 +212,7 @@ const RoomLobby = () => {
       }
       
       const data = await response.json();
+      console.log('[RoomLobby] Fetched room data:', data.data);
       setTournament(data.data.tournament);
       setRoomSlot(data.data.roomSlot);
       setPlayerSlot(data.data.playerSlot);
@@ -240,6 +241,11 @@ const RoomLobby = () => {
 
       const timeToLockMs = lockTime.diff(now);
       const timeToStartMs = startTime.diff(now);
+
+      if (!hasAutoLockedRef.current && timeToLockMs % 60000 === 0) {
+        // Log every ~60 seconds to avoid spamming the console
+        console.log(`[RoomLobby] Time check - Start: ${timeToStartMs}ms, Lock: ${timeToLockMs}ms`);
+      }
 
       setTimeToLock(timeToLockMs);
       setTimeToStart(timeToStartMs);

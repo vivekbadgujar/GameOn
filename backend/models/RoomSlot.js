@@ -231,13 +231,13 @@ RoomSlotSchema.methods.assignPlayerToSlot = function(playerId, teamNumber, slotN
 RoomSlotSchema.methods.removePlayerFromAllSlots = function(playerId) {
   this.teams.forEach(team => {
     team.slots.forEach(slot => {
-      if (slot.player && slot.player.toString() === playerId.toString()) {
+      if (slot.player && (slot.player._id || slot.player).toString() === (playerId._id || playerId).toString()) {
         slot.player = null;
       }
     });
     
     // Update captain if removed player was captain
-    if (team.captain && team.captain.toString() === playerId.toString()) {
+    if (team.captain && (team.captain._id || team.captain).toString() === (playerId._id || playerId).toString()) {
       const remainingPlayer = team.slots.find(s => s.player);
       team.captain = remainingPlayer ? remainingPlayer.player : null;
     }
@@ -254,13 +254,13 @@ RoomSlotSchema.methods.getPlayerSlot = function(playerId) {
     const team = this.teams[teamIndex];
     for (let slotIndex = 0; slotIndex < team.slots.length; slotIndex++) {
       const slot = team.slots[slotIndex];
-      if (slot.player && slot.player.toString() === playerId.toString()) {
+      if (slot.player && (slot.player._id || slot.player).toString() === (playerId._id || playerId).toString()) {
         return {
           teamNumber: team.teamNumber,
           slotNumber: slot.slotNumber,
           teamIndex,
           slotIndex,
-          isCaptain: team.captain && team.captain.toString() === playerId.toString()
+          isCaptain: team.captain && (team.captain._id || team.captain).toString() === (playerId._id || playerId).toString()
         };
       }
     }
@@ -289,7 +289,7 @@ RoomSlotSchema.methods.movePlayer = function(playerId, fromTeam, fromSlot, toTea
   }
   
   const sourceSlot = sourceTeam.slots.find(s => s.slotNumber === fromSlot);
-  if (!sourceSlot || !sourceSlot.player || sourceSlot.player.toString() !== playerId.toString()) {
+  if (!sourceSlot || !sourceSlot.player || (sourceSlot.player._id || sourceSlot.player).toString() !== (playerId._id || playerId).toString()) {
     throw new Error('Player not found in source slot');
   }
   
@@ -317,7 +317,7 @@ RoomSlotSchema.methods.movePlayer = function(playerId, fromTeam, fromSlot, toTea
   destSlot.player = playerId;
   
   // Update captains
-  if (sourceTeam.captain && sourceTeam.captain.toString() === playerId.toString()) {
+  if (sourceTeam.captain && (sourceTeam.captain._id || sourceTeam.captain).toString() === (playerId._id || playerId).toString()) {
     const remainingPlayer = sourceTeam.slots.find(s => s.player);
     sourceTeam.captain = remainingPlayer ? remainingPlayer.player : null;
   }
