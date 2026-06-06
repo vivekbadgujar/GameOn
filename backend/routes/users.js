@@ -106,6 +106,98 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+// Update current user profile
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { username, email, gameProfile } = req.body;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    if (username !== undefined) user.username = username;
+    if (email !== undefined) user.email = email;
+    if (gameProfile) {
+      if (!user.gameProfile) user.gameProfile = {};
+      if (gameProfile.bgmiName !== undefined) user.gameProfile.bgmiName = gameProfile.bgmiName;
+      if (gameProfile.bgmiId !== undefined) user.gameProfile.bgmiId = gameProfile.bgmiId;
+    }
+    
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        gameProfile: user.gameProfile,
+        wallet: user.wallet,
+        stats: user.stats,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('[USER PUT /profile] Error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get user preferences
+router.get('/preferences', authenticateToken, async (req, res) => {
+  res.json({
+    success: true,
+    preferences: {
+      notifications: true,
+      theme: 'dark'
+    }
+  });
+});
+
+// Get user's tournaments
+router.get('/tournaments', authenticateToken, async (req, res) => {
+  try {
+    // Return mock data for now, consistent with existing logic
+    const tournaments = [
+      {
+        id: 1,
+        title: 'Valorant Championship',
+        game: 'Valorant',
+        placement: 2,
+        earnings: 150.00,
+        date: '2024-01-20',
+        status: 'completed'
+      },
+      {
+        id: 2,
+        title: 'CS:GO Masters',
+        game: 'CS:GO',
+        placement: 1,
+        earnings: 300.00,
+        date: '2024-01-15',
+        status: 'won'
+      }
+    ];
+    
+    res.json({
+      success: true,
+      message: 'Tournament history retrieved successfully',
+      tournaments: tournaments
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve tournament history', 
+      error: err.message 
+    });
+  }
+});
+
 // Get leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {

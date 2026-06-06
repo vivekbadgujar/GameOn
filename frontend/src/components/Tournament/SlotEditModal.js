@@ -292,10 +292,12 @@ const SlotEditModal = ({
   const isTournamentLockedByStatus = ['live', 'completed', 'cancelled'].includes(tournamentStatus);
   const isParticipant = Boolean(playerSlot);
 
+  const isTimeLocked = tournament && timeToStart !== null && timeToStart <= 600000;
   const canEditSlots = isParticipant &&
     roomSlot?.settings?.allowSlotChange &&
     !roomSlot?.isLocked &&
-    !isTournamentLockedByStatus;
+    !isTournamentLockedByStatus &&
+    !isTimeLocked;
 
   return (
     <Dialog 

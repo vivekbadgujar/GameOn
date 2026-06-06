@@ -64,6 +64,7 @@ const RoomLobby = () => {
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
   const hasLoggedSocketDisableRef = useRef(false);
+  const hasAutoLockedRef = useRef(false);
 
   // State management
   const [tournament, setTournament] = useState(null);
@@ -244,9 +245,9 @@ const RoomLobby = () => {
       setTimeToStart(timeToStartMs);
 
       // Auto-lock slots when time reaches 10 minutes before start
-      if (timeToLockMs <= 0 && roomSlot && !roomSlot.isLocked) {
+      if (timeToLockMs <= 0 && roomSlot && !roomSlot.isLocked && !hasAutoLockedRef.current) {
+        hasAutoLockedRef.current = true;
         showInfo('🔒 Slots are now locked! Tournament starts soon.');
-        fetchRoomData(); // Refresh to get updated lock status
       }
     }, 1000);
 
@@ -311,7 +312,7 @@ const RoomLobby = () => {
     if (!result.destination || roomSlot?.isLocked) return;
 
     const destTeam = parseInt(result.destination.droppableId.split('-')[1]);
-    const destSlot = parseInt(result.destination.droppableId.split('-')[2]);
+    const destSlot = parseInt(result.destination.droppableId.split('-')[3]);
 
     handleSlotMove(destTeam, destSlot);
   };
@@ -373,7 +374,8 @@ const RoomLobby = () => {
     );
   }
 
-  const isSlotChangeable = roomSlot.settings.allowSlotChange && !roomSlot.isLocked;
+  const isTimeLocked = timeToLock !== null && timeToLock <= 0;
+  const isSlotChangeable = roomSlot.settings.allowSlotChange && !roomSlot.isLocked && !isTimeLocked;
   const credentialsAvailable = tournament.roomDetails?.credentialsReleased;
 
   return (
