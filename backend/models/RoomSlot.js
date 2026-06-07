@@ -225,6 +225,7 @@ RoomSlotSchema.methods.assignPlayerToSlot = function(playerId, teamNumber, slotN
   // Check if team is complete
   team.isComplete = team.slots.every(s => s.player !== null);
   
+  this.markModified('teams');
   return this;
 };
 
@@ -246,6 +247,7 @@ RoomSlotSchema.methods.removePlayerFromAllSlots = function(playerId) {
     team.isComplete = team.slots.every(s => s.player !== null);
   });
   
+  this.markModified('teams');
   return this;
 };
 
@@ -330,6 +332,7 @@ RoomSlotSchema.methods.movePlayer = function(playerId, fromTeam, fromSlot, toTea
   sourceTeam.isComplete = sourceTeam.slots.every(s => s.player !== null);
   destTeam.isComplete = destTeam.slots.every(s => s.player !== null);
   
+  this.markModified('teams');
   return this;
 };
 
@@ -348,6 +351,7 @@ RoomSlotSchema.methods.lockSlot = function(teamNumber, slotNumber, adminId) {
   slot.lockedBy = adminId;
   slot.lockedAt = new Date();
   
+  this.markModified('teams');
   return this;
 };
 
@@ -366,6 +370,7 @@ RoomSlotSchema.methods.unlockSlot = function(teamNumber, slotNumber) {
   slot.lockedBy = null;
   slot.lockedAt = null;
   
+  this.markModified('teams');
   return this;
 };
 

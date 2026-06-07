@@ -112,6 +112,18 @@ router.get('/tournament/:tournamentId', authenticateToken, requireTournamentPart
       }
     }
     
+    // Add console logs for debugging
+    console.log('[GET Room Layout] Response generation - roomSlot totalPlayers:', roomSlot.totalPlayers);
+    const uniquePlayers = new Set();
+    let occupiedCount = 0;
+    roomSlot.teams.forEach(t => t.slots.forEach(s => {
+      if (s.player) {
+        occupiedCount++;
+        uniquePlayers.add(s.player._id?.toString() || s.player.toString());
+      }
+    }));
+    console.log(`[GET Room Layout] Occupied slots: ${occupiedCount}, Unique players: ${uniquePlayers.size}`);
+
     res.json({
       success: true,
       data: {

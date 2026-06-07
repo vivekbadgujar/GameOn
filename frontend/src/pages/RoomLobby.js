@@ -213,6 +213,18 @@ const RoomLobby = () => {
       
       const data = await response.json();
       console.log('[RoomLobby] Fetched room data:', data.data);
+      
+      // Debug frontend state after fetch
+      const uniquePlayersFrontend = new Set();
+      let occupiedSlotsFrontend = 0;
+      data.data.roomSlot?.teams?.forEach(t => t.slots?.forEach(s => {
+        if (s.player) {
+          occupiedSlotsFrontend++;
+          uniquePlayersFrontend.add(s.player._id || s.player);
+        }
+      }));
+      console.log(`[RoomLobby] Debug Frontend Data - Occupied: ${occupiedSlotsFrontend}, Unique: ${uniquePlayersFrontend.size}`);
+      
       setTournament(data.data.tournament);
       setRoomSlot(data.data.roomSlot);
       setPlayerSlot(data.data.playerSlot);
@@ -597,9 +609,11 @@ const RoomLobby = () => {
           </Fade>
         )}
 
-        {/* Teams Grid */}
         <Grid container spacing={3}>
-          {roomSlot.teams.map((team, teamIndex) => (
+          {roomSlot.teams.map((team, teamIndex) => {
+            // Log team render loop
+            console.log(`[RoomLobby Render] Team ${team.teamNumber} slots:`, team.slots.map(s => s.player?._id));
+            return (
             <Grid item xs={12} sm={6} md={4} lg={3} key={team.teamNumber}>
               <Zoom in timeout={1600 + (teamIndex * 100)}>
                 <Card 
@@ -748,7 +762,8 @@ const RoomLobby = () => {
                 </Card>
               </Zoom>
             </Grid>
-          ))}
+            );
+          })}
         </Grid>
 
         {/* Action Buttons */}
