@@ -107,8 +107,8 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Always fetch tournaments - get all statuses for better visibility
-      const tournamentsRes = await getTournaments({ limit: 6 });
+      // Always fetch tournaments - get only upcoming for the upcoming section
+      const tournamentsRes = await getTournaments({ status: 'upcoming', limit: 6 });
       
       // Only fetch user stats if authenticated
       let statsRes = {};

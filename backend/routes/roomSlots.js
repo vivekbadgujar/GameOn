@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const RoomSlot = require('../models/RoomSlot');
 const Tournament = require('../models/Tournament');
 const { authenticateToken } = require('../middleware/auth');
@@ -212,7 +213,7 @@ router.post('/tournament/:tournamentId/move', [
       });
     }
 
-    if (!Number.isInteger(toSlot) || toSlot < 1 || toSlot > 4) {
+    if (!Number.isInteger(toSlot) || toSlot < 1) {
       console.warn('Slot move rejected: invalid destination slot', validationContext);
       return res.status(400).json({
         success: false,
@@ -338,8 +339,23 @@ router.post('/tournament/:tournamentId/move', [
     }
 
     try {
-      // Perform the move
-      roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      try {
+        const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
+        if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
+        
+        // Perform the move on the locked document
+        lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+        await lockedRoomSlot.save({ session });
+        await session.commitTransaction();
+        roomSlot = lockedRoomSlot;
+      } catch (txError) {
+        await session.abortTransaction();
+        throw txError;
+      } finally {
+        session.endSession();
+      }
       
       // Unlock the slot after successful move
       if (destSlot) {
@@ -519,9 +535,23 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
       });
     }
     
-    // Auto-assign to available slot
-    roomSlot.autoAssignPlayer(playerId);
-    await roomSlot.save();
+    // Auto-assign to available slot with transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
+      if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
+      
+      lockedRoomSlot.autoAssignPlayer(playerId);
+      await lockedRoomSlot.save({ session });
+      await session.commitTransaction();
+      roomSlot = lockedRoomSlot;
+    } catch (txError) {
+      await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
+    }
     
     // Populate updated data
     const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)

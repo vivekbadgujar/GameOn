@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const RoomSlot = require('../../models/RoomSlot');
 const Tournament = require('../../models/Tournament');
@@ -94,7 +95,7 @@ router.post('/tournament/:tournamentId/move-player', [
   authenticateAdmin,
   body('playerId').notEmpty().withMessage('Player ID is required'),
   body('toTeam').isInt({ min: 1 }).withMessage('Valid team number required'),
-  body('toSlot').isInt({ min: 1, max: 4 }).withMessage('Valid slot number required')
+  body('toSlot').isInt({ min: 1 }).withMessage('Valid slot number required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -128,9 +129,23 @@ router.post('/tournament/:tournamentId/move-player', [
       });
     }
     
-    // Perform the move
-    roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
-    await roomSlot.save();
+    // Perform the move with transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
+      if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
+      
+      lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+      await lockedRoomSlot.save({ session });
+      await session.commitTransaction();
+      roomSlot = lockedRoomSlot;
+    } catch (txError) {
+      await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
+    }
     
     // Populate updated data
     const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)

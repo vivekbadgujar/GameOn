@@ -265,7 +265,7 @@ const SlotContainer = React.memo(({
 
   if (!isDraggable || !slot.player || isLocked) {
     return (
-      <Droppable droppableId={slotId} isDropDisabled={!isSlotChangeable || isLocked}>
+      <Droppable droppableId={slotId} isDropDisabled={!isSlotChangeable || isLocked || !!slot.player}>
         {(provided, snapshot) => (
           <Box ref={provided.innerRef} {...provided.droppableProps}>
             {slotContent(provided, snapshot)}
@@ -277,7 +277,7 @@ const SlotContainer = React.memo(({
   }
 
   return (
-    <Droppable droppableId={slotId} isDropDisabled={!isSlotChangeable || isLocked}>
+    <Droppable droppableId={slotId} isDropDisabled={!isSlotChangeable || isLocked || !!slot.player}>
       {(provided, snapshot) => (
         <Box ref={provided.innerRef} {...provided.droppableProps}>
           <Draggable

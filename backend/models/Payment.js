@@ -72,6 +72,8 @@ const PaymentSchema = new mongoose.Schema({
 
 // ensure one entry per email per tournament
 PaymentSchema.index({ tournament: 1, email: 1 }, { unique: true });
+PaymentSchema.index({ user: 1 });
+PaymentSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
 
 // Helper: detect MongoDB duplicate key errors (E11000)
 PaymentSchema.statics.isDuplicateKeyError = function(err) {

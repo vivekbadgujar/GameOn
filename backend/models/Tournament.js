@@ -74,8 +74,8 @@ const TournamentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['upcoming', 'active', 'live', 'completed', 'cancelled'],
-    default: 'upcoming'
+    enum: ['draft', 'upcoming', 'registration_open', 'registration_closed', 'live', 'completed', 'archived', 'cancelled'],
+    default: 'draft'
   },
   isVisible: {
     type: Boolean,
@@ -159,9 +159,10 @@ const TournamentSchema = new mongoose.Schema({
 });
 
 // Indexes for better performance
-TournamentSchema.index({ status: 1, startDate: 1 });
-TournamentSchema.index({ 'participants.user': 1 });
+TournamentSchema.index({ status: 1 });
+TournamentSchema.index({ startDate: 1 });
 TournamentSchema.index({ game: 1, status: 1 });
+TournamentSchema.index({ 'participants.user': 1 });
 
 // Pre-save middleware for timestamps
 TournamentSchema.pre('save', function(next) {

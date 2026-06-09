@@ -78,6 +78,7 @@ const RoomLobby = () => {
   const [showCredentials, setShowCredentials] = useState(false);
   const [timeToStart, setTimeToStart] = useState(null);
   const [timeToLock, setTimeToLock] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Initialize socket connection
   useEffect(() => {
@@ -173,6 +174,10 @@ const RoomLobby = () => {
         } : null);
         showSuccess('🎯 Room credentials are now available!');
       }
+    });
+
+    newSocket.on('player_updated', (data) => {
+      setRefreshTrigger(prev => prev + 1);
     });
 
       setSocket(newSocket);
@@ -275,7 +280,7 @@ const RoomLobby = () => {
   // Initial data fetch
   useEffect(() => {
     fetchRoomData();
-  }, [tournamentId]);
+  }, [tournamentId, refreshTrigger]);
 
   // Handle slot move
   const handleSlotMove = async (toTeam, toSlot) => {

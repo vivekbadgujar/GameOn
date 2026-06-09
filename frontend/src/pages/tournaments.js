@@ -121,9 +121,9 @@ const Tournaments = () => {
       setTournaments(tournaments);
       
       // Update tab counts
-      const ongoing = tournaments.filter(t => t.status === 'ongoing' || t.status === 'live').length;
-      const upcoming = tournaments.filter(t => t.status === 'upcoming' || t.status === 'registration').length;
-      const completed = tournaments.filter(t => t.status === 'completed' || t.status === 'finished').length;
+      const ongoing = tournaments.filter(t => t.status === 'live').length;
+      const upcoming = tournaments.filter(t => ['upcoming', 'registration_open', 'registration_closed'].includes(t.status)).length;
+      const completed = tournaments.filter(t => ['completed', 'archived'].includes(t.status)).length;
       
       console.log('Tournaments Page: Tab counts - Ongoing:', ongoing, 'Upcoming:', upcoming, 'Completed:', completed);
       
@@ -142,11 +142,11 @@ const Tournaments = () => {
 
     // Filter by status/tab
     if (activeTab === 'ongoing') {
-      filtered = filtered.filter(t => t.status === 'ongoing' || t.status === 'live');
+      filtered = filtered.filter(t => t.status === 'live');
     } else if (activeTab === 'upcoming') {
-      filtered = filtered.filter(t => t.status === 'upcoming' || t.status === 'registration');
+      filtered = filtered.filter(t => ['upcoming', 'registration_open', 'registration_closed'].includes(t.status));
     } else if (activeTab === 'completed') {
-      filtered = filtered.filter(t => t.status === 'completed' || t.status === 'finished');
+      filtered = filtered.filter(t => ['completed', 'archived'].includes(t.status));
     }
 
     // Filter by search query
@@ -456,14 +456,14 @@ const Tournaments = () => {
           <div className="glass-card p-6 text-center">
             <Trophy className="w-8 h-8 text-yellow-400 mx-auto mb-3" />
             <p className="text-2xl font-bold text-white">
-              {tournaments.filter(t => t.status === 'ongoing').length}
+              {tournaments.filter(t => t.status === 'live').length}
             </p>
             <p className="text-white/60 text-sm">Live Now</p>
           </div>
           <div className="glass-card p-6 text-center">
             <Clock className="w-8 h-8 text-blue-400 mx-auto mb-3" />
             <p className="text-2xl font-bold text-white">
-              {tournaments.filter(t => t.status === 'upcoming').length}
+              {tournaments.filter(t => ['upcoming', 'registration_open', 'registration_closed'].includes(t.status)).length}
             </p>
             <p className="text-white/60 text-sm">Upcoming</p>
           </div>

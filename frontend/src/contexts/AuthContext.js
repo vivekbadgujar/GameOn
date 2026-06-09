@@ -160,6 +160,15 @@ export const AuthProvider = ({ children }) => {
           setUser(freshUser);
           localStorage.setItem('user', JSON.stringify(freshUser));
         }
+
+        if (response.data.token) {
+          const newToken = response.data.token;
+          setToken(newToken);
+          localStorage.setItem('token', newToken);
+          api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+          console.log('[AuthContext] Session token successfully renewed');
+        }
+
         return freshUser;
       }
     } catch (error) {

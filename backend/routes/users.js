@@ -81,19 +81,22 @@ router.get('/profile', async (req, res) => {
       });
     }
 
+    let newToken = null;
+    // Regenerate token if it expires in less than 2 days
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp && (decoded.exp - currentTime) < 2 * 24 * 60 * 60) {
+      newToken = jwt.sign(
+        { userId: user._id.toString(), email: user.email },
+        jwtSecret.trim(),
+        { expiresIn: '7d' }
+      );
+      console.log(`[USER /profile] Token regenerated for user ${user._id}`);
+    }
+
     res.json({
       success: true,
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        gameProfile: user.gameProfile,
-        wallet: user.wallet,
-        stats: user.stats,
-        createdAt: user.createdAt
-      }
+      user,
+      token: newToken
     });
 
   } catch (error) {
@@ -108,41 +111,42 @@ router.get('/profile', async (req, res) => {
 
 // Update current user profile
 router.put('/profile', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { username, email, gameProfile } = req.body;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    
-    if (username !== undefined) user.username = username;
-    if (email !== undefined) user.email = email;
-    if (gameProfile) {
-      if (!user.gameProfile) user.gameProfile = {};
-      if (gameProfile.bgmiName !== undefined) user.gameProfile.bgmiName = gameProfile.bgmiName;
-      if (gameProfile.bgmiId !== undefined) user.gameProfile.bgmiId = gameProfile.bgmiId;
-    }
-    
-    await user.save();
-    
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        gameProfile: user.gameProfile,
-        wallet: user.wallet,
-        stats: user.stats,
-        createdAt: user.createdAt
+    try {
+      const userId = req.user._id;
+      const { username, email, gameProfile } = req.body;
+      
+      const updateData = { $set: {} };
+      if (username !== undefined) updateData.$set.username = username;
+      if (email !== undefined) updateData.$set.email = email;
+      if (gameProfile) {
+        if (gameProfile.bgmiName !== undefined) updateData.$set['gameProfile.bgmiName'] = gameProfile.bgmiName;
+        if (gameProfile.bgmiId !== undefined) updateData.$set['gameProfile.bgmiId'] = gameProfile.bgmiId;
       }
-    });
-  } catch (error) {
+      
+      const updatedUser = await User.findByIdAndUpdate(
+        userId, 
+        updateData, 
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!updatedUser) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('player_updated', {
+          playerId: updatedUser._id.toString(),
+          user: updatedUser
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        user: updatedUser
+      });
+    } catch (error) {
     console.error('[USER PUT /profile] Error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }

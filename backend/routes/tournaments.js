@@ -15,25 +15,55 @@ router.get('/my-tournaments', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     
+    console.log('Fetching tournaments for user:', userId.toString());
+    
     // Find tournaments where user is a participant
     const tournaments = await Tournament.find({
       'participants.user': userId
     })
     .populate('participants.user', 'username displayName gameProfile.bgmiId')
-    .sort({ startDate: -1 });
-    
+    .sort({ startDate: -1 })
+    .lean();
+
+    console.log('Found tournaments for user:', tournaments.length);
+
+    // Transform data and add user's slot information
+    const transformedTournaments = tournaments.map(tournament => {
+      const userParticipant = tournament.participants.find(p => 
+        p.user._id.toString() === userId.toString()
+      );
+
+      return {
+        _id: tournament._id,
+        title: tournament.title,
+        description: tournament.description,
+        status: tournament.status,
+        game: tournament.game,
+        tournamentType: tournament.tournamentType,
+        maxParticipants: tournament.maxParticipants,
+        currentParticipants: tournament.currentParticipants,
+        entryFee: tournament.entryFee,
+        prizePool: tournament.prizePool,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        userSlot: userParticipant?.slotNumber || null,
+        joinedAt: userParticipant?.joinedAt || null,
+        paymentStatus: userParticipant?.paymentData ? 'completed' : 'pending',
+        roomDetails: tournament.roomDetails,
+        createdAt: tournament.createdAt
+      };
+    });
+
     res.json({
       success: true,
-      tournaments,
-      count: tournaments.length,
+      data: transformedTournaments,
       message: 'User tournaments fetched successfully'
     });
   } catch (error) {
     console.error('Error fetching user tournaments:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch user tournaments',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      error: error.message || 'Failed to fetch user tournaments'
     });
   }
 });
@@ -49,9 +79,15 @@ router.get('/', async (req, res) => {
     // Build filter object
     const filter = {};
     
-    // Handle status parameter (avoid nested object issues)
+    // Handle status parameter (map frontend categories to strict lifecycle)
     if (status && typeof status === 'string') {
-      filter.status = status;
+      if (status === 'upcoming') {
+        filter.status = { $in: ['upcoming', 'registration_open', 'registration_closed'] };
+      } else if (status === 'completed') {
+        filter.status = { $in: ['completed', 'archived'] };
+      } else {
+        filter.status = status;
+      }
     }
     
     if (game && typeof game === 'string') {
@@ -194,7 +230,7 @@ router.get('/:id/participation-status', authenticateToken, async (req, res) => {
         participation: participation || null,
         payments: payments,
         paymentStatus: paymentStatus,
-        canJoin: !participation && tournament.status === 'upcoming' && 
+        canJoin: !participation && ['upcoming', 'registration_open'].includes(tournament.status) && 
                 tournament.currentParticipants < tournament.maxParticipants
       }
     });
@@ -517,7 +553,7 @@ router.post('/:id/join-squad', authenticateToken, async (req, res) => {
     }
 
     // Check if tournament is open for registration
-    if (tournament.status !== 'upcoming') {
+    if (!['upcoming', 'registration_open'].includes(tournament.status)) {
       return res.status(400).json({
         success: false,
         error: 'Tournament registration is closed'
@@ -823,64 +859,6 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 });
 
 // Get user's tournaments (My Tournaments)
-router.get('/my-tournaments', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    
-    console.log('Fetching tournaments for user:', userId.toString());
-    
-    // Find tournaments where user is a participant
-    const tournaments = await Tournament.find({
-      'participants.user': userId
-    })
-    .populate('participants.user', 'username displayName gameProfile.bgmiId')
-    .sort({ startDate: -1 })
-    .lean();
-
-    console.log('Found tournaments for user:', tournaments.length);
-
-    // Transform data and add user's slot information
-    const transformedTournaments = tournaments.map(tournament => {
-      const userParticipant = tournament.participants.find(p => 
-        p.user._id.toString() === userId.toString()
-      );
-
-      return {
-        _id: tournament._id,
-        title: tournament.title,
-        description: tournament.description,
-        status: tournament.status,
-        game: tournament.game,
-        tournamentType: tournament.tournamentType,
-        maxParticipants: tournament.maxParticipants,
-        currentParticipants: tournament.currentParticipants,
-        entryFee: tournament.entryFee,
-        prizePool: tournament.prizePool,
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-        userSlot: userParticipant?.slotNumber || null,
-        joinedAt: userParticipant?.joinedAt || null,
-        paymentStatus: userParticipant?.paymentData ? 'completed' : 'pending',
-        roomDetails: tournament.roomDetails,
-        createdAt: tournament.createdAt
-      };
-    });
-
-    res.json({
-      success: true,
-      data: transformedTournaments,
-      message: 'User tournaments fetched successfully'
-    });
-  } catch (error) {
-    console.error('Error fetching user tournaments:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch user tournaments'
-    });
-  }
-});
-
-// Release room credentials (Admin only)
 router.post('/:id/release-credentials', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -934,654 +912,6 @@ router.post('/:id/release-credentials', authenticateToken, async (req, res) => {
 });
 
 // Get user's tournaments (joined tournaments)
-router.get('/my-tournaments', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-
-    // Find tournaments where user is a participant
-    const tournaments = await Tournament.find({
-      'participants.user': userId
-    })
-    .populate('participants.user', 'username displayName gameProfile.bgmiId')
-    .sort({ startDate: -1 })
-    .lean();
-
-    // Transform data and add user-specific information
-    const userTournaments = tournaments.map(tournament => {
-      const userParticipation = tournament.participants.find(p => 
-        p.user._id.toString() === userId.toString()
-      );
-
-      return {
-        _id: tournament._id,
-        title: tournament.title,
-        description: tournament.description,
-        status: tournament.status,
-        game: tournament.game,
-        map: tournament.map || 'TBD',
-        tournamentType: tournament.tournamentType,
-        maxParticipants: tournament.maxParticipants,
-        currentParticipants: tournament.currentParticipants,
-        entryFee: tournament.entryFee,
-        prizePool: tournament.prizePool,
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-        createdAt: tournament.createdAt,
-        userSlot: userParticipation?.slotNumber,
-        joinedAt: userParticipation?.joinedAt,
-        paymentStatus: userParticipation?.paymentData ? 'completed' : 'pending'
-      };
-    });
-
-    res.json({
-      success: true,
-      data: userTournaments,
-      message: 'User tournaments fetched successfully'
-    });
-  } catch (error) {
-    console.error('Error fetching user tournaments:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch user tournaments'
-    });
-  }
-});
-
-// Get user's participation status for a tournament
-router.get('/:id/participation-status', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    // Find the tournament
-    const tournament = await Tournament.findById(id);
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-
-    // Check participation
-    const participation = tournament.getUserParticipation(userId);
-    
-    // Get payment history
-    const Transaction = require('../models/Transaction');
-    const payments = await Transaction.find({
-      user: userId,
-      tournament: id,
-      type: 'tournament_entry'
-    }).sort({ createdAt: -1 });
-
-    // Determine if user can join
-    const canJoin = !participation && 
-                   tournament.status === 'upcoming' && 
-                   tournament.currentParticipants < tournament.maxParticipants &&
-                   !payments.some(p => p.status === 'pending');
-
-    res.json({
-      success: true,
-      data: {
-        hasJoined: !!participation,
-        participation: participation || null,
-        payments: payments || [],
-        canJoin,
-        tournament: {
-          id: tournament._id,
-          status: tournament.status,
-          currentParticipants: tournament.currentParticipants,
-          maxParticipants: tournament.maxParticipants
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching participation status:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch participation status'
-    });
-  }
-});
-
-// Move player to different slot
-router.post('/:id/move-slot', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { teamNumber, slotNumber } = req.body;
-    const userId = req.user._id;
-
-    console.log('Move slot request:', {
-      tournamentId: id,
-      userId: userId.toString(),
-      teamNumber,
-      slotNumber
-    });
-
-    // Validate input
-    if (!teamNumber || !slotNumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'Team number and slot number are required'
-      });
-    }
-
-    if (teamNumber < 1 || teamNumber > 25 || slotNumber < 1 || slotNumber > 4) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid team or slot number'
-      });
-    }
-
-    // Find the tournament
-    const tournament = await Tournament.findById(id);
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-
-    // Check if user is a participant
-    const userParticipation = tournament.participants.find(p => 
-      p.user.toString() === userId.toString()
-    );
-
-    if (!userParticipation) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-
-    // Check if the target slot is already occupied by another player
-    const targetSlotOccupied = tournament.participants.find(p => 
-      p.user.toString() !== userId.toString() &&
-      p.teamNumber === teamNumber && 
-      p.slotNumber === slotNumber
-    );
-
-    if (targetSlotOccupied) {
-      return res.status(400).json({
-        success: false,
-        error: 'This slot is already occupied by another player'
-      });
-    }
-
-    // Update user's slot
-    userParticipation.teamNumber = teamNumber;
-    userParticipation.slotNumber = slotNumber;
-    userParticipation.slotUpdatedAt = new Date();
-
-    // Save tournament
-    await tournament.save();
-
-    // Emit real-time update
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`tournament_${id}`).emit('slot_updated', {
-        tournamentId: id,
-        teamNumber,
-        slotNumber,
-        player: {
-          _id: userId,
-          username: req.user.username || req.user.displayName,
-          avatar: req.user.avatar
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Slot updated successfully',
-      data: {
-        teamNumber,
-        slotNumber,
-        updatedAt: userParticipation.slotUpdatedAt
-      }
-    });
-
-  } catch (error) {
-    console.error('Error moving slot:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to move slot'
-    });
-  }
-});
-
-// Get tournament room state
-router.get('/:id/room-state', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-
-    const tournament = await Tournament.findById(id)
-      .populate('participants.user', 'username displayName avatar gameProfile.bgmiId')
-      .lean();
-
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-
-    // Check if user is a participant
-    const userParticipation = tournament.participants.find(p => 
-      p.user._id.toString() === userId.toString()
-    );
-
-    if (!userParticipation) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        tournament: {
-          _id: tournament._id,
-          title: tournament.title,
-          status: tournament.status,
-          roomDetails: tournament.roomDetails
-        },
-        participants: tournament.participants.map(p => ({
-          user: {
-            _id: p.user._id,
-            username: p.user.username || p.user.displayName,
-            avatar: p.user.avatar
-          },
-          teamNumber: p.teamNumber,
-          slotNumber: p.slotNumber,
-          joinedAt: p.joinedAt
-        }))
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching room state:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch room state'
-    });
-  }
-});
-
-// Get tournament results
-router.get('/:id/results', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const tournament = await Tournament.findById(id)
-      .populate('participants.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-      .populate('winners.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-      .lean();
-
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-
-    // Only show results if tournament is completed
-    if (tournament.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        error: 'Tournament results not available yet'
-      });
-    }
-
-    // Calculate match summary
-    const matchSummary = {
-      totalKills: tournament.participants.reduce((sum, p) => sum + (p.kills || 0), 0),
-      totalTeams: Math.ceil(tournament.participants.length / (tournament.tournamentType === 'solo' ? 1 : tournament.tournamentType === 'duo' ? 2 : 4)),
-      totalPrizeDistributed: tournament.winners.reduce((sum, w) => sum + (w.prize || 0), 0),
-      matchDuration: tournament.endDate && tournament.startDate 
-        ? Math.round((new Date(tournament.endDate) - new Date(tournament.startDate)) / (1000 * 60)) + ' minutes'
-        : 'N/A'
-    };
-
-    const results = {
-      tournament: {
-        _id: tournament._id,
-        title: tournament.title,
-        status: tournament.status,
-        startDate: tournament.startDate,
-        endDate: tournament.endDate,
-        prizePool: tournament.prizePool
-      },
-      winners: tournament.winners || [],
-      participants: tournament.participants || [],
-      matchSummary
-    };
-
-    res.json({
-      success: true,
-      data: results,
-      message: 'Tournament results fetched successfully'
-    });
-  } catch (error) {
-    console.error('Error fetching tournament results:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch tournament results'
-    });
-  }
-});
-
-// Get room layout for a tournament (BGMI-style)
-router.get('/:id/room-layout', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user._id;
-    
-    console.log('Room layout request:', { tournamentId: id, userId: userId.toString() });
-    
-    // Find the tournament
-    const tournament = await Tournament.findById(id)
-      .populate('participants.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId');
-    
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-    
-    // Check if user is a participant
-    const isParticipant = tournament.participants.some(p => 
-      p.user._id.toString() === userId.toString()
-    );
-    
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'You need to join this tournament first to access the room layout'
-      });
-    }
-    
-    // Create BGMI-style room layout
-    const maxPlayersPerTeam = tournament.tournamentType === 'solo' ? 1 : 
-                             tournament.tournamentType === 'duo' ? 2 : 4;
-    const maxTeams = Math.ceil(tournament.maxParticipants / maxPlayersPerTeam);
-    
-    // Initialize teams
-    const teams = [];
-    for (let i = 1; i <= maxTeams; i++) {
-      const team = {
-        teamNumber: i,
-        teamName: `Team ${i}`,
-        slots: [],
-        isComplete: false
-      };
-      
-      for (let j = 1; j <= maxPlayersPerTeam; j++) {
-        team.slots.push({
-          slotNumber: j,
-          player: null
-        });
-      }
-      
-      teams.push(team);
-    }
-    
-    // Assign participants to their actual slot positions
-    tournament.participants.forEach((participant, index) => {
-      let teamNumber = participant.teamNumber;
-      let slotNumber = participant.slotNumber;
-      
-      // If participant doesn't have assigned slot, auto-assign them
-      if (!teamNumber || !slotNumber) {
-        // Find the first available slot
-        let assigned = false;
-        for (let t = 0; t < teams.length && !assigned; t++) {
-          for (let s = 0; s < teams[t].slots.length && !assigned; s++) {
-            if (!teams[t].slots[s].player) {
-              teamNumber = teams[t].teamNumber;
-              slotNumber = teams[t].slots[s].slotNumber;
-              
-              // Update the participant's slot assignment in the database
-              participant.teamNumber = teamNumber;
-              participant.slotNumber = slotNumber;
-              assigned = true;
-            }
-          }
-        }
-      }
-      
-      // Place the participant in their assigned slot
-      if (teamNumber && slotNumber) {
-        const targetTeam = teams.find(t => t.teamNumber === teamNumber);
-        if (targetTeam) {
-          const targetSlot = targetTeam.slots.find(s => s.slotNumber === slotNumber);
-          if (targetSlot && !targetSlot.player) {
-            targetSlot.player = {
-              _id: participant.user._id,
-              username: participant.user.username,
-              displayName: participant.user.displayName,
-              gameProfile: participant.user.gameProfile,
-              hasEditedSlot: participant.hasEditedSlot || false,
-              slotUpdatedAt: participant.slotUpdatedAt
-            };
-          }
-        }
-      }
-    });
-    
-    // Save any auto-assignments made
-    if (tournament.participants.some(p => p.isModified && p.isModified())) {
-      await tournament.save();
-    }
-    
-    // Update team completion status
-    teams.forEach(team => {
-      team.isComplete = team.slots.every(slot => slot.player !== null);
-    });
-    
-    // Find user's current slot
-    let userSlot = null;
-    teams.forEach((team, teamIndex) => {
-      team.slots.forEach((slot, slotIndex) => {
-        if (slot.player && slot.player._id.toString() === userId.toString()) {
-          userSlot = {
-            teamNumber: team.teamNumber,
-            slotNumber: slot.slotNumber,
-            teamIndex,
-            slotIndex
-          };
-        }
-      });
-    });
-    
-    res.json({
-      success: true,
-      data: {
-        tournament: {
-          _id: tournament._id,
-          title: tournament.title,
-          status: tournament.status,
-          tournamentType: tournament.tournamentType,
-          maxParticipants: tournament.maxParticipants,
-          currentParticipants: tournament.currentParticipants,
-          startDate: tournament.startDate
-        },
-        teams,
-        userSlot,
-        settings: {
-          canEditSlots: tournament.status === 'upcoming' || tournament.status === 'live',
-          maxPlayersPerTeam,
-          maxTeams
-        }
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error fetching room layout:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch room layout'
-    });
-  }
-});
-
-// Move player to different slot
-router.post('/:id/move-slot', authenticateToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { toTeam, toSlot } = req.body;
-    const userId = req.user._id;
-    
-    console.log('Move slot request:', { tournamentId: id, userId: userId.toString(), toTeam, toSlot });
-    
-    // Validate input parameters
-    if (!toTeam || !toSlot || toTeam < 1 || toSlot < 1) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid team or slot number'
-      });
-    }
-    
-    // Find the tournament with populated participants
-    const tournament = await Tournament.findById(id)
-      .populate('participants.user', 'username displayName gameProfile.bgmiName gameProfile.bgmiId');
-    
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-    
-    // Check if user is a participant
-    const userParticipant = tournament.participants.find(p => 
-      p.user._id.toString() === userId.toString()
-    );
-    
-    if (!userParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-    
-    // Check if tournament allows slot changes
-    if (tournament.status !== 'upcoming' && tournament.status !== 'live') {
-      return res.status(400).json({
-        success: false,
-        error: 'Slot changes are not allowed for this tournament status'
-      });
-    }
-    
-    // Check if slots are locked (10 minutes before tournament start)
-    const now = new Date();
-    const startTime = new Date(tournament.startDate);
-    const lockTime = new Date(startTime.getTime() - 10 * 60 * 1000); // 10 minutes before start
-    
-    if (now >= lockTime) {
-      return res.status(400).json({
-        success: false,
-        error: 'Slots are locked. Changes not allowed within 10 minutes of tournament start.'
-      });
-    }
-    
-    // Validate team and slot numbers based on tournament type
-    const maxPlayersPerTeam = tournament.tournamentType === 'solo' ? 1 : 
-                             tournament.tournamentType === 'duo' ? 2 : 4;
-    const maxTeams = Math.ceil(tournament.maxParticipants / maxPlayersPerTeam);
-    
-    if (toTeam > maxTeams) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid team number. Maximum teams: ${maxTeams}`
-      });
-    }
-    
-    if (toSlot > maxPlayersPerTeam) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid slot number. Maximum slots per team: ${maxPlayersPerTeam}`
-      });
-    }
-    
-    // Check if the target slot is already occupied by another player
-    const targetSlotOccupied = tournament.participants.find(p => 
-      p.user._id.toString() !== userId.toString() && 
-      p.teamNumber === toTeam && 
-      p.slotNumber === toSlot
-    );
-    
-    if (targetSlotOccupied) {
-      return res.status(400).json({
-        success: false,
-        error: 'This slot is already taken by another player'
-      });
-    }
-    
-    // Store the user's previous position for logging
-    const previousTeam = userParticipant.teamNumber;
-    const previousSlot = userParticipant.slotNumber;
-    
-    // Update the user's slot position
-    userParticipant.teamNumber = toTeam;
-    userParticipant.slotNumber = toSlot;
-    userParticipant.hasEditedSlot = true;
-    userParticipant.slotUpdatedAt = new Date();
-    
-    // Save the tournament with updated slot information
-    await tournament.save();
-    
-    console.log('Slot move completed:', {
-      userId: userId.toString(),
-      username: userParticipant.user.username,
-      from: { team: previousTeam, slot: previousSlot },
-      to: { team: toTeam, slot: toSlot }
-    });
-    
-    // Emit socket event for real-time updates (if socket is available)
-    if (req.app.get('io')) {
-      req.app.get('io').to(`tournament_${id}`).emit('slotChanged', {
-        tournamentId: id,
-        playerId: userId.toString(),
-        username: userParticipant.user.username,
-        fromTeam: previousTeam,
-        fromSlot: previousSlot,
-        toTeam: toTeam,
-        toSlot: toSlot,
-        playerSlot: {
-          teamNumber: toTeam,
-          slotNumber: toSlot
-        }
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: `Successfully moved to Team ${toTeam}, Slot ${toSlot}`,
-      data: {
-        newPosition: {
-          teamNumber: toTeam,
-          slotNumber: toSlot
-        },
-        previousPosition: {
-          teamNumber: previousTeam,
-          slotNumber: previousSlot
-        },
-        updatedAt: userParticipant.slotUpdatedAt
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error moving slot:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to move slot'
-    });
-  }
-});
-
 // Get tournament results
 router.get('/:id/results', async (req, res) => {
   try {
