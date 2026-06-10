@@ -31,7 +31,6 @@ import ExportData from './components/SearchExport/ExportData';
 import NotificationManager from './components/Notifications/NotificationManager';
 import TournamentVideoManager from './components/Videos/TournamentVideoManager';
 import PaymentVerification from './components/PaymentVerification';
-import DataTest from './components/Debug/DataTest';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
@@ -265,16 +264,6 @@ function AppRoutes() {
           <AdminLayout>
             <ErrorBoundary>
               <ExportData />
-            </ErrorBoundary>
-          </AdminLayout>
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/debug" element={
-        <ProtectedRoute>
-          <AdminLayout>
-            <ErrorBoundary>
-              <DataTest />
             </ErrorBoundary>
           </AdminLayout>
         </ProtectedRoute>
