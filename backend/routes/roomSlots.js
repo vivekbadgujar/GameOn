@@ -340,19 +340,16 @@ router.post('/tournament/:tournamentId/move', [
 
     try {
       const session = await mongoose.startSession();
-      session.startTransaction();
       try {
-        const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
-        if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
-        
-        // Perform the move on the locked document
-        lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
-        await lockedRoomSlot.save({ session });
-        await session.commitTransaction();
-        roomSlot = lockedRoomSlot;
-      } catch (txError) {
-        await session.abortTransaction();
-        throw txError;
+        await session.withTransaction(async () => {
+          const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
+          if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
+          
+          // Perform the move on the locked document
+          lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+          await lockedRoomSlot.save({ session });
+          roomSlot = lockedRoomSlot;
+        });
       } finally {
         session.endSession();
       }
@@ -537,18 +534,15 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
     
     // Auto-assign to available slot with transaction
     const session = await mongoose.startSession();
-    session.startTransaction();
     try {
-      const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
-      if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
-      
-      lockedRoomSlot.autoAssignPlayer(playerId);
-      await lockedRoomSlot.save({ session });
-      await session.commitTransaction();
-      roomSlot = lockedRoomSlot;
-    } catch (txError) {
-      await session.abortTransaction();
-      throw txError;
+      await session.withTransaction(async () => {
+        const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
+        if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
+        
+        lockedRoomSlot.autoAssignPlayer(playerId);
+        await lockedRoomSlot.save({ session });
+        roomSlot = lockedRoomSlot;
+      });
     } finally {
       session.endSession();
     }

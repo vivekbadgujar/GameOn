@@ -418,6 +418,14 @@ router.post('/upload-photo', authenticateToken, upload.single('profilePhoto'), a
       });
     }
 
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('player_updated', {
+        playerId: user._id.toString(),
+        user: user
+      });
+    }
+
     res.json({
       success: true,
       message: 'Profile photo updated successfully',

@@ -19,7 +19,8 @@ router.get('/my-tournaments', authenticateToken, async (req, res) => {
     
     // Find tournaments where user is a participant
     const tournaments = await Tournament.find({
-      'participants.user': userId
+      'participants.user': userId,
+      status: { $in: ['upcoming', 'registration_open', 'registration_closed', 'live'] }
     })
     .populate('participants.user', 'username displayName gameProfile.bgmiId')
     .sort({ startDate: -1 })

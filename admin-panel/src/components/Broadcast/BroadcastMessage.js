@@ -204,11 +204,11 @@ const BroadcastMessage = () => {
   ];
 
   const targetAudiences = [
-    { value: 'all', label: 'All Users', count: '4,234' },
-    { value: 'active', label: 'Active Users', count: '2,156' },
-    { value: 'premium', label: 'Premium Users', count: '856' },
-    { value: 'tournament_participants', label: 'Tournament Participants', count: '1,234' },
-    { value: 'new_users', label: 'New Users (Last 30 days)', count: '567' }
+    { value: 'all', label: 'All Users' },
+    { value: 'active', label: 'Active Users' },
+    { value: 'premium', label: 'Premium Users' },
+    { value: 'tournament_participants', label: 'Tournament Participants' },
+    { value: 'new_users', label: 'New Users (Last 30 days)' }
   ];
 
   const broadcastHistoryData = broadcastHistory?.data || [];
@@ -336,7 +336,6 @@ const BroadcastMessage = () => {
                             <MenuItem key={audience.value} value={audience.value}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                                 <span>{audience.label}</span>
-                                <Chip label={audience.count} size="small" />
                               </Box>
                             </MenuItem>
                           ))}
@@ -450,73 +449,7 @@ const BroadcastMessage = () => {
             </Card>
           </Grid>
 
-          {/* Message Stats */}
-          <Grid item xs={12} lg={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Message Statistics
-                </Typography>
-                
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Total Messages Sent
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="primary.main">
-                    1,234
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Average Open Rate
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="success.main">
-                    78.5%
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Active Subscribers
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" color="info.main">
-                    3,456
-                  </Typography>
-                </Box>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  Recent Activity
-                </Typography>
-                <List dense>
-                  <ListItem>
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: 'success.light', color: 'success.main' }}>
-                        <CheckCircle />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary="Tournament Update"
-                      secondary="Sent to 1,234 users • 2 hours ago"
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: 'info.light', color: 'info.main' }}>
-                        <Schedule />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary="Maintenance Notice"
-                      secondary="Scheduled for tomorrow • 8:00 AM"
-                    />
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
+          {/* Message Stats removed as it was using mock data */}
         </Grid>
       )}
 

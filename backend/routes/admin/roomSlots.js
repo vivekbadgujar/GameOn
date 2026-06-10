@@ -542,4 +542,76 @@ router.get('/tournament/:tournamentId/stats', authenticateAdmin, async (req, res
   }
 });
 
+// Repair corrupted room slot layout
+router.post('/tournament/:tournamentId/repair', authenticateAdmin, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+    const adminId = req.admin._id;
+
+    const tournament = await Tournament.findById(tournamentId).populate('participants.user');
+    const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+
+    if (!tournament || !roomSlot) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tournament or room layout not found'
+      });
+    }
+
+    // 1. Re-initialize all teams to clear them
+    roomSlot.initializeTeams();
+
+    // 2. Iterate and re-assign all valid participants exactly once
+    const processedUsers = new Set();
+    for (const participant of tournament.participants) {
+      const userId = participant.user._id ? participant.user._id.toString() : participant.user.toString();
+      
+      // Ensure we don't assign the same user twice even if they appear in participants array twice
+      if (processedUsers.has(userId)) continue;
+      
+      processedUsers.add(userId);
+      
+      try {
+        roomSlot.autoAssignPlayer(userId);
+      } catch (err) {
+        console.warn(`Could not reassign player ${userId} during repair: ${err.message}`);
+      }
+    }
+
+    await roomSlot.save();
+
+    // Populate updated data
+    const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)
+      .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
+      .populate('teams.captain', 'username displayName gameProfile.bgmiName')
+      .populate('lockedBy', 'username');
+
+    // Emit real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`tournament_${tournamentId}`).emit('roomRepaired', {
+        tournamentId,
+        adminId,
+        roomSlot: updatedRoomSlot
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Room layout repaired successfully',
+      data: {
+        roomSlot: updatedRoomSlot,
+        totalReassigned: processedUsers.size
+      }
+    });
+
+  } catch (error) {
+    console.error('Error repairing room layout:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to repair room layout'
+    });
+  }
+});
+
 module.exports = router;

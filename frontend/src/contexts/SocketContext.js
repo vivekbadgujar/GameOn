@@ -19,7 +19,7 @@ export const SocketProvider = ({ children }) => {
   const [platforms, setPlatforms] = useState([]);
   const [lastSyncTime, setLastSyncTime] = useState(null);
   
-  const { user, token } = useAuth();
+  const { user, token, updateUser, verifySession } = useAuth();
   const { showNotification } = useNotification();
   const heartbeatRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -200,6 +200,14 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('sync_response', (data) => {
       setLastSyncTime(data.timestamp);
+    });
+
+    newSocket.on('player_updated', (data) => {
+      setLastMessage({ type: 'player_updated', data });
+      if (user && data.playerId === user.id && data.user) {
+        // Automatically sync the updated user profile into AuthContext
+        updateUser(data.user);
+      }
     });
 
     newSocket.on('tournamentAdded', (tournament) => {

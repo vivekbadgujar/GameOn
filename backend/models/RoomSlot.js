@@ -131,6 +131,32 @@ const RoomSlotSchema = new mongoose.Schema({
   toJSON: { virtuals: true }
 });
 
+// Pre-save validation to prevent duplicate players across slots
+RoomSlotSchema.pre('save', function(next) {
+  const playerIds = new Set();
+  let duplicateFound = false;
+
+  for (const team of this.teams) {
+    for (const slot of team.slots) {
+      if (slot.player) {
+        const idStr = slot.player._id ? slot.player._id.toString() : slot.player.toString();
+        if (playerIds.has(idStr)) {
+          duplicateFound = true;
+          break;
+        }
+        playerIds.add(idStr);
+      }
+    }
+    if (duplicateFound) break;
+  }
+
+  if (duplicateFound) {
+    return next(new Error('RoomSlot data corruption prevented: Player assigned to multiple slots'));
+  }
+
+  next();
+});
+
 // Indexes
 RoomSlotSchema.index({ tournament: 1 });
 RoomSlotSchema.index({ 'teams.slots.player': 1 });

@@ -119,17 +119,13 @@ const RoomLobby = () => {
       setIsConnected(false);
     });
 
-    newSocket.on('connect_error', () => {
+    newSocket.on('connect_error', (error) => {
       if (!hasLoggedSocketDisableRef.current) {
         hasLoggedSocketDisableRef.current = true;
-        console.warn('[Socket] RoomLobby page disabled for this session (connection failed)');
+        console.warn('[Socket] RoomLobby connection error:', error.message);
       }
-      disableSocketFeatureForSession();
       setIsConnected(false);
-      try {
-        newSocket.disconnect();
-      } catch (_) {
-      }
+      // Let socket.io-client handle automatic reconnections
     });
 
     // Listen for real-time slot updates
@@ -332,7 +328,7 @@ const RoomLobby = () => {
 
   // Handle drag and drop
   const onDragEnd = (result) => {
-    if (!result.destination || roomSlot?.isLocked) return;
+    if (!result.destination || roomSlot?.isLocked || isTimeLocked) return;
 
     const destTeam = parseInt(result.destination.droppableId.split('-')[1]);
     const destSlot = parseInt(result.destination.droppableId.split('-')[3]);
@@ -366,7 +362,7 @@ const RoomLobby = () => {
 
   // Handle slot click for mobile
   const handleSlotClick = (teamNumber, slotNumber) => {
-    if (roomSlot?.isLocked || !roomSlot?.settings?.allowSlotChange) return;
+    if (roomSlot?.isLocked || !roomSlot?.settings?.allowSlotChange || isTimeLocked) return;
     
     // Check if slot is empty
     const team = roomSlot.teams.find(t => t.teamNumber === teamNumber);

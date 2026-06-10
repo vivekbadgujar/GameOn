@@ -428,7 +428,7 @@ const MediaGallery = () => {
                           alt={video.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
-                            e.target.src = 'https://via.placeholder.com/640x360/1a1a1a/ffffff?text=Video+Thumbnail';
+                            e.target.style.display = 'none';
                           }}
                         />
                         
@@ -492,7 +492,7 @@ const MediaGallery = () => {
                           alt={video.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.target.src = 'https://via.placeholder.com/128x80/1a1a1a/ffffff?text=Video';
+                            e.target.style.display = 'none';
                           }}
                         />
                       </div>
@@ -566,7 +566,7 @@ const MediaGallery = () => {
                             alt={item.title}
                             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/400x300/1a1a1a/ffffff?text=Image';
+                              e.target.style.display = 'none';
                             }}
                           />
                         ) : (
@@ -609,7 +609,7 @@ const MediaGallery = () => {
                             alt={item.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/80x80/1a1a1a/ffffff?text=Image';
+                              e.target.style.display = 'none';
                             }}
                           />
                         ) : (
@@ -662,7 +662,7 @@ const MediaGallery = () => {
               </div>
               <h3 className="text-2xl font-bold text-white mb-4">No Content Found</h3>
               <p className="text-white/60 mb-6">
-                {searchQuery ? 'No videos or media match your search criteria.' : 'No content available at the moment.'}
+                {searchQuery ? 'No videos or media match your search criteria.' : 'No media available yet.'}
               </p>
               {searchQuery && (
                 <button

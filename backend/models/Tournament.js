@@ -170,6 +170,19 @@ TournamentSchema.pre('save', function(next) {
   next();
 });
 
+// Cascade delete RoomSlots when a tournament is deleted
+TournamentSchema.pre('findOneAndDelete', async function(next) {
+  try {
+    const docToUpdate = await this.model.findOne(this.getQuery());
+    if (docToUpdate) {
+      await mongoose.model('RoomSlot').deleteMany({ tournament: docToUpdate._id });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Instance method to check if user has joined
 TournamentSchema.methods.hasUserJoined = function(userId) {
   return this.participants.some(p => p.user.toString() === userId.toString());

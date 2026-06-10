@@ -201,8 +201,16 @@ const Header = () => {
                     </AnimatePresence>
                   </div>
                   <Link href="/profile" className="flex min-h-[44px] items-center space-x-2 rounded-xl p-2 hover:bg-white/10 transition-colors duration-300">
-                    <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center shadow-md">
-                      <User className="w-3.5 h-3.5 text-white" />
+                    <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+                      {user?.avatar ? (
+                        <img 
+                          src={user.avatar?.startsWith('http') ? user.avatar : `${process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz'}${user.avatar}`}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-3.5 h-3.5 text-white" />
+                      )}
                     </div>
                     <span className="hidden sm:block font-medium text-white text-sm">{user?.username || 'User'}</span>
                   </Link>
@@ -305,8 +313,12 @@ const Header = () => {
               onClick={(e) => { if (item.isProfile && !isAuthenticated) { e.preventDefault(); openLoginModal(); } }}
               className={`btm-nav-item ${isActive ? 'btm-nav-active' : ''}`}
             >
-              {item.isProfile && isAuthenticated && user?.profilePhoto ? (
-                <img src={user.profilePhoto} alt="" className={`w-[26px] h-[26px] rounded-full object-cover ${isActive ? 'ring-[2px] ring-blue-400' : 'ring-1 ring-white/20'}`} />
+              {item.isProfile && isAuthenticated && user?.avatar ? (
+                <img 
+                  src={user.avatar?.startsWith('http') ? user.avatar : `${process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || 'https://api.gameonesport.xyz'}${user.avatar}`} 
+                  alt="" 
+                  className={`w-[26px] h-[26px] rounded-full object-cover ${isActive ? 'ring-[2px] ring-blue-400' : 'ring-1 ring-white/20'}`} 
+                />
               ) : (
                 <Icon className="btm-nav-icon" strokeWidth={isActive ? 2.4 : 1.8} />
               )}

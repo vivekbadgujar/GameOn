@@ -143,10 +143,6 @@ class GlobalErrorBoundary extends React.Component {
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const currentPath = router?.asPath || router?.pathname || '';
-  const disableGlobalBoundary =
-    currentPath === '/profile' ||
-    currentPath.startsWith('/tournaments') ||
-    currentPath.startsWith('/tournament');
 
   return (
     <AuthProvider>
@@ -167,13 +163,9 @@ function MyApp({ Component, pageProps }) {
                 
                 <main className="min-h-screen">
                   <ClientOnly>
-                    {disableGlobalBoundary ? (
+                    <GlobalErrorBoundary>
                       <Component {...pageProps} />
-                    ) : (
-                      <GlobalErrorBoundary>
-                        <Component {...pageProps} />
-                      </GlobalErrorBoundary>
-                    )}
+                    </GlobalErrorBoundary>
                   </ClientOnly>
                 </main>
                 
