@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const Media = require('../../models/Media');
 const { authenticateAdmin, requirePermission, auditLog } = require('../../middleware/adminAuth');

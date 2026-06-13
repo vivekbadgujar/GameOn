@@ -668,6 +668,14 @@ app.set('emitToAdmins', emitToAdmins);
 
 // Start HTTP server — always on Render/EC2; skipped on Vercel (serverless)
 if (!isServerless && server) {
+  // Initialize Cron Jobs
+  try {
+    const { startCronJobs } = require('./scripts/cronJobs');
+    startCronJobs(io);
+  } catch (cronErr) {
+    console.error('Failed to start cron jobs:', cronErr.message);
+  }
+
   server.listen(PORT, () => {
     console.log(`🚀 GameOn API server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);

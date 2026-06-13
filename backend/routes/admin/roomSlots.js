@@ -138,6 +138,19 @@ router.post('/tournament/:tournamentId/move-player', [
       
       lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
       await lockedRoomSlot.save({ session });
+      
+      // Sync with Tournament participants
+      await Tournament.updateOne(
+        { _id: tournamentId, "participants.user": playerId },
+        { 
+          $set: { 
+            "participants.$.teamNumber": toTeam,
+            "participants.$.slotNumber": toSlot
+          }
+        },
+        { session }
+      );
+
       await session.commitTransaction();
       roomSlot = lockedRoomSlot;
     } catch (txError) {

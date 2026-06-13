@@ -945,6 +945,7 @@ router.post('/:id/distribute-rewards',
           // Create transaction record
           transactions.push({
             user: participant.user._id,
+            transactionId: Transaction.generateTransactionId(),
             amount: prize,
             type: 'tournament_prize',
             description: `Prize for ${tournament.title} (Position: ${i + 1}, Kills: ${participant.kills})`,
@@ -1003,6 +1004,7 @@ router.post('/:id/distribute-rewards',
           // Create transaction record
           transactions.push({
             user: winner.userId,
+            transactionId: Transaction.generateTransactionId(),
             amount: winner.prize,
             type: 'tournament_prize',
             description: `Prize for ${tournament.title} (Position: ${winner.position}, Kills: ${participant.kills})`,
@@ -1259,8 +1261,40 @@ router.post('/:id/results',
         }
       });
 
+      // Create transactions and update user stats
+      const transactions = [];
+
+      for (const winner of tournamentWinners) {
+        if (winner.prize > 0) {
+          // Create transaction record
+          transactions.push({
+            user: winner.user,
+            transactionId: Transaction.generateTransactionId(),
+            amount: winner.prize,
+            type: 'tournament_prize',
+            description: `Prize for ${tournament.title} (Position: ${winner.position})`,
+            status: 'completed',
+            tournamentId: tournament._id
+          });
+
+          // Update user stats
+          await User.findByIdAndUpdate(winner.user, {
+            $inc: {
+              'stats.totalEarnings': winner.prize,
+              'stats.tournamentsWon': 1,
+              'wallet.balance': winner.prize
+            }
+          });
+        }
+      }
+
       tournament.winners = tournamentWinners;
       await tournament.save();
+
+      // Save transactions
+      if (transactions.length > 0) {
+        await Transaction.insertMany(transactions);
+      }
 
       // Emit Socket.IO event
       const io = req.app.get('io');

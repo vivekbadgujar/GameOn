@@ -349,6 +349,20 @@ router.post('/tournament/:tournamentId/move', [
           lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
           await lockedRoomSlot.save({ session });
           roomSlot = lockedRoomSlot;
+
+          // Sync with Tournament participants
+          await Tournament.updateOne(
+            { _id: tournamentId, "participants.user": playerId },
+            { 
+              $set: { 
+                "participants.$.teamNumber": toTeam,
+                "participants.$.slotNumber": toSlot,
+                "participants.$.hasEditedSlot": true,
+                "participants.$.slotUpdatedAt": new Date()
+              }
+            },
+            { session }
+          );
         });
       } finally {
         session.endSession();
@@ -542,6 +556,20 @@ router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, r
         lockedRoomSlot.autoAssignPlayer(playerId);
         await lockedRoomSlot.save({ session });
         roomSlot = lockedRoomSlot;
+
+        const newSlot = lockedRoomSlot.getPlayerSlot(playerId);
+        if (newSlot) {
+          await Tournament.updateOne(
+            { _id: tournamentId, "participants.user": playerId },
+            { 
+              $set: { 
+                "participants.$.teamNumber": newSlot.teamNumber,
+                "participants.$.slotNumber": newSlot.slotNumber
+              }
+            },
+            { session }
+          );
+        }
       });
     } finally {
       session.endSession();
