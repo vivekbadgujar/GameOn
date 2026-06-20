@@ -1,6 +1,6 @@
 /**
- * Room Slot Management Routes
- * Handles BGMI-style room layout and slot assignments
+ * Room Slot Management Routes - UNIFIED & FIXED
+ * Single source of truth for all slot operations
  */
 
 const express = require('express');
@@ -8,124 +8,86 @@ const mongoose = require('mongoose');
 const RoomSlot = require('../models/RoomSlot');
 const Tournament = require('../models/Tournament');
 const { authenticateToken } = require('../middleware/auth');
-const { 
-  requireTournamentParticipation, 
-  validateSlotEditPermissions 
+const {
+  requireTournamentParticipation,
+  validateSlotEditPermissions
 } = require('../middleware/tournamentParticipationValidation');
 const router = express.Router();
 
-// Test endpoint to verify API is working
+// Helper: emit slot update to all relevant rooms
+function emitSlotUpdate(io, tournamentId, event, data) {
+  if (!io) return;
+  // Players watching their tournament room
+  io.to(`tournament_${tournamentId}`).emit(event, data);
+  // Admin panel global listener
+  io.emit('roomSlotUpdated', { ...data, event, tournamentId });
+  // Admin-specific room
+  io.to('admin_room').emit('roomSlotUpdated', { ...data, event, tournamentId });
+}
+
+// Helper: populate room slot
+function populateRoomSlot(query) {
+  return query
+    .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
+    .populate('teams.captain', 'username displayName gameProfile.bgmiName');
+}
+
+// Test endpoint
 router.get('/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Room slots API is working',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ success: true, message: 'Room slots API is working', timestamp: new Date().toISOString() });
 });
 
-// Get room layout for a tournament
+// ─── GET room layout for a tournament ────────────────────────────────────────
 router.get('/tournament/:tournamentId', authenticateToken, requireTournamentParticipation, async (req, res) => {
   try {
     const { tournamentId } = req.params;
-    
-    // Check if user is participant in the tournament
-    const tournament = await Tournament.findById(tournamentId);
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-    
-    const isParticipant = tournament.participants.some(p => 
-      p.user.toString() === req.user._id.toString()
-    );
-    
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-    
+    const tournament = req.tournament; // already fetched by middleware
+
     // Get or create room slot layout
-    let roomSlot = await RoomSlot.findOne({ tournament: tournamentId })
-      .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-      .populate('teams.captain', 'username displayName gameProfile.bgmiName');
-    
+    let roomSlot = await populateRoomSlot(RoomSlot.findOne({ tournament: tournamentId }));
+
     if (!roomSlot) {
-      // Create room slot layout if it doesn't exist
-      roomSlot = await RoomSlot.createForTournament(
+      // Create fresh layout and auto-assign all existing participants
+      const raw = await RoomSlot.createForTournament(
         tournamentId,
         tournament.tournamentType,
         tournament.maxParticipants
       );
-      
-      // Auto-assign existing participants
+
       for (const participant of tournament.participants) {
-        try {
-          roomSlot.autoAssignPlayer(participant.user);
-        } catch (error) {
-          console.log(`Could not auto-assign player ${participant.user}:`, error.message);
-        }
+        try { raw.autoAssignPlayer(participant.user); } catch (_) {}
       }
-      
-      await roomSlot.save();
-      
-      // Populate after save
-      roomSlot = await RoomSlot.findById(roomSlot._id)
-        .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-        .populate('teams.captain', 'username displayName gameProfile.bgmiName');
+      await raw.save();
+
+      roomSlot = await populateRoomSlot(RoomSlot.findById(raw._id));
     }
-    
-    // Get current player's slot info
+
+    // Self-heal: if requesting user has no slot, assign one
     let playerSlot = roomSlot.getPlayerSlot(req.user._id);
-    
     if (!playerSlot) {
-      // Auto-assign player to room slot if they are a participant but don't have a slot yet
       try {
-        console.log(`[GET Room Layout] Dynamic self-healing assignment triggered for user ${req.user._id}`);
-        roomSlot.autoAssignPlayer(req.user._id);
-        await roomSlot.save();
-        
-        // Repopulate layout after save
-        roomSlot = await RoomSlot.findById(roomSlot._id)
-          .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-          .populate('teams.captain', 'username displayName gameProfile.bgmiName');
-          
+        const raw = await RoomSlot.findById(roomSlot._id);
+        raw.autoAssignPlayer(req.user._id);
+        await raw.save();
+        roomSlot = await populateRoomSlot(RoomSlot.findById(raw._id));
         playerSlot = roomSlot.getPlayerSlot(req.user._id);
 
-        // Emit real-time update that player was assigned
         const io = req.app.get('io');
-        if (io) {
-          io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
-            tournamentId,
-            playerId: req.user._id.toString(),
-            username: req.user.username || 'A player',
-            teamNumber: playerSlot.teamNumber,
-            slotNumber: playerSlot.slotNumber,
-            roomSlot,
-            playerSlot
-          });
-        }
-      } catch (assignError) {
-        console.error(`[GET Room Layout] Self-healing auto-assign failed for user ${req.user._id}:`, assignError.message);
+        emitSlotUpdate(io, tournamentId, 'playerAssigned', {
+          tournamentId,
+          playerId: req.user._id.toString(),
+          username: req.user.username || 'A player',
+          teamNumber: playerSlot?.teamNumber,
+          slotNumber: playerSlot?.slotNumber,
+          roomSlot,
+          playerSlot
+        });
+      } catch (assignErr) {
+        console.error('[GET Room Layout] Self-healing failed:', assignErr.message);
       }
     }
-    
-    // Add console logs for debugging
-    console.log('[GET Room Layout] Response generation - roomSlot totalPlayers:', roomSlot.totalPlayers);
-    const uniquePlayers = new Set();
-    let occupiedCount = 0;
-    roomSlot.teams.forEach(t => t.slots.forEach(s => {
-      if (s.player) {
-        occupiedCount++;
-        uniquePlayers.add(s.player._id?.toString() || s.player.toString());
-      }
-    }));
-    console.log(`[GET Room Layout] Occupied slots: ${occupiedCount}, Unique players: ${uniquePlayers.size}`);
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         roomSlot,
@@ -141,520 +103,271 @@ router.get('/tournament/:tournamentId', authenticateToken, requireTournamentPart
       }
     });
   } catch (error) {
-    console.error('Error fetching room layout:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch room layout'
-    });
+    console.error('[GET Room Layout] Error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch room layout' });
   }
 });
 
-// Move player to a different slot
-router.post('/tournament/:tournamentId/move', [
-  authenticateToken,
-  validateSlotEditPermissions
-], async (req, res) => {
+// ─── MOVE player to a different slot ─────────────────────────────────────────
+router.post('/tournament/:tournamentId/move', [authenticateToken, validateSlotEditPermissions], async (req, res) => {
   try {
     const { tournamentId } = req.params;
     const playerId = req.user._id;
-    const payload = req.body || {};
-    const requestedPlayerId = payload.playerId;
-    const requestedTournamentId = payload.tournamentId;
-    const requestedFromSlot = payload.fromSlot || null;
-    const toTeam = Number(payload.toTeam ?? payload.toSlot?.teamNumber);
-    const toSlot = Number(
-      typeof payload.toSlot === 'object' ? payload.toSlot?.slotNumber : payload.toSlot
-    );
-    const validationContext = {
-      tournamentId,
-      authPlayerId: playerId.toString(),
-      requestedPlayerId,
-      requestedTournamentId,
-      requestedFromSlot,
-      requestedToSlot: payload.toSlot,
-      requestedToTeam: payload.toTeam
-    };
+    const body = req.body || {};
 
-    console.log('[Slot Move API] Received payload:', JSON.stringify(validationContext, null, 2));
-
-    if (requestedTournamentId && requestedTournamentId.toString() !== tournamentId.toString()) {
-      console.warn('Slot move rejected: tournamentId mismatch', validationContext);
-      return res.status(400).json({
-        success: false,
-        error: 'Tournament ID mismatch',
-        details: {
-          expectedTournamentId: tournamentId,
-          receivedTournamentId: requestedTournamentId
-        }
-      });
-    }
-
-    if (requestedPlayerId && requestedPlayerId.toString() !== playerId.toString()) {
-      console.warn('Slot move rejected: playerId mismatch', validationContext);
-      return res.status(400).json({
-        success: false,
-        error: 'Player ID mismatch',
-        details: {
-          authenticatedPlayerId: playerId.toString(),
-          receivedPlayerId: requestedPlayerId
-        }
-      });
+    // Parse destination - handle both payload shapes:
+    // Shape A: { toTeam: 2, toSlot: 3 }
+    // Shape B: { toSlot: { teamNumber: 2, slotNumber: 3 } }
+    let toTeam, toSlot;
+    if (body.toSlot && typeof body.toSlot === 'object') {
+      toTeam = Number(body.toSlot.teamNumber);
+      toSlot = Number(body.toSlot.slotNumber);
+    } else {
+      toTeam = Number(body.toTeam);
+      toSlot = Number(body.toSlot);
     }
 
     if (!Number.isInteger(toTeam) || toTeam < 1) {
-      console.warn('Slot move rejected: invalid destination team', validationContext);
-      return res.status(400).json({
-        success: false,
-        error: 'Valid destination team is required',
-        details: {
-          toSlot: payload.toSlot,
-          toTeam: payload.toTeam
-        }
-      });
+      return res.status(400).json({ success: false, error: 'Valid destination team is required' });
+    }
+    if (!Number.isInteger(toSlot) || toSlot < 1) {
+      return res.status(400).json({ success: false, error: 'Valid destination slot is required' });
     }
 
-    if (!Number.isInteger(toSlot) || toSlot < 1) {
-      console.warn('Slot move rejected: invalid destination slot', validationContext);
-      return res.status(400).json({
-        success: false,
-        error: 'Valid destination slot is required',
-        details: {
-          toSlot: payload.toSlot
-        }
-      });
+    // Validate playerId if sent (cross-check)
+    if (body.playerId && body.playerId.toString() !== playerId.toString()) {
+      return res.status(400).json({ success: false, error: 'Player ID mismatch' });
     }
-    
-    console.log('Player slot move request:', {
-      tournamentId,
-      playerId: playerId.toString(),
-      requestedPlayerId,
-      requestedTournamentId,
-      requestedFromSlot,
-      toTeam,
-      toSlot
-    });
-    
-    // Get room slot layout
+
+    // Validate tournamentId if sent
+    if (body.tournamentId && body.tournamentId.toString() !== tournamentId.toString()) {
+      return res.status(400).json({ success: false, error: 'Tournament ID mismatch' });
+    }
+
+    // Fetch room slot
     const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
     if (!roomSlot) {
-      return res.status(404).json({
-        success: false,
-        error: 'Room layout not found'
-      });
+      return res.status(404).json({ success: false, error: 'Room layout not found' });
     }
-    
-    // Check if slot changes are allowed
+
+    // Lock checks
     if (!roomSlot.settings.allowSlotChange) {
-      return res.status(403).json({
-        success: false,
-        error: 'Slot changes are not allowed'
-      });
+      return res.status(403).json({ success: false, error: 'Slot changes are not allowed' });
     }
-
-    // Admin explicit lock: lock the entire room layout.
     if (roomSlot.isLocked) {
-      return res.status(403).json({
-        success: false,
-        error: 'Slots are locked!'
-      });
+      return res.status(403).json({ success: false, error: 'Slots are locked' });
+    }
+    if (roomSlot.settings.slotChangeDeadline && new Date() > roomSlot.settings.slotChangeDeadline) {
+      return res.status(403).json({ success: false, error: 'Slot change deadline has passed' });
     }
 
-    // Optional deadline-based lock (admin-controlled)
-    const now = new Date();
-    if (roomSlot.settings.slotChangeDeadline && now > roomSlot.settings.slotChangeDeadline) {
-      return res.status(403).json({
-        success: false,
-        error: 'Slot change deadline has passed'
-      });
-    }
-    
-    // Get current player slot
+    // Get player's current slot
     const currentSlot = roomSlot.getPlayerSlot(playerId);
     if (!currentSlot) {
-      console.warn('Slot move rejected: player not assigned', validationContext);
-      return res.status(400).json({
-        success: false,
-        error: 'Player not found in any slot'
-      });
+      return res.status(400).json({ success: false, error: 'Player not found in any slot' });
     }
 
-    if (
-      requestedFromSlot &&
-      (
-        Number(requestedFromSlot.teamNumber) !== currentSlot.teamNumber ||
-        Number(requestedFromSlot.slotNumber) !== currentSlot.slotNumber
-      )
-    ) {
-      console.warn('Slot move rejected: fromSlot mismatch', {
-        ...validationContext,
-        actualFromSlot: currentSlot
-      });
-      return res.status(400).json({
-        success: false,
-        error: 'Current slot does not match request payload',
-        details: {
-          expectedFromSlot: {
-            teamNumber: currentSlot.teamNumber,
-            slotNumber: currentSlot.slotNumber
-          },
-          receivedFromSlot: requestedFromSlot
-        }
-      });
-    }
-    
-    // Check if trying to move to same slot
-    if (currentSlot.teamNumber === toTeam && currentSlot.slotNumber === toSlot) {
-      return res.status(400).json({
-        success: false,
-        error: 'Player is already in this slot'
-      });
-    }
-    
-    // Check if destination slot is temporarily locked (to prevent simultaneous moves)
-    const destTeam = roomSlot.teams.find(t => t.teamNumber === toTeam);
-    const destSlot = destTeam?.slots.find(s => s.slotNumber === toSlot);
-    
-    if (destSlot?.isLocked && destSlot.lockedAt && 
-        (now - destSlot.lockedAt) < 5000) { // 5 second temporary lock
-      return res.status(409).json({
-        success: false,
-        error: 'Slot is temporarily locked. Please try again.',
-        code: 'SLOT_TEMPORARILY_LOCKED'
-      });
-    }
-
-    // Admin (or persistent) slot lock
-    if (destSlot?.isLocked) {
-      return res.status(403).json({
-        success: false,
-        error: 'Slot is locked.'
-      });
-    }
-
-    // Temporarily lock the destination slot
-    if (destSlot) {
-      destSlot.isLocked = true;
-      destSlot.lockedAt = now;
-      destSlot.lockedBy = playerId;
-    }
-
-    try {
-      const session = await mongoose.startSession();
-      try {
-        await session.withTransaction(async () => {
-          const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
-          if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
-          
-          // Perform the move on the locked document
-          lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
-          await lockedRoomSlot.save({ session });
-          roomSlot = lockedRoomSlot;
-
-          // Sync with Tournament participants
-          await Tournament.updateOne(
-            { _id: tournamentId, "participants.user": playerId },
-            { 
-              $set: { 
-                "participants.$.teamNumber": toTeam,
-                "participants.$.slotNumber": toSlot,
-                "participants.$.hasEditedSlot": true,
-                "participants.$.slotUpdatedAt": new Date()
-              }
-            },
-            { session }
-          );
+    // Validate fromSlot if provided
+    if (body.fromSlot) {
+      const fromTeamNum = Number(body.fromSlot.teamNumber);
+      const fromSlotNum = Number(body.fromSlot.slotNumber);
+      if (fromTeamNum !== currentSlot.teamNumber || fromSlotNum !== currentSlot.slotNumber) {
+        return res.status(400).json({
+          success: false,
+          error: 'Current slot does not match request payload',
+          details: {
+            expected: { teamNumber: currentSlot.teamNumber, slotNumber: currentSlot.slotNumber },
+            received: body.fromSlot
+          }
         });
-      } finally {
-        session.endSession();
       }
-      
-      // Unlock the slot after successful move
-      if (destSlot) {
-        destSlot.isLocked = false;
-        destSlot.lockedAt = null;
-        destSlot.lockedBy = null;
-      }
-      
-      await roomSlot.save();
-    } catch (moveError) {
-      // Unlock the slot if move failed
-      if (destSlot) {
-        destSlot.isLocked = false;
-        destSlot.lockedAt = null;
-        destSlot.lockedBy = null;
-      }
-      throw moveError;
     }
-    
-    // Populate updated data
-    const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)
-      .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-      .populate('teams.captain', 'username displayName gameProfile.bgmiName');
-    
+
+    // Same slot?
+    if (currentSlot.teamNumber === toTeam && currentSlot.slotNumber === toSlot) {
+      return res.status(400).json({ success: false, error: 'Player is already in this slot' });
+    }
+
+    // Check destination slot
+    const destTeamObj = roomSlot.teams.find(t => t.teamNumber === toTeam);
+    const destSlotObj = destTeamObj?.slots.find(s => s.slotNumber === toSlot);
+
+    if (!destTeamObj || !destSlotObj) {
+      return res.status(400).json({ success: false, error: 'Destination slot not found' });
+    }
+    if (destSlotObj.player) {
+      return res.status(409).json({ success: false, error: 'Destination slot is occupied' });
+    }
+    if (destSlotObj.isLocked) {
+      // Check if it's a stale temporary lock (> 10s old)
+      const now = new Date();
+      if (destSlotObj.lockedAt && (now - destSlotObj.lockedAt) < 10000) {
+        return res.status(409).json({ success: false, error: 'Slot is temporarily locked. Try again.' });
+      }
+      // Stale lock — treat as unlocked
+    }
+
+    // Perform the move atomically using findOneAndUpdate with optimistic approach
+    // Avoid nested transactions; use a single save
+    try {
+      roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
+      await roomSlot.save();
+    } catch (moveErr) {
+      console.error('[Slot Move] Move failed:', moveErr.message);
+      return res.status(409).json({ success: false, error: moveErr.message });
+    }
+
+    // Sync Tournament participant record (best-effort, no transaction needed)
+    try {
+      await Tournament.updateOne(
+        { _id: tournamentId, 'participants.user': playerId },
+        {
+          $set: {
+            'participants.$.teamNumber': toTeam,
+            'participants.$.slotNumber': toSlot,
+            'participants.$.hasEditedSlot': true,
+            'participants.$.slotUpdatedAt': new Date()
+          }
+        }
+      );
+    } catch (syncErr) {
+      console.warn('[Slot Move] Tournament sync failed (non-fatal):', syncErr.message);
+    }
+
+    // Populate and return
+    const updatedRoomSlot = await populateRoomSlot(RoomSlot.findById(roomSlot._id));
     const updatedPlayerSlot = updatedRoomSlot.getPlayerSlot(playerId);
 
     // Emit real-time update
     const io = req.app.get('io');
-    if (io) {
-      // Emit to tournament room for players
-      io.to(`tournament_${tournamentId}`).emit('slotChanged', {
-        tournamentId,
-        playerId: playerId.toString(),
-        fromTeam: currentSlot.teamNumber,
-        fromSlot: currentSlot.slotNumber,
-        toTeam,
-        toSlot,
-        roomSlot: updatedRoomSlot,
-        playerSlot: updatedPlayerSlot
-      });
-
-      // Emit to admin panel for live updates
-      io.emit('roomSlotUpdated', {
-        tournamentId,
-        playerId: playerId.toString(),
-        fromTeam: currentSlot.teamNumber,
-        fromSlot: currentSlot.slotNumber,
-        toTeam,
-        toSlot,
-        roomSlot: updatedRoomSlot,
-        playerSlot: updatedPlayerSlot,
-        timestamp: new Date()
-      });
-    }
-
-    // Enhanced unified platform sync
-    const syncService = req.app.get('syncService');
-    if (syncService) {
-      syncService.syncSlotUpdate(tournamentId, 'slot_changed', {
-        tournamentId,
-        playerId: playerId.toString(),
-        fromTeam: currentSlot.teamNumber,
-        fromSlot: currentSlot.slotNumber,
-        toTeam,
-        toSlot,
-        roomSlot: updatedRoomSlot,
-        playerSlot: updatedPlayerSlot
-      });
-    }
-
-    console.log('Slot move saved successfully:', {
+    emitSlotUpdate(io, tournamentId, 'slotChanged', {
       tournamentId,
       playerId: playerId.toString(),
-      previousPosition: {
-        teamNumber: currentSlot.teamNumber,
-        slotNumber: currentSlot.slotNumber
-      },
-      newPosition: updatedPlayerSlot
+      fromTeam: currentSlot.teamNumber,
+      fromSlot: currentSlot.slotNumber,
+      toTeam,
+      toSlot,
+      roomSlot: updatedRoomSlot,
+      playerSlot: updatedPlayerSlot,
+      timestamp: new Date()
     });
-    
-    res.json({
+
+    // Sync service (best-effort)
+    try {
+      const syncService = req.app.get('syncService');
+      if (syncService?.syncSlotUpdate) {
+        syncService.syncSlotUpdate(tournamentId, 'slot_changed', {
+          tournamentId, playerId: playerId.toString(), fromTeam: currentSlot.teamNumber,
+          fromSlot: currentSlot.slotNumber, toTeam, toSlot
+        });
+      }
+    } catch (_) {}
+
+    console.log('[Slot Move] Success:', { tournamentId, playerId: playerId.toString(), from: `T${currentSlot.teamNumber}S${currentSlot.slotNumber}`, to: `T${toTeam}S${toSlot}` });
+
+    return res.json({
       success: true,
       message: 'Slot moved successfully',
       data: {
         roomSlot: updatedRoomSlot,
         playerSlot: updatedPlayerSlot,
-        previousPosition: {
-          teamNumber: currentSlot.teamNumber,
-          slotNumber: currentSlot.slotNumber
-        },
+        previousPosition: { teamNumber: currentSlot.teamNumber, slotNumber: currentSlot.slotNumber },
         newPosition: updatedPlayerSlot
       }
     });
   } catch (error) {
-    console.error('Error moving player slot:', {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
-      params: req.params,
-      userId: req.user?._id?.toString()
-    });
-
-    const knownClientErrors = new Map([
-      ['Source team not found', 400],
-      ['Player not found in source slot', 400],
-      ['Destination team not found', 400],
-      ['Destination slot not found', 400],
-      ['Destination slot is occupied', 409],
-      ['Destination slot is locked', 403]
-    ]);
-    const statusCode = knownClientErrors.get(error.message) || 500;
-
-    res.status(statusCode).json({
-      success: false,
-      error: error.message || 'Failed to move player slot',
-      message: error.message || 'Failed to move player slot'
-    });
+    console.error('[Slot Move] Error:', error);
+    const knownErrors = {
+      'Source team not found': 400,
+      'Player not found in source slot': 400,
+      'Destination team not found': 400,
+      'Destination slot not found': 400,
+      'Destination slot is occupied': 409,
+      'Destination slot is locked': 403
+    };
+    const statusCode = knownErrors[error.message] || 500;
+    return res.status(statusCode).json({ success: false, error: error.message || 'Failed to move player slot' });
   }
 });
 
-// Auto-assign player to available slot (called after payment)
+// ─── AUTO-ASSIGN player to slot (called after joining/payment) ───────────────
 router.post('/tournament/:tournamentId/assign', authenticateToken, async (req, res) => {
   try {
     const { tournamentId } = req.params;
     const playerId = req.user._id;
-    
-    console.log('Auto-assign player request:', {
-      tournamentId,
-      playerId: playerId.toString()
-    });
-    
-    // Check if user is participant in the tournament
+
     const tournament = await Tournament.findById(tournamentId);
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-    
-    const isParticipant = tournament.participants.some(p => 
-      p.user.toString() === playerId.toString()
-    );
-    
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-    
-    // Get or create room slot layout
+    if (!tournament) return res.status(404).json({ success: false, error: 'Tournament not found' });
+
+    const isParticipant = tournament.participants.some(p => p.user.toString() === playerId.toString());
+    if (!isParticipant) return res.status(403).json({ success: false, error: 'You are not a participant' });
+
     let roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
     if (!roomSlot) {
-      roomSlot = await RoomSlot.createForTournament(
-        tournamentId,
-        tournament.tournamentType,
-        tournament.maxParticipants
-      );
+      roomSlot = await RoomSlot.createForTournament(tournamentId, tournament.tournamentType, tournament.maxParticipants);
     }
-    
-    // Check if player is already assigned
+
+    // Already assigned?
     const existingSlot = roomSlot.getPlayerSlot(playerId);
     if (existingSlot) {
-      // Player already has a slot, return current assignment
-      const populatedRoomSlot = await RoomSlot.findById(roomSlot._id)
-        .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-        .populate('teams.captain', 'username displayName gameProfile.bgmiName');
-      
-      return res.json({
-        success: true,
-        message: 'Player already assigned to slot',
-        data: {
-          roomSlot: populatedRoomSlot,
-          playerSlot: existingSlot
-        }
-      });
+      const populated = await populateRoomSlot(RoomSlot.findById(roomSlot._id));
+      return res.json({ success: true, message: 'Player already assigned', data: { roomSlot: populated, playerSlot: existingSlot } });
     }
-    
-    // Auto-assign to available slot with transaction
-    const session = await mongoose.startSession();
+
+    // Assign
     try {
-      await session.withTransaction(async () => {
-        const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
-        if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
-        
-        lockedRoomSlot.autoAssignPlayer(playerId);
-        await lockedRoomSlot.save({ session });
-        roomSlot = lockedRoomSlot;
-
-        const newSlot = lockedRoomSlot.getPlayerSlot(playerId);
-        if (newSlot) {
-          await Tournament.updateOne(
-            { _id: tournamentId, "participants.user": playerId },
-            { 
-              $set: { 
-                "participants.$.teamNumber": newSlot.teamNumber,
-                "participants.$.slotNumber": newSlot.slotNumber
-              }
-            },
-            { session }
-          );
-        }
-      });
-    } finally {
-      session.endSession();
+      roomSlot.autoAssignPlayer(playerId);
+      await roomSlot.save();
+    } catch (assignErr) {
+      return res.status(409).json({ success: false, error: assignErr.message });
     }
-    
-    // Populate updated data
-    const updatedRoomSlot = await RoomSlot.findById(roomSlot._id)
-      .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
-      .populate('teams.captain', 'username displayName gameProfile.bgmiName');
-    
+
+    // Sync Tournament
+    const newSlot = roomSlot.getPlayerSlot(playerId);
+    if (newSlot) {
+      try {
+        await Tournament.updateOne(
+          { _id: tournamentId, 'participants.user': playerId },
+          { $set: { 'participants.$.teamNumber': newSlot.teamNumber, 'participants.$.slotNumber': newSlot.slotNumber } }
+        );
+      } catch (_) {}
+    }
+
+    const updatedRoomSlot = await populateRoomSlot(RoomSlot.findById(roomSlot._id));
     const playerSlot = updatedRoomSlot.getPlayerSlot(playerId);
-    
-    // Emit real-time update
+
+    // Emit
     const io = req.app.get('io');
-    if (io) {
-      // Emit to tournament room for players
-      io.to(`tournament_${tournamentId}`).emit('playerAssigned', {
-        tournamentId,
-        playerId: playerId.toString(),
-        username: req.user.username || 'A player',
-        teamNumber: playerSlot.teamNumber,
-        slotNumber: playerSlot.slotNumber,
-        roomSlot: updatedRoomSlot,
-        playerSlot // Emits the full playerSlot payload
-      });
+    emitSlotUpdate(io, tournamentId, 'playerAssigned', {
+      tournamentId,
+      playerId: playerId.toString(),
+      username: req.user.username || 'A player',
+      teamNumber: playerSlot?.teamNumber,
+      slotNumber: playerSlot?.slotNumber,
+      roomSlot: updatedRoomSlot,
+      playerSlot,
+      timestamp: new Date()
+    });
 
-      // Emit to admin panel for live updates
-      io.emit('roomSlotUpdated', {
-        tournamentId,
-        playerId: playerId.toString(),
-        action: 'assigned',
-        teamNumber: playerSlot.teamNumber,
-        slotNumber: playerSlot.slotNumber,
-        roomSlot: updatedRoomSlot,
-        playerSlot,
-        timestamp: new Date()
-      });
-    }
-
-    // Enhanced unified platform sync
-    const syncService = req.app.get('syncService');
-    if (syncService) {
-      syncService.syncSlotUpdate(tournamentId, 'slot_taken', {
-        tournamentId,
-        playerId: playerId.toString(),
-        teamNumber: playerSlot.teamNumber,
-        slotNumber: playerSlot.slotNumber,
-        roomSlot: updatedRoomSlot,
-        playerSlot
-      });
-    }
-    
-    res.json({
+    return res.json({
       success: true,
       message: 'Player assigned to slot successfully',
-      data: {
-        roomSlot: updatedRoomSlot,
-        playerSlot
-      }
+      data: { roomSlot: updatedRoomSlot, playerSlot }
     });
   } catch (error) {
-    console.error('Error auto-assigning player:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to assign player to slot'
-    });
+    console.error('[Assign] Error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to assign player' });
   }
 });
 
-// Get available slots
+// ─── GET available slots ──────────────────────────────────────────────────────
 router.get('/tournament/:tournamentId/available', authenticateToken, async (req, res) => {
   try {
-    const { tournamentId } = req.params;
-    
-    const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
-    if (!roomSlot) {
-      return res.status(404).json({
-        success: false,
-        error: 'Room layout not found'
-      });
-    }
-    
+    const roomSlot = await RoomSlot.findOne({ tournament: req.params.tournamentId });
+    if (!roomSlot) return res.status(404).json({ success: false, error: 'Room layout not found' });
+
     const availableSlots = roomSlot.availableSlots;
-    
-    res.json({
+    return res.json({
       success: true,
       data: {
         availableSlots,
@@ -664,65 +377,100 @@ router.get('/tournament/:tournamentId/available', authenticateToken, async (req,
       }
     });
   } catch (error) {
-    console.error('Error fetching available slots:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch available slots'
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Join tournament room (Socket.IO room)
+// ─── JOIN tournament room (socket confirmation) ───────────────────────────────
 router.post('/tournament/:tournamentId/join-room', authenticateToken, async (req, res) => {
   try {
     const { tournamentId } = req.params;
-    const playerId = req.user._id;
-    
-    // Verify player is participant
     const tournament = await Tournament.findById(tournamentId);
-    if (!tournament) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tournament not found'
-      });
-    }
-    
-    const isParticipant = tournament.participants.some(p => 
-      p.user.toString() === playerId.toString()
-    );
-    
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'You are not a participant in this tournament'
-      });
-    }
-    
-    // Join Socket.IO room
-    const io = req.app.get('io');
-    if (io) {
-      // This would typically be handled in Socket.IO connection handler
-      // For now, just return success
-      res.json({
-        success: true,
-        message: 'Ready to join tournament room',
-        data: {
-          roomName: `tournament_${tournamentId}`,
-          tournamentId
-        }
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Real-time service not available'
-      });
-    }
-  } catch (error) {
-    console.error('Error joining tournament room:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to join tournament room'
+    if (!tournament) return res.status(404).json({ success: false, error: 'Tournament not found' });
+
+    const isParticipant = tournament.participants.some(p => p.user.toString() === req.user._id.toString());
+    if (!isParticipant) return res.status(403).json({ success: false, error: 'Not a participant' });
+
+    return res.json({
+      success: true,
+      message: 'Ready to join tournament room',
+      data: { roomName: `tournament_${tournamentId}`, tournamentId }
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── ADMIN: Lock/Unlock all slots ────────────────────────────────────────────
+router.post('/tournament/:tournamentId/lock', authenticateToken, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+    const { lock = true, reason = '' } = req.body;
+
+    const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+    if (!roomSlot) return res.status(404).json({ success: false, error: 'Room layout not found' });
+
+    roomSlot.isLocked = lock;
+    if (lock) {
+      roomSlot.lockedAt = new Date();
+    } else {
+      roomSlot.lockedAt = null;
+      roomSlot.lockedBy = null;
+    }
+    await roomSlot.save();
+
+    const io = req.app.get('io');
+    const eventData = { tournamentId, isLocked: lock, reason, lockedAt: roomSlot.lockedAt };
+    emitSlotUpdate(io, tournamentId, lock ? 'slotsLocked' : 'slotsUnlocked', eventData);
+
+    return res.json({ success: true, message: `Slots ${lock ? 'locked' : 'unlocked'}`, data: eventData });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ─── ADMIN: Move any player's slot ───────────────────────────────────────────
+router.post('/tournament/:tournamentId/admin-move', authenticateToken, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+    const { playerId, toTeam, toSlot } = req.body;
+
+    if (!playerId || !toTeam || !toSlot) {
+      return res.status(400).json({ success: false, error: 'playerId, toTeam, toSlot are required' });
+    }
+
+    const roomSlot = await RoomSlot.findOne({ tournament: tournamentId });
+    if (!roomSlot) return res.status(404).json({ success: false, error: 'Room layout not found' });
+
+    const currentSlot = roomSlot.getPlayerSlot(playerId);
+    if (!currentSlot) {
+      // Just assign to the target slot
+      roomSlot.assignPlayerToSlot(playerId, Number(toTeam), Number(toSlot));
+    } else {
+      roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, Number(toTeam), Number(toSlot));
+    }
+    await roomSlot.save();
+
+    const updatedRoomSlot = await populateRoomSlot(RoomSlot.findById(roomSlot._id));
+    const updatedPlayerSlot = updatedRoomSlot.getPlayerSlot(playerId);
+
+    const io = req.app.get('io');
+    emitSlotUpdate(io, tournamentId, 'adminSlotChanged', {
+      tournamentId,
+      playerId: playerId.toString(),
+      fromTeam: currentSlot?.teamNumber,
+      fromSlot: currentSlot?.slotNumber,
+      toTeam: Number(toTeam),
+      toSlot: Number(toSlot),
+      roomSlot: updatedRoomSlot,
+      playerSlot: updatedPlayerSlot,
+      timestamp: new Date()
+    });
+
+    return res.json({ success: true, message: 'Admin slot move successful', data: { roomSlot: updatedRoomSlot, playerSlot: updatedPlayerSlot } });
+  } catch (error) {
+    console.error('[Admin Move] Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

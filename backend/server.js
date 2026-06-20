@@ -442,10 +442,23 @@ io.on('connection', (socket) => {
     const tournamentId = data?.tournamentId || data;
     socket.join(`tournament_${tournamentId}`);
     console.log(`Socket ${socket.id} joined tournament: ${tournamentId}`);
+    socket.emit('tournament_joined', { tournamentId, socketId: socket.id });
+  });
+
+  // Alias used by some frontend components
+  socket.on('joinTournamentRoom', (tournamentId) => {
+    socket.join(`tournament_${tournamentId}`);
+    console.log(`Socket ${socket.id} joined tournament room: ${tournamentId}`);
+    socket.emit('tournament_joined', { tournamentId, socketId: socket.id });
   });
 
   socket.on('leave_tournament', (data) => {
     const tournamentId = data?.tournamentId || data;
+    socket.leave(`tournament_${tournamentId}`);
+  });
+
+  // Alias used by some frontend components
+  socket.on('leaveTournamentRoom', (tournamentId) => {
     socket.leave(`tournament_${tournamentId}`);
   });
 

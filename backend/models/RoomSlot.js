@@ -337,7 +337,15 @@ RoomSlotSchema.methods.movePlayer = function(playerId, fromTeam, fromSlot, toTea
   }
   
   if (destSlot.isLocked) {
-    throw new Error('Destination slot is locked');
+    // Allow if the lock is stale (> 30 seconds old — temporary locks only)
+    const staleCutoff = 30 * 1000;
+    if (!destSlot.lockedAt || (Date.now() - new Date(destSlot.lockedAt).getTime()) < staleCutoff) {
+      throw new Error('Destination slot is locked');
+    }
+    // Stale lock — clear it silently
+    destSlot.isLocked = false;
+    destSlot.lockedBy = null;
+    destSlot.lockedAt = null;
   }
   
   // Perform the move

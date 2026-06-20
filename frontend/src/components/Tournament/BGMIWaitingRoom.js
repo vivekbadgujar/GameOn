@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 import {
   Box,
@@ -16,10 +16,8 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Divider,
   IconButton,
-  Tooltip,
-  Badge
+  Tooltip
 } from '@mui/material';
 import {
   Person,
@@ -33,211 +31,183 @@ import {
   Visibility,
   VisibilityOff,
   Timer,
-  Group
+  Group,
+  Wifi,
+  WifiOff
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import io from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
+import { useSocket } from '../../contexts/SocketContext';
 import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+
+dayjs.extend(duration);
 
 const BGMIWaitingRoom = ({ tournament, onLeave }) => {
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  const hasLoggedSocketDisableRef = useRef(false);
+  const { isConnected, joinTournament, leaveTournament } = useSocket();
 
   // State management
   const [participants, setParticipants] = useState([]);
   const [roomCredentials, setRoomCredentials] = useState(null);
+  // slotsLocked comes ONLY from backend state, not from client-side timer
   const [slotsLocked, setSlotsLocked] = useState(false);
-  const [timeToLock, setTimeToLock] = useState(null);
-  const [timeToStart, setTimeToStart] = useState(null);
   const [showCredentials, setShowCredentials] = useState(false);
-  const [socket, setSocket] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [leaveDialog, setLeaveDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [timeToStart, setTimeToStart] = useState(0);
 
-  // Initialize socket connection
+  // Join socket room when connected
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (tournament?._id && isConnected) {
+      joinTournament(tournament._id);
+      return () => leaveTournament(tournament._id);
+    }
+  }, [tournament?._id, isConnected, joinTournament, leaveTournament]);
 
-    let newSocket = null;
-    let cancelled = false;
+  // Real-time slot event listeners (via window events from SocketContext)
+  useEffect(() => {
+    if (!tournament?._id) return;
 
-    const initSocket = async () => {
-      if (!(await canUseRealtimeSockets())) {
-        setIsConnected(false);
-        return;
-      }
-
-      if (cancelled) return;
-
-      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-      newSocket = io(apiUrl, {
-        reconnection: false,
-        reconnectionAttempts: 0,
-        timeout: 5000,
-        auth: {
-          token: localStorage.getItem('token')
-        }
-      });
-
-      newSocket.on('connect', () => {
-        setIsConnected(true);
-        console.log('Connected to waiting room');
-      });
-
-      newSocket.on('disconnect', () => {
-        setIsConnected(false);
-      });
-
-      newSocket.on('connect_error', () => {
-        if (!hasLoggedSocketDisableRef.current) {
-          hasLoggedSocketDisableRef.current = true;
-          console.warn('[Socket] BGMIWaitingRoom disabled for this session (connection failed)');
-        }
-        disableSocketFeatureForSession();
-        setIsConnected(false);
-        try {
-          newSocket.disconnect();
-        } catch (_) {
-        }
-      });
-
-    // Listen for real-time updates
-    newSocket.on('participantJoined', (data) => {
-      if (data.tournamentId === tournament._id) {
-        fetchParticipants();
-        showInfo(`${data.username} joined the tournament`);
-      }
-    });
-
-    newSocket.on('participantLeft', (data) => {
-      if (data.tournamentId === tournament._id) {
-        fetchParticipants();
-        showInfo(`${data.username} left the tournament`);
-      }
-    });
-
-    newSocket.on('slotsSwapped', (data) => {
-      if (data.tournamentId === tournament._id) {
+    const handleSlotChanged = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
         fetchParticipants();
         showInfo('Slot positions updated');
       }
-    });
+    };
 
-    newSocket.on('slotsLocked', (data) => {
-      if (data.tournamentId === tournament._id) {
+    const handlePlayerAssigned = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
+        fetchParticipants();
+        showInfo(`${e.detail.username || 'A player'} joined`);
+      }
+    };
+
+    const handleSlotsLocked = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
         setSlotsLocked(true);
         showInfo('Slots are now locked! No more position changes allowed.');
       }
-    });
+    };
 
-    newSocket.on('roomCredentialsReleased', (data) => {
-      if (data.tournamentId === tournament._id) {
-        setRoomCredentials(data.roomCredentials);
+    const handleSlotsUnlocked = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
+        setSlotsLocked(false);
+        showInfo('Slots are now unlocked!');
+      }
+    };
+
+    const handleCredentialsReleased = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
+        setRoomCredentials(e.detail.roomCredentials || tournament.roomDetails);
         showSuccess('Room credentials are now available!');
       }
-    });
-
-      setSocket(newSocket);
     };
 
-    initSocket();
-
-    return () => {
-      cancelled = true;
-      if (newSocket) {
-        newSocket.close();
+    const handleRoomSlotUpdated = (e) => {
+      if (e.detail.tournamentId === tournament._id) {
+        fetchParticipants();
       }
     };
-  }, [tournament._id, showSuccess, showError, showInfo]);
+
+    window.addEventListener('slotChanged', handleSlotChanged);
+    window.addEventListener('playerAssigned', handlePlayerAssigned);
+    window.addEventListener('slotsLocked', handleSlotsLocked);
+    window.addEventListener('slotsUnlocked', handleSlotsUnlocked);
+    window.addEventListener('roomCredentialsReleased', handleCredentialsReleased);
+    window.addEventListener('roomSlotUpdated', handleRoomSlotUpdated);
+
+    return () => {
+      window.removeEventListener('slotChanged', handleSlotChanged);
+      window.removeEventListener('playerAssigned', handlePlayerAssigned);
+      window.removeEventListener('slotsLocked', handleSlotsLocked);
+      window.removeEventListener('slotsUnlocked', handleSlotsUnlocked);
+      window.removeEventListener('roomCredentialsReleased', handleCredentialsReleased);
+      window.removeEventListener('roomSlotUpdated', handleRoomSlotUpdated);
+    };
+  }, [tournament?._id, showInfo, showSuccess]);
 
   // Fetch participants
-  const fetchParticipants = async () => {
+  const fetchParticipants = useCallback(async () => {
+    if (!tournament?._id) return;
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/tournaments/${tournament._id}/participants`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch participants');
-      
+
       const data = await response.json();
       setParticipants(data.data.participants || []);
     } catch (error) {
       console.error('Error fetching participants:', error);
     }
-  };
+  }, [tournament?._id]);
 
-  // Calculate time remaining
+  // Countdown timer (display only, does NOT lock slots)
   useEffect(() => {
     const interval = setInterval(() => {
       const now = dayjs();
       const startTime = dayjs(tournament.startDate);
-      const lockTime = startTime.subtract(10, 'minutes'); // Lock 10 minutes before start
-      const credentialsTime = startTime.subtract(30, 'minutes'); // Show credentials 30 minutes before
+      setTimeToStart(startTime.diff(now));
 
-      // Check if slots should be locked
-      if (now.isAfter(lockTime) && !slotsLocked) {
-        setSlotsLocked(true);
-      }
-
-      // Check if credentials should be shown
-      if (now.isAfter(credentialsTime) && tournament.roomDetails) {
+      // Show credentials if available and past -30 min
+      const credentialsTime = startTime.subtract(30, 'minutes');
+      if (now.isAfter(credentialsTime) && tournament.roomDetails && !roomCredentials) {
         setRoomCredentials(tournament.roomDetails);
       }
-
-      // Calculate time remaining
-      setTimeToLock(lockTime.diff(now));
-      setTimeToStart(startTime.diff(now));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [tournament.startDate, tournament.roomDetails, slotsLocked]);
+  }, [tournament.startDate, tournament.roomDetails, roomCredentials]);
 
   // Initial data fetch
   useEffect(() => {
     fetchParticipants();
-  }, [tournament._id]);
+  }, [fetchParticipants]);
 
   // Organize participants into teams
   const organizeIntoTeams = () => {
     const teams = [];
     const maxTeams = Math.ceil(tournament.maxParticipants / 4);
-    
+
     for (let i = 0; i < maxTeams; i++) {
       const teamSlots = [];
       for (let j = 1; j <= 4; j++) {
         const slotNumber = (i * 4) + j;
         const participant = participants.find(p => p.slotNumber === slotNumber);
-        teamSlots.push({
-          slotNumber,
-          participant,
-          isEmpty: !participant
-        });
+        teamSlots.push({ slotNumber, participant, isEmpty: !participant });
       }
-      teams.push({
-        teamNumber: i + 1,
-        slots: teamSlots
-      });
+      teams.push({ teamNumber: i + 1, slots: teamSlots });
     }
-    
+
     return teams;
+  };
+
+  // Handle drag and drop
+  const onDragEnd = async (result) => {
+    if (!result.destination || slotsLocked) return;
+
+    const sourceSlot = parseInt(result.draggableId.split('-')[1]);
+    const destSlot = parseInt(result.destination.droppableId.split('-')[1]);
+
+    if (sourceSlot !== destSlot) {
+      await handleSlotSwap(sourceSlot, destSlot);
+    }
   };
 
   // Handle slot swap
   const handleSlotSwap = async (sourceSlot, destSlot) => {
     if (slotsLocked) {
-      showError('Slots are locked! No more changes allowed.');
+      showError('Slots are locked!');
       return;
     }
 
-    // Check if user is trying to move their own slot
     const sourceParticipant = participants.find(p => p.slotNumber === sourceSlot);
-    if (sourceParticipant?.user._id !== user._id) {
+    if (sourceParticipant?.user?._id !== user._id) {
       showError('You can only move your own slot position.');
       return;
     }
@@ -258,23 +228,10 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
 
       showSuccess('Position changed successfully!');
       fetchParticipants();
-
     } catch (error) {
       showError(error.message || 'Failed to change position');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle drag and drop
-  const onDragEnd = (result) => {
-    if (!result.destination || slotsLocked) return;
-
-    const sourceSlot = parseInt(result.draggableId.split('-')[1]);
-    const destSlot = parseInt(result.destination.droppableId.split('-')[1]);
-
-    if (sourceSlot !== destSlot) {
-      handleSlotSwap(sourceSlot, destSlot);
     }
   };
 
@@ -293,7 +250,6 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
       showSuccess('Left tournament successfully');
       setLeaveDialog(false);
       onLeave?.();
-
     } catch (error) {
       showError(error.message || 'Failed to leave tournament');
     } finally {
@@ -301,32 +257,24 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
     }
   };
 
-  // Copy to clipboard
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     showSuccess('Copied to clipboard!');
   };
 
-  // Format time remaining
   const formatTimeRemaining = (milliseconds) => {
     if (milliseconds <= 0) return 'Started';
-    
-    const duration = dayjs.duration(milliseconds);
-    const hours = Math.floor(duration.asHours());
-    const minutes = duration.minutes();
-    const seconds = duration.seconds();
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${seconds}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    } else {
-      return `${seconds}s`;
-    }
+    const dur = dayjs.duration(milliseconds);
+    const hours = Math.floor(dur.asHours());
+    const minutes = dur.minutes();
+    const seconds = dur.seconds();
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
   };
 
   const teams = organizeIntoTeams();
-  const userParticipant = participants.find(p => p.user._id === user._id);
+  const userParticipant = participants.find(p => p.user?._id === user._id);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -343,22 +291,16 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                   {participants.length}/{tournament.maxParticipants} players joined
                 </Typography>
               </Box>
-              
-              <Box display="flex" alignItems="center" gap={2}>
-                {/* Connection Status */}
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: isConnected ? 'success.main' : 'error.main'
-                    }}
-                  />
-                  <Typography variant="caption">
-                    {isConnected ? 'Live' : 'Disconnected'}
-                  </Typography>
-                </Box>
+
+              <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+                {/* Connection Status - from actual socket state */}
+                <Chip
+                  icon={isConnected ? <Wifi fontSize="small" /> : <WifiOff fontSize="small" />}
+                  label={isConnected ? 'Live' : 'Connected'}
+                  color={isConnected ? 'success' : 'default'}
+                  size="small"
+                  variant="outlined"
+                />
 
                 {/* Time Remaining */}
                 {timeToStart > 0 && (
@@ -370,10 +312,10 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                   />
                 )}
 
-                {/* Slots Lock Status */}
+                {/* Slots Lock Status - from actual backend state only */}
                 <Chip
                   icon={slotsLocked ? <Lock /> : <LockOpen />}
-                  label={slotsLocked ? 'Slots Locked' : 'Slots Unlocked'}
+                  label={slotsLocked ? 'Slots Locked' : 'Slots Open'}
                   color={slotsLocked ? 'error' : 'success'}
                   variant="filled"
                 />
@@ -383,6 +325,7 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                   startIcon={<Refresh />}
                   onClick={fetchParticipants}
                   disabled={loading}
+                  size="small"
                 >
                   Refresh
                 </Button>
@@ -392,26 +335,19 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                   color="error"
                   startIcon={<ExitToApp />}
                   onClick={() => setLeaveDialog(true)}
+                  size="small"
                 >
                   Leave
                 </Button>
               </Box>
             </Box>
 
-            {/* Slot Lock Warning */}
-            {!slotsLocked && timeToLock > 0 && timeToLock < 600000 && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
-                ⚠️ Slots will be locked in {formatTimeRemaining(timeToLock)}. 
-                Change your position now if needed!
-              </Alert>
-            )}
-
             {/* Room Credentials */}
             {roomCredentials && (
               <Alert severity="success" sx={{ mt: 2 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                   <Typography variant="body2">
-                    🎯 Room credentials are available! 
+                    🎯 Room credentials are available!{' '}
                     <Button
                       size="small"
                       onClick={() => setShowCredentials(!showCredentials)}
@@ -422,7 +358,7 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                     </Button>
                   </Typography>
                 </Box>
-                
+
                 {showCredentials && (
                   <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
                     <Grid container spacing={2}>
@@ -432,10 +368,7 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                           <Typography variant="body2" fontFamily="monospace">
                             {roomCredentials.roomId}
                           </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => copyToClipboard(roomCredentials.roomId)}
-                          >
+                          <IconButton size="small" onClick={() => copyToClipboard(roomCredentials.roomId)}>
                             <ContentCopy fontSize="small" />
                           </IconButton>
                         </Box>
@@ -446,10 +379,7 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                           <Typography variant="body2" fontFamily="monospace">
                             {roomCredentials.password}
                           </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => copyToClipboard(roomCredentials.password)}
-                          >
+                          <IconButton size="small" onClick={() => copyToClipboard(roomCredentials.password)}>
                             <ContentCopy fontSize="small" />
                           </IconButton>
                         </Box>
@@ -466,13 +396,13 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
         <Grid container spacing={3}>
           {teams.map((team) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={team.teamNumber}>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   height: '100%',
-                  border: team.slots.some(slot => slot.participant?.user._id === user._id) 
-                    ? '2px solid' 
+                  border: team.slots.some(slot => slot.participant?.user?._id === user._id)
+                    ? '2px solid'
                     : '1px solid',
-                  borderColor: team.slots.some(slot => slot.participant?.user._id === user._id)
+                  borderColor: team.slots.some(slot => slot.participant?.user?._id === user._id)
                     ? 'primary.main'
                     : 'divider'
                 }}
@@ -490,39 +420,35 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                     />
                   </Box>
 
-                  {/* Team Slots */}
                   <Box display="flex" flexDirection="column" gap={1}>
                     {team.slots.map((slot) => (
                       <Droppable
                         key={`slot-${slot.slotNumber}`}
                         droppableId={`slot-${slot.slotNumber}`}
-                        isDropDisabled={slotsLocked || (!slot.isEmpty && slot.participant?.user._id !== user._id)}
+                        isDropDisabled={slotsLocked || (!slot.isEmpty && slot.participant?.user?._id !== user._id)}
                       >
                         {(provided, snapshot) => (
                           <Paper
                             ref={provided.innerRef}
                             {...provided.droppableProps}
                             sx={{
-                              p: 2,
-                              minHeight: 60,
+                              p: 1.5,
+                              minHeight: 56,
                               display: 'flex',
                               alignItems: 'center',
-                              backgroundColor: snapshot.isDraggingOver 
-                                ? 'primary.50' 
-                                : slot.isEmpty 
-                                  ? 'grey.50' 
+                              backgroundColor: snapshot.isDraggingOver
+                                ? 'primary.50'
+                                : slot.isEmpty
+                                  ? 'grey.50'
                                   : 'background.paper',
                               border: '1px solid',
-                              borderColor: snapshot.isDraggingOver 
-                                ? 'primary.main' 
-                                : 'divider',
+                              borderColor: snapshot.isDraggingOver ? 'primary.main' : 'divider',
                               borderStyle: slot.isEmpty ? 'dashed' : 'solid',
-                              cursor: slot.isEmpty ? 'pointer' : 'default'
                             }}
                           >
                             {slot.isEmpty ? (
                               <Box display="flex" alignItems="center" gap={1} width="100%">
-                                <PersonAdd color="disabled" />
+                                <PersonAdd color="disabled" fontSize="small" />
                                 <Typography variant="body2" color="text.secondary">
                                   Slot #{slot.slotNumber}
                                 </Typography>
@@ -531,41 +457,32 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
                               <Draggable
                                 draggableId={`participant-${slot.slotNumber}`}
                                 index={0}
-                                isDragDisabled={slotsLocked || slot.participant?.user._id !== user._id}
+                                isDragDisabled={slotsLocked || slot.participant?.user?._id !== user._id}
                               >
-                                {(provided, snapshot) => (
+                                {(dragProvided, dragSnapshot) => (
                                   <Box
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
                                     display="flex"
                                     alignItems="center"
                                     gap={1}
                                     width="100%"
-                                    sx={{
-                                      opacity: snapshot.isDragging ? 0.8 : 1,
-                                      transform: snapshot.isDragging ? 'rotate(5deg)' : 'none'
-                                    }}
+                                    sx={{ opacity: dragSnapshot.isDragging ? 0.8 : 1 }}
                                   >
-                                    <Badge
-                                      badgeContent={slot.slotNumber}
-                                      color="primary"
-                                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                                    >
-                                      <Avatar sx={{ width: 32, height: 32 }}>
-                                        {slot.participant?.user?.username?.charAt(0)?.toUpperCase()}
-                                      </Avatar>
-                                    </Badge>
+                                    <Avatar sx={{ width: 28, height: 28 }}>
+                                      {slot.participant?.user?.username?.charAt(0)?.toUpperCase()}
+                                    </Avatar>
                                     <Box flex={1} minWidth={0}>
                                       <Typography variant="body2" fontWeight="medium" noWrap>
-                                        {slot.participant?.user?.gameProfile?.bgmiName || 
+                                        {slot.participant?.user?.gameProfile?.bgmiName ||
                                          slot.participant?.user?.username}
                                       </Typography>
-                                      <Typography variant="caption" color="text.secondary" noWrap>
-                                        {slot.participant?.user._id === user._id ? 'You' : 'Player'}
+                                      <Typography variant="caption" color="text.secondary">
+                                        {slot.participant?.user?._id === user._id ? '(You)' : `Slot #${slot.slotNumber}`}
                                       </Typography>
                                     </Box>
-                                    {slot.participant?.user._id === user._id && !slotsLocked && (
+                                    {slot.participant?.user?._id === user._id && !slotsLocked && (
                                       <SwapHoriz color="primary" fontSize="small" />
                                     )}
                                   </Box>
@@ -589,15 +506,15 @@ const BGMIWaitingRoom = ({ tournament, onLeave }) => {
           <DialogTitle color="error.main">Leave Tournament</DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to leave this tournament? 
+              Are you sure you want to leave this tournament?
               Your slot will be freed up for other players.
             </Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setLeaveDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={handleLeaveTournament} 
-              color="error" 
+            <Button
+              onClick={handleLeaveTournament}
+              color="error"
               variant="contained"
               disabled={loading}
             >

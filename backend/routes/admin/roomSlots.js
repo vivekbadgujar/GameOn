@@ -129,35 +129,22 @@ router.post('/tournament/:tournamentId/move-player', [
       });
     }
     
-    // Perform the move with transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    // Perform the move
     try {
-      const lockedRoomSlot = await RoomSlot.findById(roomSlot._id).session(session);
-      if (!lockedRoomSlot) throw new Error('Room slot not found during transaction');
-      
-      lockedRoomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, toTeam, toSlot);
-      await lockedRoomSlot.save({ session });
-      
-      // Sync with Tournament participants
-      await Tournament.updateOne(
-        { _id: tournamentId, "participants.user": playerId },
-        { 
-          $set: { 
-            "participants.$.teamNumber": toTeam,
-            "participants.$.slotNumber": toSlot
-          }
-        },
-        { session }
-      );
+      roomSlot.movePlayer(playerId, currentSlot.teamNumber, currentSlot.slotNumber, Number(toTeam), Number(toSlot));
+      await roomSlot.save();
+    } catch (moveErr) {
+      return res.status(409).json({ success: false, error: moveErr.message });
+    }
 
-      await session.commitTransaction();
-      roomSlot = lockedRoomSlot;
-    } catch (txError) {
-      await session.abortTransaction();
-      throw txError;
-    } finally {
-      session.endSession();
+    // Sync Tournament participant (best-effort)
+    try {
+      await Tournament.updateOne(
+        { _id: tournamentId, 'participants.user': playerId },
+        { $set: { 'participants.$.teamNumber': Number(toTeam), 'participants.$.slotNumber': Number(toSlot) } }
+      );
+    } catch (syncErr) {
+      console.warn('[Admin Move] Tournament sync failed (non-fatal):', syncErr.message);
     }
     
     // Populate updated data
@@ -165,28 +152,29 @@ router.post('/tournament/:tournamentId/move-player', [
       .populate('teams.slots.player', 'username displayName gameProfile.bgmiName gameProfile.bgmiId avatar')
       .populate('teams.captain', 'username displayName gameProfile.bgmiName');
     
-    // Emit real-time update
+    // Emit real-time update to players + admin panel
     const io = req.app.get('io');
     if (io) {
-      io.to(`tournament_${tournamentId}`).emit('adminSlotChanged', {
+      const emitData = {
         tournamentId,
         playerId,
         fromTeam: currentSlot.teamNumber,
         fromSlot: currentSlot.slotNumber,
-        toTeam,
-        toSlot,
+        toTeam: Number(toTeam),
+        toSlot: Number(toSlot),
         adminAction: true,
-        adminId,
-        roomSlot: updatedRoomSlot
-      });
+        roomSlot: updatedRoomSlot,
+        timestamp: new Date()
+      };
+      io.to(`tournament_${tournamentId}`).emit('adminSlotChanged', emitData);
+      io.emit('roomSlotUpdated', { ...emitData, event: 'adminSlotChanged' });
+      io.to('admin_room').emit('roomSlotUpdated', { ...emitData, event: 'adminSlotChanged' });
     }
     
     res.json({
       success: true,
       message: 'Player moved successfully',
-      data: {
-        roomSlot: updatedRoomSlot
-      }
+      data: { roomSlot: updatedRoomSlot }
     });
   } catch (error) {
     console.error('Error moving player (admin):', error);
@@ -318,20 +306,24 @@ router.post('/tournament/:tournamentId/toggle-all-slots', [
     // Emit real-time update
     const io = req.app.get('io');
     if (io) {
-      io.to(`tournament_${tournamentId}`).emit('slotsLocked', {
+      const eventName = action === 'lock' ? 'slotsLocked' : 'slotsUnlocked';
+      const emitData = {
         tournamentId,
         action,
-        adminId,
-        roomSlot: updatedRoomSlot
-      });
+        isLocked: action === 'lock',
+        lockedAt: roomSlot.lockedAt,
+        roomSlot: updatedRoomSlot,
+        timestamp: new Date()
+      };
+      io.to(`tournament_${tournamentId}`).emit(eventName, emitData);
+      io.emit('roomSlotUpdated', { ...emitData, event: eventName });
+      io.to('admin_room').emit('roomSlotUpdated', { ...emitData, event: eventName });
     }
     
     res.json({
       success: true,
       message: `All slots ${action}ed successfully`,
-      data: {
-        roomSlot: updatedRoomSlot
-      }
+      data: { roomSlot: updatedRoomSlot }
     });
   } catch (error) {
     console.error('Error toggling all slots:', error);
@@ -396,15 +388,18 @@ router.post('/tournament/:tournamentId/remove-player', [
     // Emit real-time update
     const io = req.app.get('io');
     if (io) {
-      io.to(`tournament_${tournamentId}`).emit('playerRemoved', {
+      const emitData = {
         tournamentId,
         playerId,
         playerName: player?.username,
         previousSlot: playerSlot,
         adminAction: true,
-        adminId,
-        roomSlot: updatedRoomSlot
-      });
+        roomSlot: updatedRoomSlot,
+        timestamp: new Date()
+      };
+      io.to(`tournament_${tournamentId}`).emit('playerRemoved', emitData);
+      io.emit('roomSlotUpdated', { ...emitData, event: 'playerRemoved' });
+      io.to('admin_room').emit('roomSlotUpdated', { ...emitData, event: 'playerRemoved' });
       
       // Notify the removed player
       io.to(`user_${playerId}`).emit('removedFromTournament', {
@@ -419,11 +414,7 @@ router.post('/tournament/:tournamentId/remove-player', [
       message: 'Player removed successfully',
       data: {
         roomSlot: updatedRoomSlot,
-        removedPlayer: {
-          id: playerId,
-          username: player?.username,
-          previousSlot: playerSlot
-        }
+        removedPlayer: { id: playerId, username: player?.username, previousSlot: playerSlot }
       }
     });
   } catch (error) {

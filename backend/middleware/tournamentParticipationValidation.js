@@ -71,7 +71,6 @@ const validateTournamentParticipation = async (req, res, next) => {
     // Add tournament and validation data to request
     req.tournament = tournament;
     req.validationData = {
-      existingPayments,
       canJoin: true
     };
 

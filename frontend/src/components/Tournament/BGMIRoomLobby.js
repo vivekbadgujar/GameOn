@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -28,106 +28,58 @@ import {
   Lock as LockIcon,
   Schedule as ScheduleIcon,
   Room as RoomIcon,
-  ContentCopy as CopyIcon
+  ContentCopy as CopyIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import io from 'socket.io-client';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../../config';
+import { useSocket } from '../../contexts/SocketContext';
 import { buildSlotMovePayload } from '../../utils/slotMove';
+import config from '../../config';
+
+const API_BASE = config.API_BASE_URL || 'https://api.gameonesport.xyz/api';
 
 const BGMIRoomLobby = ({ tournament, onClose }) => {
   const theme = useTheme();
   const { user } = useAuth();
   const { showSuccess, showError, showInfo } = useNotification();
-  const hasLoggedSocketDisableRef = useRef(false);
+  const { isConnected, joinTournament, leaveTournament } = useSocket();
 
   const [roomData, setRoomData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [movingSlot, setMovingSlot] = useState(false);
-  const [socket, setSocket] = useState(null);
 
-  // Initialize socket connection
+  // Join tournament socket room
   useEffect(() => {
-    if (tournament?._id) {
-      if (typeof window === 'undefined') return;
-
-      let newSocket = null;
-      let cancelled = false;
-
-      const initSocket = async () => {
-        if (!(await canUseRealtimeSockets())) {
-          return;
-        }
-
-        if (cancelled) return;
-
-        const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
-        newSocket = io(apiUrl, {
-          reconnection: false,
-          reconnectionAttempts: 0,
-          timeout: 5000,
-          auth: {
-            token: localStorage.getItem('token')
-          }
-        });
-
-        newSocket.on('connect_error', () => {
-          if (!hasLoggedSocketDisableRef.current) {
-            hasLoggedSocketDisableRef.current = true;
-            console.warn('[Socket] BGMIRoomLobby disabled for this session (connection failed)');
-          }
-          disableSocketFeatureForSession();
-          try {
-            newSocket.disconnect();
-          } catch (_) {
-          }
-        });
-
-        newSocket.emit('joinTournamentRoom', tournament._id);
-      
-      // Listen for real-time updates
-      newSocket.on('slotChanged', handleSlotUpdate);
-      newSocket.on('playerAssigned', handleSlotUpdate);
-      newSocket.on('slotsLocked', handleSlotsLocked);
-
-        setSocket(newSocket);
-      };
-
-      initSocket();
-
-      return () => {
-        cancelled = true;
-        if (newSocket) {
-          newSocket.emit('leaveTournamentRoom', tournament._id);
-          newSocket.disconnect();
-        }
-      };
+    if (tournament?._id && isConnected) {
+      joinTournament(tournament._id);
+      return () => leaveTournament(tournament._id);
     }
-  }, [tournament?._id]);
+  }, [tournament?._id, isConnected, joinTournament, leaveTournament]);
 
   // Fetch room data
   const fetchRoomData = useCallback(async () => {
     if (!tournament?._id) return;
-    
+
     try {
       setLoading(true);
-      const response = await fetch(`/api/room-slots/tournament/${tournament._id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/room-slots/tournament/${tournament._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch room data');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to fetch room data');
       }
 
       const data = await response.json();
       setRoomData(data.data);
     } catch (error) {
-      console.error('Error fetching room data:', error);
-      showError('Failed to load room data');
+      console.error('[BGMIRoomLobby] Fetch error:', error);
+      showError(error.message || 'Failed to load room data');
     } finally {
       setLoading(false);
     }
@@ -137,87 +89,123 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     fetchRoomData();
   }, [fetchRoomData]);
 
-  // Handle real-time slot updates
-  const handleSlotUpdate = useCallback((data) => {
-    if (data.tournamentId === tournament?._id) {
-      setRoomData(prev => ({
-        ...prev,
-        roomSlot: data.roomSlot
-      }));
+  // Real-time updates via window events
+  useEffect(() => {
+    if (!tournament?._id) return;
+
+    const handleSlotUpdate = (e) => {
+      const data = e.detail;
+      if (data.tournamentId !== tournament._id) return;
+      if (data.roomSlot) {
+        setRoomData(prev => ({ ...prev, roomSlot: data.roomSlot }));
+      }
+      if (data.playerId === user?._id && data.playerSlot) {
+        setRoomData(prev => ({ ...prev, playerSlot: data.playerSlot }));
+      }
       showInfo('Room layout updated');
-    }
-  }, [tournament?._id, showInfo]);
+    };
 
-  // Handle slots locked
-  const handleSlotsLocked = useCallback((data) => {
-    if (data.tournamentId === tournament?._id) {
-      setRoomData(prev => ({
+    const handleSlotsLocked = (e) => {
+      const data = e.detail;
+      if (data.tournamentId !== tournament._id) return;
+      setRoomData(prev => prev ? {
         ...prev,
-        roomSlot: {
-          ...prev.roomSlot,
-          isLocked: true,
-          lockedAt: data.lockedAt
-        }
-      }));
-      showInfo(data.reason || 'Slots have been locked');
-    }
-  }, [tournament?._id, showInfo]);
+        roomSlot: { ...prev.roomSlot, isLocked: true, lockedAt: data.lockedAt }
+      } : prev);
+      showInfo('Slots have been locked');
+    };
 
-  // Handle slot selection for moving
+    const handleSlotsUnlocked = (e) => {
+      const data = e.detail;
+      if (data.tournamentId !== tournament._id) return;
+      setRoomData(prev => prev ? {
+        ...prev,
+        roomSlot: { ...prev.roomSlot, isLocked: false }
+      } : prev);
+      showInfo('Slots have been unlocked');
+    };
+
+    const handleRoomSlotUpdated = (e) => {
+      const data = e.detail;
+      if (data.tournamentId !== tournament._id) return;
+      // Admin changes: full refresh
+      fetchRoomData();
+    };
+
+    window.addEventListener('slotChanged', handleSlotUpdate);
+    window.addEventListener('playerAssigned', handleSlotUpdate);
+    window.addEventListener('adminSlotChanged', handleSlotUpdate);
+    window.addEventListener('slotsLocked', handleSlotsLocked);
+    window.addEventListener('slotsUnlocked', handleSlotsUnlocked);
+    window.addEventListener('roomSlotUpdated', handleRoomSlotUpdated);
+
+    return () => {
+      window.removeEventListener('slotChanged', handleSlotUpdate);
+      window.removeEventListener('playerAssigned', handleSlotUpdate);
+      window.removeEventListener('adminSlotChanged', handleSlotUpdate);
+      window.removeEventListener('slotsLocked', handleSlotsLocked);
+      window.removeEventListener('slotsUnlocked', handleSlotsUnlocked);
+      window.removeEventListener('roomSlotUpdated', handleRoomSlotUpdated);
+    };
+  }, [tournament?._id, user?._id, fetchRoomData, showInfo]);
+
+  // Handle slot selection
   const handleSlotClick = (teamNumber, slotNumber, slot) => {
     if (roomData?.roomSlot?.isLocked) {
       showError('Slots are locked and cannot be changed');
       return;
     }
 
-    // If clicking on current player's slot, deselect
-    if (slot?.player?._id === user?._id) {
-      setSelectedSlot(selectedSlot ? null : { teamNumber, slotNumber });
+    const isMySlot = slot?.player?._id === user?._id ||
+                     slot?.player?.toString?.() === user?._id?.toString?.();
+
+    if (isMySlot) {
+      // Toggle selection
+      if (selectedSlot?.teamNumber === teamNumber && selectedSlot?.slotNumber === slotNumber) {
+        setSelectedSlot(null);
+      } else {
+        setSelectedSlot({ teamNumber, slotNumber });
+      }
       return;
     }
 
-    // If no slot selected and clicking on empty slot, do nothing
-    if (!selectedSlot && !slot?.player) {
-      return;
-    }
-
-    // If slot selected and clicking on empty slot, move player
-    if (selectedSlot && !slot?.player && !slot?.isLocked) {
-      movePlayerToSlot(teamNumber, slotNumber);
-      return;
-    }
-
-    // If clicking on occupied slot (not current player), show info
-    if (slot?.player && slot.player._id !== user?._id) {
+    if (slot?.player) {
       showInfo('This slot is occupied by another player');
       return;
     }
+
+    // Empty slot with active selection → move
+    if (selectedSlot && !slot?.isLocked) {
+      movePlayerToSlot(teamNumber, slotNumber);
+    }
   };
 
-  // Move player to selected slot
-  const movePlayerToSlot = async (toTeam, toSlot) => {
+  // Move player
+  const movePlayerToSlot = async (toTeam, toSlotNum) => {
     if (!selectedSlot || movingSlot) return;
 
     try {
       setMovingSlot(true);
+      const token = localStorage.getItem('token');
       const payload = buildSlotMovePayload({
         tournamentId: tournament._id,
         playerId: user?._id,
         fromSlot: roomData?.playerSlot,
         toTeam,
-        toSlot
+        toSlot: toSlotNum
       });
-      const response = await fetch(`/api/room-slots/tournament/${tournament._id}/move`, {
+
+      const response = await fetch(`${API_BASE}/room-slots/tournament/${tournament._id}/move`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to move slot');
       }
 
@@ -227,21 +215,20 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
         roomSlot: data.data.roomSlot,
         playerSlot: data.data.playerSlot
       }));
-      
       setSelectedSlot(null);
       showSuccess('Slot changed successfully!');
     } catch (error) {
-      console.error('Error moving slot:', error);
-      showError(error.message);
+      console.error('[BGMIRoomLobby] Move error:', error);
+      showError(error.message || 'Failed to move slot');
     } finally {
       setMovingSlot(false);
     }
   };
 
-  // Get slot background color
   const getSlotBgColor = (slot, teamNumber, slotNumber) => {
     if (slot?.isLocked) return alpha(theme.palette.error.main, 0.1);
-    if (slot?.player?._id === user?._id) return alpha(theme.palette.primary.main, 0.2);
+    const isMySlot = slot?.player?._id === user?._id;
+    if (isMySlot) return alpha(theme.palette.primary.main, 0.2);
     if (selectedSlot?.teamNumber === teamNumber && selectedSlot?.slotNumber === slotNumber) {
       return alpha(theme.palette.warning.main, 0.2);
     }
@@ -249,9 +236,9 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     return alpha(theme.palette.grey[300], 0.1);
   };
 
-  // Get slot border color
   const getSlotBorderColor = (slot, teamNumber, slotNumber) => {
-    if (slot?.player?._id === user?._id) return theme.palette.primary.main;
+    const isMySlot = slot?.player?._id === user?._id;
+    if (isMySlot) return theme.palette.primary.main;
     if (selectedSlot?.teamNumber === teamNumber && selectedSlot?.slotNumber === slotNumber) {
       return theme.palette.warning.main;
     }
@@ -259,21 +246,19 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     return theme.palette.grey[300];
   };
 
-  // Copy to clipboard
   const copyToClipboard = async (text, label) => {
     try {
       await navigator.clipboard.writeText(text);
-      showSuccess(`${label} copied to clipboard!`);
-    } catch (error) {
-      showError('Failed to copy to clipboard');
+      showSuccess(`${label} copied!`);
+    } catch (_) {
+      showError('Failed to copy');
     }
   };
 
-  // Render slot
   const renderSlot = (slot, teamNumber, slotNumber) => {
-    const isCurrentPlayer = slot?.player?._id === user?._id;
+    const isMySlot = slot?.player?._id === user?._id ||
+                     slot?.player?.toString?.() === user?._id?.toString?.();
     const isSelected = selectedSlot?.teamNumber === teamNumber && selectedSlot?.slotNumber === slotNumber;
-    const isEmpty = !slot?.player;
     const isLocked = slot?.isLocked;
 
     return (
@@ -286,70 +271,61 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           border: 1.5,
           borderColor: getSlotBorderColor(slot, teamNumber, slotNumber),
           borderStyle: isSelected ? 'dashed' : 'solid',
-          transition: 'all 0.2s ease',
+          transition: 'all 0.15s ease',
           '&:hover': roomData?.roomSlot?.isLocked ? {} : {
             transform: 'scale(1.02)',
             boxShadow: 3
           },
+          '&:active': { transform: 'scale(0.98)' },
           position: 'relative'
         }}
         onClick={() => handleSlotClick(teamNumber, slotNumber, slot)}
+        onDoubleClick={() => handleSlotClick(teamNumber, slotNumber, slot)}
       >
         <CardContent sx={{ p: 0.75, textAlign: 'center', '&:last-child': { pb: 0.75 } }}>
           {isLocked && (
-            <LockIcon 
-              sx={{ 
-                position: 'absolute', 
-                top: 4, 
-                right: 4, 
-                fontSize: 16,
-                color: 'error.main'
-              }} 
+            <LockIcon
+              sx={{ position: 'absolute', top: 4, right: 4, fontSize: 14, color: 'error.main' }}
             />
           )}
-          
+
           {slot?.player ? (
             <>
               <Avatar
                 src={slot.player.avatar}
-                sx={{ 
-                  width: 28, 
-                  height: 28, 
-                  mx: 'auto', 
+                sx={{
+                  width: 28,
+                  height: 28,
+                  mx: 'auto',
                   mb: 0.25,
-                  bgcolor: isCurrentPlayer ? 'primary.main' : 'success.main'
+                  bgcolor: isMySlot ? 'primary.main' : 'success.main'
                 }}
               >
                 {slot.player.username?.[0]?.toUpperCase()}
               </Avatar>
               <Typography variant="caption" display="block" fontWeight="bold" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
-                {(slot.player.displayName || slot.player.username).length > 8 
+                {(slot.player.displayName || slot.player.username || '').length > 8
                   ? `${(slot.player.displayName || slot.player.username).substring(0, 8)}...`
                   : slot.player.displayName || slot.player.username
                 }
               </Typography>
               {slot.player.gameProfile?.bgmiName && (
                 <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1.1 }}>
-                  {slot.player.gameProfile.bgmiName.length > 10 
+                  {slot.player.gameProfile.bgmiName.length > 10
                     ? `${slot.player.gameProfile.bgmiName.substring(0, 10)}...`
                     : slot.player.gameProfile.bgmiName
                   }
                 </Typography>
               )}
-              {isCurrentPlayer && (
-                <Chip 
-                  label="YOU" 
-                  size="small" 
-                  color="primary" 
-                  sx={{ mt: 0.25, fontSize: '0.55rem', height: 14 }} 
-                />
+              {isMySlot && (
+                <Chip label="YOU" size="small" color="primary" sx={{ mt: 0.25, fontSize: '0.55rem', height: 14 }} />
               )}
             </>
           ) : (
             <>
               <PersonIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 0.25 }} />
               <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
-                Empty Slot
+                {selectedSlot ? 'Move here' : 'Empty'}
               </Typography>
             </>
           )}
@@ -358,31 +334,28 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     );
   };
 
-  // Render team
   const renderTeam = (team) => (
     <Card key={team.teamNumber} sx={{ mb: 1.5 }}>
       <CardContent sx={{ p: 1.5 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
           <Box display="flex" alignItems="center" gap={1}>
             <GroupsIcon color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              {team.teamName}
-            </Typography>
+            <Typography variant="h6" fontWeight="bold">{team.teamName}</Typography>
             {team.captain && (
-              <Chip 
+              <Chip
                 label={`Captain: ${team.captain.displayName || team.captain.username}`}
                 size="small"
                 color="secondary"
               />
             )}
           </Box>
-          <Chip 
+          <Chip
             label={`${team.slots.filter(s => s.player).length}/${team.slots.length}`}
             color={team.isComplete ? 'success' : 'default'}
             size="small"
           />
         </Box>
-        
+
         <Grid container spacing={0.75}>
           {team.slots.map((slot) => (
             <Grid item xs={6} sm={3} key={slot.slotNumber}>
@@ -412,13 +385,13 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
   }
 
   return (
-    <Dialog 
-      open 
-      onClose={onClose} 
-      maxWidth="lg" 
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth="lg"
       fullWidth
       PaperProps={{
-        sx: { 
+        sx: {
           minHeight: '70vh',
           maxHeight: '85vh',
           bgcolor: alpha(theme.palette.background.paper, 0.95),
@@ -431,30 +404,37 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           <Box display="flex" alignItems="center" gap={2}>
             <RoomIcon color="primary" />
             <Box>
-              <Typography variant="h6">
-                {tournament?.title} - Room Lobby
-              </Typography>
+              <Typography variant="h6">{tournament?.title} - Room Lobby</Typography>
               <Typography variant="caption" color="text.secondary">
                 BGMI Style Slot Management
               </Typography>
             </Box>
           </Box>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Chip
+              icon={isConnected ? <WifiIcon fontSize="small" /> : <WifiOffIcon fontSize="small" />}
+              label={isConnected ? 'Live' : 'Connected'}
+              color={isConnected ? 'success' : 'default'}
+              size="small"
+              variant="outlined"
+            />
+            <IconButton onClick={onClose}><CloseIcon /></IconButton>
+          </Box>
         </Box>
       </DialogTitle>
 
       <DialogContent>
         {/* Room Status */}
-        <Alert 
-          severity={roomData?.roomSlot?.isLocked ? "warning" : "info"} 
+        <Alert
+          severity={roomData?.roomSlot?.isLocked ? 'warning' : 'info'}
           sx={{ mb: 2 }}
           icon={roomData?.roomSlot?.isLocked ? <LockIcon /> : <SwapIcon />}
         >
-          {roomData?.roomSlot?.isLocked 
-            ? "Slots are locked! Tournament starts soon." 
-            : "Click on your slot and then an empty slot to change position"
+          {roomData?.roomSlot?.isLocked
+            ? 'Slots are locked! Tournament starts soon.'
+            : selectedSlot
+              ? `Team ${selectedSlot.teamNumber} Slot ${selectedSlot.slotNumber} selected — click an empty slot to move there`
+              : 'Click on your slot to select it, then click an empty slot to move there'
           }
         </Alert>
 
@@ -474,10 +454,7 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                         {tournament.roomDetails.roomId}
                       </Typography>
                     </Box>
-                    <IconButton 
-                      size="small"
-                      onClick={() => copyToClipboard(tournament.roomDetails.roomId, 'Room ID')}
-                    >
+                    <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.roomId, 'Room ID')}>
                       <CopyIcon />
                     </IconButton>
                   </Box>
@@ -490,10 +467,7 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                         {tournament.roomDetails.password}
                       </Typography>
                     </Box>
-                    <IconButton 
-                      size="small"
-                      onClick={() => copyToClipboard(tournament.roomDetails.password, 'Password')}
-                    >
+                    <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.password, 'Password')}>
                       <CopyIcon />
                     </IconButton>
                   </Box>
@@ -524,7 +498,8 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                   <Box>
                     <Typography variant="caption" color="text.secondary">Players</Typography>
                     <Typography variant="body2">
-                      {roomData?.roomSlot?.totalPlayers || 0}/{roomData?.roomSlot?.maxTeams * roomData?.roomSlot?.maxPlayersPerTeam || 0}
+                      {roomData?.roomSlot?.totalPlayers || 0}/
+                      {(roomData?.roomSlot?.maxTeams || 0) * (roomData?.roomSlot?.maxPlayersPerTeam || 0)}
                     </Typography>
                   </Box>
                 </Box>
@@ -540,8 +515,8 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
               <Grid item xs={12} sm={3}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <Chip 
-                    label={tournament?.status?.toUpperCase()} 
+                  <Chip
+                    label={tournament?.status?.toUpperCase()}
                     size="small"
                     color={tournament?.status === 'live' ? 'error' : 'primary'}
                   />
@@ -558,28 +533,19 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           {roomData?.roomSlot?.teams?.map(renderTeam)}
         </Box>
 
-        {/* Selected Slot Info */}
-        {selectedSlot && (
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              Selected: Team {selectedSlot.teamNumber}, Slot {selectedSlot.slotNumber}
-              <br />
-              Click on an empty slot to move there, or click your current slot to cancel.
-            </Typography>
-          </Alert>
+        {/* Loading */}
+        {movingSlot && (
+          <Box display="flex" justifyContent="center" mt={2}>
+            <CircularProgress size={24} />
+            <Typography ml={1} variant="body2">Moving slot...</Typography>
+          </Box>
         )}
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} variant="outlined">
-          Close
-        </Button>
+        <Button onClick={onClose} variant="outlined">Close</Button>
         {selectedSlot && (
-          <Button 
-            onClick={() => setSelectedSlot(null)} 
-            variant="outlined" 
-            color="warning"
-          >
+          <Button onClick={() => setSelectedSlot(null)} variant="outlined" color="warning">
             Cancel Move
           </Button>
         )}

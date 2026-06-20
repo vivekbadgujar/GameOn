@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import config, { isSocketFeatureEnabled, disableSocketFeatureForSession } from '../config';
 import { useAuth } from './AuthContext';
@@ -18,13 +18,13 @@ export const SocketProvider = ({ children }) => {
   const [activeSessions, setActiveSessions] = useState(0);
   const [platforms, setPlatforms] = useState([]);
   const [lastSyncTime, setLastSyncTime] = useState(null);
-  
-  const { user, token, updateUser, verifySession } = useAuth();
-  const { showNotification } = useNotification();
+
+  const { user, token, updateUser } = useAuth();
+  const { showInfo } = useNotification();
   const heartbeatRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
+  const socketRef = useRef(null);
+  const initializingRef = useRef(false);
   const [connectionRetries, setConnectionRetries] = useState(0);
-  const maxRetries = 15;
 
   useEffect(() => {
     if (user && token) {
@@ -36,42 +36,42 @@ export const SocketProvider = ({ children }) => {
     return () => {
       disconnectSocket();
     };
-  }, [user, token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, token]);
 
   const initializeSocket = async () => {
-    if (typeof window === 'undefined') {
-      console.log('[Socket] Skipping socket initialization (server-side)');
-      return;
-    }
+    if (typeof window === 'undefined') return;
+    if (initializingRef.current) return;
 
     if (!isSocketFeatureEnabled()) {
-      console.log('[Socket] Skipping socket initialization (feature disabled)');
       setSyncStatus('disconnected');
       return;
     }
 
+    initializingRef.current = true;
+
+    // Health check to verify WebSocket support
     try {
       const healthUrl = `${config.API_BASE_URL.replace(/\/$/, '')}/health`;
       const healthRes = await fetch(healthUrl, { cache: 'no-store' });
       const health = await healthRes.json();
 
       if (health?.serverless === true || health?.websocketSupported !== true) {
-        console.info('[Socket] Realtime socket unavailable on current backend, disabling for this session');
+        console.info('[Socket] WebSocket not supported by backend');
         disableSocketFeatureForSession();
         setSyncStatus('disconnected');
         setIsConnected(false);
+        initializingRef.current = false;
         return;
       }
     } catch (error) {
-      console.warn('[Socket] Health check failed before socket init:', error?.message || error);
-      disableSocketFeatureForSession();
-      setSyncStatus('disconnected');
-      setIsConnected(false);
-      return;
+      console.warn('[Socket] Health check failed:', error?.message);
+      // Don't disable socket on health check failure - try to connect anyway
+      // Some environments block health check but allow socket
     }
 
     setSyncStatus('connecting');
-    
+
     const newSocket = io(config.WS_URL, {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
@@ -85,14 +85,15 @@ export const SocketProvider = ({ children }) => {
       withCredentials: true,
     });
 
+    socketRef.current = newSocket;
+
     const connectionTimeout = setTimeout(() => {
       if (!newSocket.connected) {
-        console.warn('[Socket] Connection timeout - disabling WebSocket');
-        disableSocketFeatureForSession();
-        newSocket.disconnect();
+        console.warn('[Socket] Connection timeout');
         setSyncStatus('disconnected');
+        initializingRef.current = false;
       }
-    }, 10000);
+    }, 12000);
 
     newSocket.on('connect', () => {
       clearTimeout(connectionTimeout);
@@ -100,26 +101,21 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(true);
       setSyncStatus('connected');
       setConnectionRetries(0);
-      
+      initializingRef.current = false;
+
       if (user && token) {
         newSocket.emit('authenticate', {
           userId: user.id,
           platform: 'web',
-          token: getWebPushToken()
         });
       }
-      
+
       startHeartbeat(newSocket);
     });
 
     newSocket.on('authenticated', (data) => {
-      console.log('[Socket] Authenticated with sync service:', data);
+      console.log('[Socket] Authenticated:', data);
       setLastSyncTime(new Date().toISOString());
-      
-      newSocket.emit('sync_request', {
-        type: 'initial_sync',
-        lastSyncId: null
-      });
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -128,63 +124,82 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(false);
       setSyncStatus('disconnected');
       stopHeartbeat();
-      
-      if (reason !== 'io client disconnect') {
-        scheduleReconnect();
-      }
+      initializingRef.current = false;
     });
 
     newSocket.on('connect_error', (error) => {
       clearTimeout(connectionTimeout);
-      console.warn('[Socket] Connection error:', error?.message || error);
+      console.warn('[Socket] Connection error:', error?.message);
       setIsConnected(false);
       setSyncStatus('disconnected');
-      disableSocketFeatureForSession();
-      try {
-        newSocket.disconnect();
-      } catch (_) {
-      }
+      initializingRef.current = false;
+      // Don't disable socket globally on connect error - allow retry
     });
 
+    newSocket.on('reconnect', (attempt) => {
+      console.log('[Socket] Reconnected after', attempt, 'attempts');
+      setIsConnected(true);
+      setSyncStatus('connected');
+    });
+
+    // ── Slot events (forwarded globally so any component can listen) ──────
+    newSocket.on('slotChanged', (data) => {
+      setLastMessage({ type: 'slotChanged', data });
+      window.dispatchEvent(new CustomEvent('slotChanged', { detail: data }));
+    });
+
+    newSocket.on('playerAssigned', (data) => {
+      setLastMessage({ type: 'playerAssigned', data });
+      window.dispatchEvent(new CustomEvent('playerAssigned', { detail: data }));
+    });
+
+    newSocket.on('slotsLocked', (data) => {
+      setLastMessage({ type: 'slotsLocked', data });
+      window.dispatchEvent(new CustomEvent('slotsLocked', { detail: data }));
+    });
+
+    newSocket.on('slotsUnlocked', (data) => {
+      setLastMessage({ type: 'slotsUnlocked', data });
+      window.dispatchEvent(new CustomEvent('slotsUnlocked', { detail: data }));
+    });
+
+    newSocket.on('roomSlotUpdated', (data) => {
+      setLastMessage({ type: 'roomSlotUpdated', data });
+      window.dispatchEvent(new CustomEvent('roomSlotUpdated', { detail: data }));
+    });
+
+    newSocket.on('adminSlotChanged', (data) => {
+      setLastMessage({ type: 'adminSlotChanged', data });
+      window.dispatchEvent(new CustomEvent('adminSlotChanged', { detail: data }));
+    });
+
+    // ── Sync events ───────────────────────────────────────────────────────
     newSocket.on('tournament_sync', (event) => {
       setLastMessage({ type: 'tournament_sync', data: event });
       setLastSyncTime(event.timestamp);
-      
       switch (event.type) {
         case 'tournament_joined':
-          showNotification('Tournament Joined', `You joined ${event.data.title}`, 'success');
+          showInfo?.(`You joined ${event.data?.title}`);
           break;
         case 'tournament_started':
-          showNotification('Tournament Started', `${event.data.title} has begun!`, 'info');
+          showInfo?.(`${event.data?.title} has begun!`);
           break;
-        case 'tournament_ending_soon':
-          showNotification('Tournament Ending Soon', `${event.data.title} ends in ${event.data.timeLeft}`, 'warning');
+        default:
           break;
-      }
-    });
-
-    newSocket.on('user_sync', (event) => {
-      setLastMessage({ type: 'user_sync', data: event });
-      setLastSyncTime(event.timestamp);
-      
-      if (event.type === 'user_session_connected') {
-        showNotification('New Session', `Logged in from ${event.data.platform}`, 'info');
       }
     });
 
     newSocket.on('wallet_sync', (event) => {
       setLastMessage({ type: 'wallet_sync', data: event });
       setLastSyncTime(event.timestamp);
-      
       switch (event.type) {
         case 'wallet_credited':
-          showNotification('Wallet Credited', `Rs ${event.data.transaction.amount} added to your wallet`, 'success');
+          showInfo?.(`Rs ${event.data?.transaction?.amount} added to your wallet`);
           break;
         case 'wallet_debited':
-          showNotification('Wallet Debited', `Rs ${event.data.transaction.amount} deducted from your wallet`, 'info');
+          showInfo?.(`Rs ${event.data?.transaction?.amount} deducted from your wallet`);
           break;
-        case 'low_balance':
-          showNotification('Low Balance', `Your wallet balance is Rs ${event.data.balance}. Recharge now!`, 'warning');
+        default:
           break;
       }
     });
@@ -192,129 +207,31 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('slot_sync', (event) => {
       setLastMessage({ type: 'slot_sync', data: event });
       setLastSyncTime(event.timestamp);
-      
-      if (event.type === 'slot_taken') {
-        showNotification('Slot Update', 'A slot was taken in your tournament', 'info');
-      }
-    });
-
-    newSocket.on('sync_response', (data) => {
-      setLastSyncTime(data.timestamp);
     });
 
     newSocket.on('player_updated', (data) => {
       setLastMessage({ type: 'player_updated', data });
-      if (user && data.playerId === user.id && data.user) {
-        // Automatically sync the updated user profile into AuthContext
+      if (user && data.playerId === user._id && data.user) {
         updateUser(data.user);
       }
     });
 
-    newSocket.on('tournamentAdded', (tournament) => {
-      setLastMessage({ type: 'tournamentAdded', data: tournament });
-    });
+    // ── Tournament broadcast events ───────────────────────────────────────
+    const broadcastEvents = [
+      'tournamentAdded', 'tournamentUpdated', 'tournamentDeleted',
+      'tournamentStatusUpdated', 'tournamentJoined', 'tournament_message',
+      'tournament_update', 'match_update', 'broadcastSent', 'broadcastScheduled',
+      'payoutProcessed', 'payoutStatusUpdated', 'userFlagged', 'aiFlagUpdated',
+      'mediaUploaded', 'mediaDeleted', 'user_status_change', 'wallet_update',
+      'screenshot_uploaded', 'ai_verification', 'videoAdded', 'videoUpdated',
+      'videoDeleted', 'notificationAdded', 'notificationUpdated', 'notificationSent',
+      'notificationDeleted', 'newNotification', 'roomCredentialsReleased'
+    ];
 
-    newSocket.on('tournamentUpdated', (tournament) => {
-      setLastMessage({ type: 'tournamentUpdated', data: tournament });
-    });
-
-    newSocket.on('tournamentDeleted', (tournamentId) => {
-      setLastMessage({ type: 'tournamentDeleted', data: tournamentId });
-    });
-
-    newSocket.on('tournamentStatusUpdated', (statusUpdate) => {
-      setLastMessage({ type: 'tournamentStatusUpdated', data: statusUpdate });
-    });
-
-    newSocket.on('tournamentJoined', (joinData) => {
-      setLastMessage({ type: 'tournamentJoined', data: joinData });
-    });
-
-    newSocket.on('tournament_message', (message) => {
-      setLastMessage({ type: 'tournament_message', data: message });
-    });
-
-    newSocket.on('tournament_update', (update) => {
-      setLastMessage({ type: 'tournament_update', data: update });
-    });
-
-    newSocket.on('match_update', (matchData) => {
-      setLastMessage({ type: 'match_update', data: matchData });
-    });
-
-    newSocket.on('broadcastSent', (broadcast) => {
-      setLastMessage({ type: 'broadcastSent', data: broadcast });
-    });
-
-    newSocket.on('broadcastScheduled', (broadcast) => {
-      setLastMessage({ type: 'broadcastScheduled', data: broadcast });
-    });
-
-    newSocket.on('payoutProcessed', (payout) => {
-      setLastMessage({ type: 'payoutProcessed', data: payout });
-    });
-
-    newSocket.on('payoutStatusUpdated', (payout) => {
-      setLastMessage({ type: 'payoutStatusUpdated', data: payout });
-    });
-
-    newSocket.on('userFlagged', (flag) => {
-      setLastMessage({ type: 'userFlagged', data: flag });
-    });
-
-    newSocket.on('aiFlagUpdated', (flag) => {
-      setLastMessage({ type: 'aiFlagUpdated', data: flag });
-    });
-
-    newSocket.on('mediaUploaded', (media) => {
-      setLastMessage({ type: 'mediaUploaded', data: media });
-    });
-
-    newSocket.on('mediaDeleted', (media) => {
-      setLastMessage({ type: 'mediaDeleted', data: media });
-    });
-
-    newSocket.on('user_status_change', (statusChange) => {
-      setLastMessage({ type: 'user_status_change', data: statusChange });
-    });
-
-    newSocket.on('wallet_update', (walletUpdate) => {
-      setLastMessage({ type: 'wallet_update', data: walletUpdate });
-    });
-
-    newSocket.on('screenshot_uploaded', (screenshot) => {
-      setLastMessage({ type: 'screenshot_uploaded', data: screenshot });
-    });
-
-    newSocket.on('ai_verification', (verification) => {
-      setLastMessage({ type: 'ai_verification', data: verification });
-    });
-
-    newSocket.on('videoAdded', (video) => {
-      setLastMessage({ type: 'videoAdded', data: video });
-    });
-    newSocket.on('videoUpdated', (video) => {
-      setLastMessage({ type: 'videoUpdated', data: video });
-    });
-    newSocket.on('videoDeleted', (videoId) => {
-      setLastMessage({ type: 'videoDeleted', data: videoId });
-    });
-    
-    newSocket.on('notificationAdded', (notification) => {
-      setLastMessage({ type: 'notificationAdded', data: notification });
-    });
-    newSocket.on('notificationUpdated', (notification) => {
-      setLastMessage({ type: 'notificationUpdated', data: notification });
-    });
-    newSocket.on('notificationSent', (notification) => {
-      setLastMessage({ type: 'notificationSent', data: notification });
-    });
-    newSocket.on('notificationDeleted', (notificationId) => {
-      setLastMessage({ type: 'notificationDeleted', data: notificationId });
-    });
-    
-    newSocket.on('newNotification', (notification) => {
-      setLastMessage({ type: 'newNotification', data: notification });
+    broadcastEvents.forEach(eventName => {
+      newSocket.on(eventName, (data) => {
+        setLastMessage({ type: eventName, data });
+      });
     });
 
     setSocket(newSocket);
@@ -322,22 +239,20 @@ export const SocketProvider = ({ children }) => {
 
   const disconnectSocket = () => {
     stopHeartbeat();
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
+
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
-    
-    if (socket) {
-      socket.disconnect();
-      setSocket(null);
-    }
-    
+
+    setSocket(null);
     setIsConnected(false);
     setSyncStatus('disconnected');
+    initializingRef.current = false;
   };
 
   const startHeartbeat = (socketInstance) => {
+    stopHeartbeat();
     heartbeatRef.current = setInterval(() => {
       if (socketInstance?.connected) {
         socketInstance.emit('heartbeat');
@@ -352,119 +267,59 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
-  const scheduleReconnect = () => {
-    if (!isSocketFeatureEnabled()) {
-      return;
+  const joinTournament = useCallback((tournamentId) => {
+    const s = socketRef.current;
+    if (s && s.connected && user) {
+      s.emit('join_tournament', { tournamentId, userId: user.id });
     }
+  }, [user]);
 
-    if (connectionRetries >= maxRetries) {
-      console.log('[Socket] Max reconnection attempts reached');
-      setSyncStatus('error');
-      return;
+  const leaveTournament = useCallback((tournamentId) => {
+    const s = socketRef.current;
+    if (s && s.connected && user) {
+      s.emit('leave_tournament', { tournamentId, userId: user.id });
     }
+  }, [user]);
 
-    const delay = Math.min(1000 * Math.pow(2, connectionRetries), 30000);
-    
-    reconnectTimeoutRef.current = setTimeout(() => {
-      setConnectionRetries(prev => prev + 1);
-      initializeSocket();
-    }, delay);
-  };
-
-  const getWebPushToken = () => {
-    return null;
-  };
-
-  const joinTournament = (tournamentId) => {
-    if (socket && isConnected && user) {
-      socket.emit('join_tournament', {
-        tournamentId,
-        userId: user.id
-      });
+  const joinUser = useCallback((userId) => {
+    const s = socketRef.current;
+    if (s && s.connected) {
+      s.emit('join_user', userId);
     }
-  };
+  }, []);
 
-  const leaveTournament = (tournamentId) => {
-    if (socket && isConnected && user) {
-      socket.emit('leave_tournament', {
-        tournamentId,
-        userId: user.id
-      });
+  const sendTournamentMessage = useCallback((tournamentId, message, userId, username) => {
+    const s = socketRef.current;
+    if (s && s.connected) {
+      s.emit('tournament_message', { tournamentId, message, userId, username });
     }
-  };
+  }, []);
 
-  const joinUser = (userId) => {
-    if (socket && isConnected) {
-      socket.emit('join_user', userId);
+  const updateSlot = useCallback((tournamentId, slotData) => {
+    const s = socketRef.current;
+    if (s && s.connected && user) {
+      s.emit('update_slot', { tournamentId, userId: user.id, ...slotData });
     }
-  };
+  }, [user]);
 
-  const sendTournamentMessage = (tournamentId, message, userId, username) => {
-    if (socket && isConnected) {
-      socket.emit('tournament_message', {
-        tournamentId,
-        message,
-        userId,
-        username
-      });
-    }
-  };
-
-  const sendScreenshotUpload = (tournamentId, userId, screenshotUrl) => {
-    if (socket && isConnected) {
-      socket.emit('screenshot_uploaded', {
-        tournamentId,
-        userId,
-        screenshotUrl
-      });
-    }
-  };
-
-  const updateSlot = (tournamentId, slotData) => {
-    if (socket && isConnected && user) {
-      socket.emit('update_slot', {
-        tournamentId,
-        userId: user.id,
-        ...slotData
-      });
-    }
-  };
-
-  const forceSync = (type = 'user_data', data = {}) => {
-    if (socket && isConnected && user) {
+  const forceSync = useCallback((type = 'user_data', data = {}) => {
+    const s = socketRef.current;
+    if (s && s.connected && user) {
       const syncId = `sync_${Date.now()}`;
-      
-      socket.emit('sync_request', {
-        type: `force_${type}`,
-        syncId,
-        data
-      });
-      
+      s.emit('sync_request', { type: `force_${type}`, syncId, data });
       return syncId;
     }
     return null;
-  };
+  }, [user]);
 
-  const registerPushToken = (token) => {
-    if (socket && isConnected && user) {
-      socket.emit('update_push_token', {
-        userId: user.id,
-        token,
-        platform: 'web'
-      });
-    }
-  };
-
-  const getSyncStatus = () => {
-    return {
-      isConnected,
-      syncStatus,
-      lastSyncTime,
-      activeSessions,
-      platforms,
-      connectionRetries
-    };
-  };
+  const getSyncStatus = useCallback(() => ({
+    isConnected,
+    syncStatus,
+    lastSyncTime,
+    activeSessions,
+    platforms,
+    connectionRetries
+  }), [isConnected, syncStatus, lastSyncTime, activeSessions, platforms, connectionRetries]);
 
   const contextValue = {
     socket,
@@ -474,10 +329,8 @@ export const SocketProvider = ({ children }) => {
     leaveTournament,
     joinUser,
     sendTournamentMessage,
-    sendScreenshotUpload,
     updateSlot,
     forceSync,
-    registerPushToken,
     getSyncStatus,
     syncStatus,
     lastSyncTime,

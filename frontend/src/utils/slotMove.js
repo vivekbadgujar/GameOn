@@ -1,3 +1,9 @@
+/**
+ * Build the payload for a slot move API call.
+ * Supports both Shape A: { toTeam, toSlot } (flat numbers)
+ * and Shape B: { toSlot: { teamNumber, slotNumber } } (object)
+ * The backend accepts both, but we send Shape A for simplicity.
+ */
 export const buildSlotMovePayload = ({
   tournamentId,
   playerId,
@@ -13,8 +19,7 @@ export const buildSlotMovePayload = ({
         slotNumber: Number(fromSlot.slotNumber)
       }
     : null,
-  toSlot: {
-    teamNumber: Number(toTeam),
-    slotNumber: Number(toSlot)
-  }
+  // Send flat numbers (Shape A) - backend accepts both shapes
+  toTeam: Number(toTeam),
+  toSlot: Number(toSlot)
 });
