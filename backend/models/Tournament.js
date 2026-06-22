@@ -98,6 +98,21 @@ const TournamentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Slot Lock configuration — backend is the single source of truth
+  slotLock: {
+    enabled: { type: Boolean, default: false },
+    mode: {
+      type: String,
+      enum: ['manual', 'automatic'],
+      default: 'manual'
+    },
+    // For automatic mode: lock X minutes before tournament start
+    autoLockMinutes: {
+      type: Number,
+      enum: [5, 10, 15, 30],
+      default: 10
+    }
+  },
   terms: {
     type: String,
     default: ''

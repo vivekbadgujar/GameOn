@@ -8,17 +8,32 @@ const Media = require('../models/Media');
 const router = express.Router();
 const mediaBaseUrl = (process.env.BASE_URL || 'https://api.gameonesport.xyz').replace(/\/$/, '');
 
-// Get public media files
+// Helper: properly resolve media URL (Cloudinary URLs are returned as-is)
+const resolveMediaUrl = (item) => {
+  if (item.url && item.url.startsWith('http')) {
+    // Already a full URL (Cloudinary) — return as-is
+    return { ...item, fullUrl: item.url };
+  }
+  // Legacy relative path — prepend base URL
+  return {
+    ...item,
+    url: `${mediaBaseUrl}${item.url}`,
+    fullUrl: `${mediaBaseUrl}${item.url}`
+  };
+};
+
+// Get public media files — strictly only admin-managed, visible content
 router.get('/public', async (req, res) => {
   try {
     const { type, limit = 50, page = 1 } = req.query;
     const skip = (page - 1) * parseInt(limit);
 
-    // Build filter for public media
+    // Build filter: must be active, visible, public AND have a valid admin uploader
     const filter = {
       isPublic: true,
       isVisible: true,
-      status: 'active'
+      status: 'active',
+      uploadedBy: { $exists: true, $ne: null }
     };
 
     if (type) {
@@ -34,12 +49,8 @@ router.get('/public', async (req, res) => {
 
     const total = await Media.countDocuments(filter);
 
-    // Transform URLs to be accessible
-    const transformedMedia = media.map(item => ({
-      ...item,
-      url: `${mediaBaseUrl}${item.url}`,
-      fullUrl: `${mediaBaseUrl}${item.url}`
-    }));
+    // Transform URLs — Cloudinary URLs are returned as-is
+    const transformedMedia = media.map(resolveMediaUrl);
 
     res.json({
       success: true,
@@ -78,11 +89,8 @@ router.get('/public/:id', async (req, res) => {
     await media.incrementView();
 
     // Transform URL
-    const transformedMedia = {
-      ...media.toObject(),
-      url: `${mediaBaseUrl}${media.url}`,
-      fullUrl: `${mediaBaseUrl}${media.url}`
-    };
+    const obj = media.toObject();
+    const transformedMedia = resolveMediaUrl(obj);
 
     res.json({
       success: true,
@@ -117,8 +125,10 @@ router.get('/download/:id', async (req, res) => {
     // Increment download count
     await media.incrementDownload();
 
-    // Redirect to file URL or serve file directly
-    const fileUrl = `${mediaBaseUrl}${media.url}`;
+    // Redirect to file URL (Cloudinary or legacy local)
+    const fileUrl = media.url && media.url.startsWith('http')
+      ? media.url
+      : `${mediaBaseUrl}${media.url}`;
     res.redirect(fileUrl);
   } catch (error) {
     console.error('Error downloading media:', error);

@@ -388,4 +388,56 @@ router.delete('/:id',
   }
 );
 
+// Purge orphaned media (media with no valid admin uploader — removes stale/old posts)
+router.post('/purge-orphaned',
+  requirePermission('media_manage'),
+  auditLog('purge_orphaned_media'),
+  async (req, res) => {
+    try {
+      const Admin = require('../../models/Admin');
+      const adminIds = (await Admin.find({}).select('_id').lean()).map(a => a._id);
+
+      // Find all active media NOT uploaded by any valid admin
+      const orphaned = await Media.find({
+        status: 'active',
+        $or: [
+          { uploadedBy: { $exists: false } },
+          { uploadedBy: null },
+          { uploadedBy: { $nin: adminIds } }
+        ]
+      }).lean();
+
+      if (orphaned.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No orphaned media found. Gallery is clean.',
+          count: 0
+        });
+      }
+
+      // Archive them all
+      const ids = orphaned.map(m => m._id);
+      await Media.updateMany(
+        { _id: { $in: ids } },
+        { status: 'archived', isVisible: false, isPublic: false }
+      );
+
+      console.log(`[Admin] Purged ${orphaned.length} orphaned media record(s)`);
+
+      res.json({
+        success: true,
+        message: `Archived ${orphaned.length} orphaned media record(s). They will no longer appear on the frontend.`,
+        count: orphaned.length,
+        archivedIds: ids
+      });
+    } catch (error) {
+      console.error('Error purging orphaned media:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to purge orphaned media'
+      });
+    }
+  }
+);
+
 module.exports = router;

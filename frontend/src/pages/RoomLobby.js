@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
-import config, { isSocketFeatureEnabled, disableSocketFeatureForSession, canUseRealtimeSockets } from '../config';
+import config from '../config';
 
 import {
   Box,
@@ -80,53 +80,60 @@ const RoomLobby = () => {
   const [timeToLock, setTimeToLock] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Initialize socket connection
+  // Initialize socket connection — always connect, derive status from actual socket events only
   useEffect(() => {
     if (!tournamentId) return;
-
     if (typeof window === 'undefined') return;
 
     let newSocket = null;
     let cancelled = false;
 
-    const initSocket = async () => {
-      if (!(await canUseRealtimeSockets())) {
-        setIsConnected(false);
-        return;
-      }
-
+    const initSocket = () => {
       if (cancelled) return;
 
-      const apiUrl = config.WS_URL || process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_WS_URL || 'https://api.gameonesport.xyz';
+      const apiUrl = config.WS_URL || 'https://api.gameonesport.xyz';
       newSocket = io(apiUrl, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 2000,
-        timeout: 5000,
+        reconnectionDelayMax: 10000,
+        timeout: 10000,
         auth: {
-          token: localStorage.getItem('token')
+          token: typeof window !== 'undefined' ? localStorage.getItem('token') : ''
         }
       });
 
-    newSocket.on('connect', () => {
-      setIsConnected(true);
-      newSocket.emit('join_tournament', tournamentId);
-      console.log('[Socket] Connected to room lobby socket. ID:', newSocket.id);
-    });
+      // Status is ONLY derived from actual socket events — never hardcoded
+      newSocket.on('connect', () => {
+        setIsConnected(true);
+        newSocket.emit('join_tournament', tournamentId);
+        console.log('[Socket] Connected to room lobby. ID:', newSocket.id);
+      });
 
-    newSocket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+      newSocket.on('disconnect', (reason) => {
+        setIsConnected(false);
+        console.log('[Socket] Disconnected:', reason);
+      });
 
-    newSocket.on('connect_error', (error) => {
-      if (!hasLoggedSocketDisableRef.current) {
-        hasLoggedSocketDisableRef.current = true;
-        console.warn('[Socket] RoomLobby connection error:', error.message);
-      }
-      setIsConnected(false);
-      // Let socket.io-client handle automatic reconnections
-    });
+      newSocket.on('reconnect', () => {
+        setIsConnected(true);
+        newSocket.emit('join_tournament', tournamentId);
+        console.log('[Socket] Reconnected to room lobby.');
+      });
+
+      newSocket.on('reconnecting', () => {
+        setIsConnected(false);
+      });
+
+      newSocket.on('connect_error', (error) => {
+        if (!hasLoggedSocketDisableRef.current) {
+          hasLoggedSocketDisableRef.current = true;
+          console.warn('[Socket] Connection error (will auto-retry):', error.message);
+        }
+        // Do NOT set isConnected to false here — socket.io handles reconnection
+        // isConnected stays as-is until a real disconnect event fires
+      });
 
     // Listen for real-time slot updates
     newSocket.on('slotChanged', (data) => {
@@ -243,30 +250,30 @@ const RoomLobby = () => {
     }
   };
 
-  // Calculate time remaining and auto-lock slots
+  // Calculate time remaining — slot lock is BACKEND-driven, not frontend-decided
   useEffect(() => {
     if (!tournament) return;
 
     const interval = setInterval(() => {
       const now = dayjs();
       const startTime = dayjs(tournament.startDate);
-      const lockTime = startTime.subtract(10, 'minutes'); // Lock 10 minutes before start
-
-      const timeToLockMs = lockTime.diff(now);
       const timeToStartMs = startTime.diff(now);
 
-      if (!hasAutoLockedRef.current && timeToLockMs % 60000 === 0) {
-        // Log every ~60 seconds to avoid spamming the console
-        console.log(`[RoomLobby] Time check - Start: ${timeToStartMs}ms, Lock: ${timeToLockMs}ms`);
-      }
-
-      setTimeToLock(timeToLockMs);
       setTimeToStart(timeToStartMs);
 
-      // Auto-lock slots when time reaches 10 minutes before start
-      if (timeToLockMs <= 0 && roomSlot && !roomSlot.isLocked && !hasAutoLockedRef.current) {
-        hasAutoLockedRef.current = true;
-        showInfo('🔒 Slots are now locked! Tournament starts soon.');
+      // Compute time-to-lock only if backend has automatic lock configured
+      const slotLock = tournament.slotLock;
+      if (slotLock?.enabled && slotLock?.mode === 'automatic' && slotLock?.autoLockMinutes) {
+        const lockTime = startTime.subtract(slotLock.autoLockMinutes, 'minutes');
+        const timeToLockMs = lockTime.diff(now);
+        setTimeToLock(timeToLockMs);
+
+        if (timeToLockMs <= 0 && roomSlot && !roomSlot.isLocked && !hasAutoLockedRef.current) {
+          hasAutoLockedRef.current = true;
+          showInfo(`🔒 Slots are now locked! Tournament starts in ${slotLock.autoLockMinutes} minutes.`);
+        }
+      } else {
+        setTimeToLock(null);
       }
     }, 1000);
 
@@ -328,7 +335,10 @@ const RoomLobby = () => {
 
   // Handle drag and drop
   const onDragEnd = (result) => {
-    if (!result.destination || roomSlot?.isLocked || isTimeLocked) return;
+    if (!result.destination) return;
+    if (roomSlot?.isLocked || !roomSlot?.settings?.allowSlotChange) return;
+    // timeToLock check: only block if backend auto-lock is configured and time is up
+    if (timeToLock !== null && timeToLock <= 0) return;
 
     const destTeam = parseInt(result.destination.droppableId.split('-')[1]);
     const destSlot = parseInt(result.destination.droppableId.split('-')[3]);
@@ -393,8 +403,11 @@ const RoomLobby = () => {
     );
   }
 
+  // isTimeLocked: only apply if backend configured automatic lock AND time has passed
   const isTimeLocked = timeToLock !== null && timeToLock <= 0;
-  const isSlotChangeable = roomSlot.settings.allowSlotChange && !roomSlot.isLocked && !isTimeLocked;
+  // isBackendLocked: respect backend roomSlot.isLocked as the single source of truth for manual locks
+  const isBackendLocked = roomSlot.isLocked;
+  const isSlotChangeable = roomSlot.settings.allowSlotChange && !isBackendLocked && !isTimeLocked;
   const credentialsAvailable = tournament.roomDetails?.credentialsReleased;
 
   return (

@@ -86,7 +86,11 @@ const TournamentForm = () => {
     ],
     roomId: '',
     roomPassword: '',
-    manualRelease: false
+    manualRelease: false,
+    // Slot Lock configuration
+    slotLockEnabled: false,
+    slotLockMode: 'manual',
+    slotLockAutoMinutes: 10
   });
 
   const [errors, setErrors] = useState({});
@@ -170,6 +174,10 @@ const TournamentForm = () => {
         roomId: data.roomDetails?.roomId || '',
         roomPassword: data.roomDetails?.password || '',
         manualRelease: data.roomDetails?.manualRelease || false,
+        // Slot Lock
+        slotLockEnabled: data.slotLock?.enabled ?? false,
+        slotLockMode: data.slotLock?.mode || 'manual',
+        slotLockAutoMinutes: data.slotLock?.autoLockMinutes || 10,
         _isVisible: data.isVisible ?? true  // store for submit
       });
 
@@ -353,6 +361,12 @@ const TournamentForm = () => {
         password: formData.roomPassword.trim(),
         manualRelease: formData.manualRelease,
         releaseTime: formData.manualRelease ? null : new Date(formData.startDate.valueOf() - 30 * 60 * 1000).toISOString()
+      },
+      // Slot Lock — backend is single source of truth
+      slotLock: {
+        enabled: formData.slotLockEnabled,
+        mode: formData.slotLockMode,
+        autoLockMinutes: formData.slotLockAutoMinutes
       }
     };
     // Remove undefined keys
@@ -756,6 +770,69 @@ const TournamentForm = () => {
                   }
                   label="Auto Start"
                 />
+              </CardContent>
+            </Card>
+
+            {/* Slot Lock Settings */}
+            <Card sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Slot Lock Settings
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Control when players can no longer move between slots. Backend is the single source of truth.
+                </Typography>
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.slotLockEnabled}
+                      onChange={(e) => handleChange('slotLockEnabled', e.target.checked)}
+                    />
+                  }
+                  label="Enable Slot Lock"
+                />
+
+                {formData.slotLockEnabled && (
+                  <Box sx={{ mt: 2 }}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Lock Mode</InputLabel>
+                      <Select
+                        value={formData.slotLockMode}
+                        label="Lock Mode"
+                        onChange={(e) => handleChange('slotLockMode', e.target.value)}
+                      >
+                        <MenuItem value="manual">Manual — Admin locks/unlocks anytime</MenuItem>
+                        <MenuItem value="automatic">Automatic — Lock X minutes before start</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    {formData.slotLockMode === 'automatic' && (
+                      <FormControl fullWidth>
+                        <InputLabel>Lock Before Start</InputLabel>
+                        <Select
+                          value={formData.slotLockAutoMinutes}
+                          label="Lock Before Start"
+                          onChange={(e) => handleChange('slotLockAutoMinutes', Number(e.target.value))}
+                        >
+                          <MenuItem value={30}>30 minutes before start</MenuItem>
+                          <MenuItem value={15}>15 minutes before start</MenuItem>
+                          <MenuItem value={10}>10 minutes before start</MenuItem>
+                          <MenuItem value={5}>5 minutes before start</MenuItem>
+                        </Select>
+                        <FormHelperText>
+                          Slots will automatically lock {formData.slotLockAutoMinutes} min before tournament start
+                        </FormHelperText>
+                      </FormControl>
+                    )}
+
+                    {formData.slotLockMode === 'manual' && (
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                        You can manually lock or unlock slots anytime from the tournament room management panel.
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </CardContent>
             </Card>
 

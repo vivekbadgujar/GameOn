@@ -46,7 +46,8 @@ import {
   Refresh,
   FilterList,
   Sort,
-  Search
+  Search,
+  CleaningServices
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mediaAPI } from '../../services/api';
@@ -138,6 +139,20 @@ const MediaUpload = () => {
       setDeleteDialog(false);
       setSelectedMedia(null);
     },
+  });
+
+  // Purge orphaned media mutation
+  const [purgeResult, setPurgeResult] = React.useState(null);
+  const purgeMutation = useMutation({
+    mutationFn: () => mediaAPI.purgeOrphaned(),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['media-files']);
+      const count = response?.data?.count ?? 0;
+      setPurgeResult(count === 0 ? 'Gallery is already clean — no orphaned media found.' : `Purged ${count} orphaned media record(s) from the gallery.`);
+    },
+    onError: (err) => {
+      setPurgeResult('Error: ' + (err?.response?.data?.message || err.message || 'Failed to purge orphaned media'));
+    }
   });
 
   const handleFileSelect = (event) => {
@@ -270,6 +285,17 @@ const MediaUpload = () => {
           >
             Refresh
           </Button>
+          <Tooltip title="Remove old/orphaned media posts that no longer exist in admin panel">
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<CleaningServices />}
+              onClick={() => { setPurgeResult(null); purgeMutation.mutate(); }}
+              disabled={purgeMutation.isLoading}
+            >
+              {purgeMutation.isLoading ? 'Purging...' : 'Purge Orphaned'}
+            </Button>
+          </Tooltip>
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -285,6 +311,17 @@ const MediaUpload = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* Purge Result Banner */}
+      {purgeResult && (
+        <Alert
+          severity={purgeResult.startsWith('Error') ? 'error' : 'success'}
+          onClose={() => setPurgeResult(null)}
+          sx={{ mb: 2 }}
+        >
+          {purgeResult}
+        </Alert>
+      )}
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

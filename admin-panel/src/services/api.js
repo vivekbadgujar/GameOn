@@ -116,13 +116,11 @@ export const tournamentAPI = {
   uploadPaymentQr: (file) => {
     const formData = new FormData();
     formData.append('upiQrImage', file);
-
     return api.post('/admin/tournaments/payment-qr-upload', formData);
   },
   uploadThumbnail: (file) => {
     const formData = new FormData();
     formData.append('thumbnail', file);
-
     return api.post('/admin/tournaments/thumbnail-upload', formData);
   },
 };
@@ -187,19 +185,16 @@ export const mediaAPI = {
     Object.keys(metadata).forEach(key => {
       formData.append(key, metadata[key]);
     });
-    
     return api.post('/admin/media/upload', formData);
-
-
-
-
   },
   update: (id, data) => api.put(`/admin/media/${id}`, data),
   delete: (id) => api.delete(`/admin/media/${id}`),
   toggleVisibility: (id, isVisible) => api.patch(`/admin/media/${id}/visibility`, { isVisible }),
+  // Purge orphaned media records (stale/old posts with no valid admin uploader)
+  purgeOrphaned: () => api.post('/admin/media/purge-orphaned'),
 };
 
-// Tournament Video APIs
+// Tournament Video APIs (videoAPI = alias)
 export const videoAPI = {
   getAll: () => api.get('/admin/tournament-videos'),
   getById: (id) => api.get(`/admin/tournament-videos/${id}`),

@@ -98,7 +98,9 @@ router.get('/tournament/:tournamentId', authenticateToken, requireTournamentPart
           tournamentType: tournament.tournamentType,
           status: tournament.status,
           startDate: tournament.startDate,
-          roomDetails: tournament.roomDetails
+          roomDetails: tournament.roomDetails,
+          // Include slotLock so frontend can read backend config
+          slotLock: tournament.slotLock || { enabled: false, mode: 'manual', autoLockMinutes: 10 }
         }
       }
     });
