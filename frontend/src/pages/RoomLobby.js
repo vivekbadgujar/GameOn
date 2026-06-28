@@ -158,10 +158,17 @@ const RoomLobby = () => {
 
     newSocket.on('slotsLocked', (data) => {
       if (data.tournamentId === tournamentId) {
-        setRoomSlot(data.roomSlot);
-        showInfo(data.action === 'lock'
-          ? '🔒 Slots are now locked! No more position changes allowed.'
-          : '🔓 Slots are now unlocked.');
+        // Partial update: only update lock-related fields — do NOT replace the full roomSlot
+        // because the backend event payload doesn't include the full roomSlot object
+        setRoomSlot(prev => prev ? { ...prev, isLocked: data.isLocked ?? true, lockedAt: data.lockedAt } : prev);
+        showInfo('🔒 Slots are now locked! No more position changes allowed.');
+      }
+    });
+
+    newSocket.on('slotsUnlocked', (data) => {
+      if (data.tournamentId === tournamentId) {
+        setRoomSlot(prev => prev ? { ...prev, isLocked: false, lockedAt: null } : prev);
+        showInfo('🔓 Slots are now unlocked.');
       }
     });
 
@@ -370,16 +377,47 @@ const RoomLobby = () => {
     }
   };
 
-  // Handle slot click for mobile
+  // Handle slot click for mobile — single-tap UX:
+  //   1st tap: select your own slot
+  //   2nd tap (on empty): move there instantly
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
   const handleSlotClick = (teamNumber, slotNumber) => {
-    if (roomSlot?.isLocked || !roomSlot?.settings?.allowSlotChange || isTimeLocked) return;
-    
-    // Check if slot is empty
+    // Lock is always from backend state — never override it
+    if (roomSlot?.isLocked || !roomSlot?.settings?.allowSlotChange || isTimeLocked) {
+      showInfo('Slots are locked. No more position changes allowed.');
+      return;
+    }
+
     const team = roomSlot.teams.find(t => t.teamNumber === teamNumber);
     const slot = team?.slots.find(s => s.slotNumber === slotNumber);
-    
-    if (!slot?.player) {
+
+    const isMySlot =
+      slot?.player?._id === user?._id ||
+      slot?.player?.toString?.() === user?._id?.toString?.();
+
+    if (isMySlot) {
+      const alreadySelected =
+        selectedSlot?.teamNumber === teamNumber &&
+        selectedSlot?.slotNumber === slotNumber;
+      setSelectedSlot(alreadySelected ? null : { teamNumber, slotNumber });
+      if (!alreadySelected) {
+        showInfo('Slot selected. Now tap an empty slot to move there.');
+      }
+      return;
+    }
+
+    if (slot?.player) {
+      showInfo('That slot is occupied by another player.');
+      return;
+    }
+
+    // Empty slot
+    if (selectedSlot) {
       handleSlotMove(teamNumber, slotNumber);
+      setSelectedSlot(null);
+    } else {
+      showInfo('Tap your own slot first to select it, then tap here to move.');
     }
   };
 

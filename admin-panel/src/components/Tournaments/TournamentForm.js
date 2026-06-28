@@ -311,7 +311,8 @@ const TournamentForm = () => {
     if (formData.startDate && formData.endDate && formData.startDate.isAfter(formData.endDate)) {
       newErrors.endDate = 'End date must be after start date';
     }
-    if (formData.startDate && formData.startDate.isBefore(dayjs())) {
+    // Only enforce future-date check for new tournaments — not when editing existing ones
+    if (!isEditing && formData.startDate && formData.startDate.isBefore(dayjs())) {
       newErrors.startDate = 'Start date must be in the future';
     }
 
@@ -360,7 +361,12 @@ const TournamentForm = () => {
         roomId: formData.roomId.trim(),
         password: formData.roomPassword.trim(),
         manualRelease: formData.manualRelease,
-        releaseTime: formData.manualRelease ? null : new Date(formData.startDate.valueOf() - 30 * 60 * 1000).toISOString()
+        // Only calculate releaseTime if start date is still in the future
+        releaseTime: formData.manualRelease
+          ? null
+          : (formData.startDate.isAfter(dayjs())
+            ? new Date(formData.startDate.valueOf() - 30 * 60 * 1000).toISOString()
+            : null)
       },
       // Slot Lock — backend is single source of truth
       slotLock: {

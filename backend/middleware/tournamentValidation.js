@@ -48,7 +48,10 @@ const validateTournament = [
   
   body('startDate')
     .isISO8601().withMessage('Invalid start date format')
-    .custom(value => {
+    .custom((value, { req }) => {
+      // Only enforce future-date check for creation (POST).
+      // On update (PUT/PATCH) the start date may already be in the past — don't reject it.
+      if (req.method === 'PUT' || req.method === 'PATCH') return true;
       const startDate = new Date(value);
       const now = new Date();
       return startDate > now;

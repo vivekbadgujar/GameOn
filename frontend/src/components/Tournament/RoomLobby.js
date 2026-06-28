@@ -120,14 +120,15 @@ const RoomLobby = ({
     const handleSlotsLocked = (e) => {
       const data = e.detail;
       if (data.tournamentId !== tournamentId) return;
-      setRoomSlot(prev => prev ? { ...prev, isLocked: true } : prev);
+      // Partial update — backend event only sends isLocked/lockedAt, not the full roomSlot
+      setRoomSlot(prev => prev ? { ...prev, isLocked: true, lockedAt: data.lockedAt } : prev);
       showInfo?.('🔒 Slots are now locked!');
     };
 
     const handleSlotsUnlocked = (e) => {
       const data = e.detail;
       if (data.tournamentId !== tournamentId) return;
-      setRoomSlot(prev => prev ? { ...prev, isLocked: false } : prev);
+      setRoomSlot(prev => prev ? { ...prev, isLocked: false, lockedAt: null } : prev);
       showInfo?.('🔓 Slots are now unlocked!');
     };
 

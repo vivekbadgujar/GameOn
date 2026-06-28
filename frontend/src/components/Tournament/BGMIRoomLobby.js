@@ -149,34 +149,49 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
     };
   }, [tournament?._id, user?._id, fetchRoomData, showInfo]);
 
-  // Handle slot selection
+  // Handle slot selection — single-tap UX for mobile:
+  //   1. Tap MY slot → select it (highlights in warning color)
+  //   2. Tap an EMPTY slot while mine is selected → move immediately
+  //   3. Tap MY slot again → deselect
+  //   4. Tap another player's slot → inform (occupied)
+  //   5. Tap empty slot with nothing selected → prompt to select your slot first
   const handleSlotClick = (teamNumber, slotNumber, slot) => {
-    if (roomData?.roomSlot?.isLocked) {
-      showError('Slots are locked and cannot be changed');
+    // Slot lock is ALWAYS driven by backend state — never override it
+    const isRoomLocked = roomData?.roomSlot?.isLocked === true;
+    if (isRoomLocked) {
+      showInfo('Slots are locked. No more position changes allowed.');
       return;
     }
 
-    const isMySlot = slot?.player?._id === user?._id ||
-                     slot?.player?.toString?.() === user?._id?.toString?.();
+    const isMySlot =
+      slot?.player?._id === user?._id ||
+      slot?.player?.toString?.() === user?._id?.toString?.();
 
     if (isMySlot) {
-      // Toggle selection
-      if (selectedSlot?.teamNumber === teamNumber && selectedSlot?.slotNumber === slotNumber) {
-        setSelectedSlot(null);
-      } else {
-        setSelectedSlot({ teamNumber, slotNumber });
+      // Toggle selection of own slot
+      const alreadySelected =
+        selectedSlot?.teamNumber === teamNumber &&
+        selectedSlot?.slotNumber === slotNumber;
+      setSelectedSlot(alreadySelected ? null : { teamNumber, slotNumber });
+      if (!alreadySelected) {
+        showInfo('Your slot selected. Now tap an empty slot to move there.');
       }
       return;
     }
 
     if (slot?.player) {
-      showInfo('This slot is occupied by another player');
+      // Occupied by another player
+      showInfo('That slot is occupied by another player.');
       return;
     }
 
-    // Empty slot with active selection → move
-    if (selectedSlot && !slot?.isLocked) {
+    // Empty slot
+    if (selectedSlot) {
+      // We have a selection — move there
       movePlayerToSlot(teamNumber, slotNumber);
+    } else {
+      // No selection yet — guide the user
+      showInfo('Tap your own slot first to select it, then tap here to move.');
     }
   };
 
@@ -280,7 +295,6 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           position: 'relative'
         }}
         onClick={() => handleSlotClick(teamNumber, slotNumber, slot)}
-        onDoubleClick={() => handleSlotClick(teamNumber, slotNumber, slot)}
       >
         <CardContent sx={{ p: 0.75, textAlign: 'center', '&:last-child': { pb: 0.75 } }}>
           {isLocked && (
@@ -413,8 +427,8 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           <Box display="flex" alignItems="center" gap={1}>
             <Chip
               icon={isConnected ? <WifiIcon fontSize="small" /> : <WifiOffIcon fontSize="small" />}
-              label={isConnected ? 'Live' : 'Connected'}
-              color={isConnected ? 'success' : 'default'}
+              label={isConnected ? 'Live' : 'Offline'}
+              color={isConnected ? 'success' : 'warning'}
               size="small"
               variant="outlined"
             />
@@ -426,15 +440,15 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
       <DialogContent>
         {/* Room Status */}
         <Alert
-          severity={roomData?.roomSlot?.isLocked ? 'warning' : 'info'}
+          severity={roomData?.roomSlot?.isLocked ? 'warning' : selectedSlot ? 'success' : 'info'}
           sx={{ mb: 2 }}
           icon={roomData?.roomSlot?.isLocked ? <LockIcon /> : <SwapIcon />}
         >
           {roomData?.roomSlot?.isLocked
-            ? 'Slots are locked! Tournament starts soon.'
+            ? '🔒 Slots are locked! No more position changes allowed.'
             : selectedSlot
-              ? `Team ${selectedSlot.teamNumber} Slot ${selectedSlot.slotNumber} selected — click an empty slot to move there`
-              : 'Click on your slot to select it, then click an empty slot to move there'
+              ? `✅ Team ${selectedSlot.teamNumber} Slot ${selectedSlot.slotNumber} selected — tap an empty slot to move there. Tap your slot again to cancel.`
+              : '👆 Tap your slot to select it, then tap an empty slot to move there.'
           }
         </Alert>
 
