@@ -117,10 +117,30 @@ const TournamentDetails = () => {
     const messageType = lastMessage.type || lastMessage;
     const messageData = lastMessage.data || lastMessage;
     
-    if (messageType === 'tournamentUpdated' && messageData._id === id) {
+    // Normalize IDs to strings for comparison (messageData._id can be ObjectId or string)
+    const messageIdStr = messageData?._id?.toString ? messageData._id.toString() : String(messageData?._id || '');
+    const currentIdStr = String(id || '');
+
+    if (messageType === 'tournamentUpdated' && messageIdStr === currentIdStr) {
       console.log('TournamentDetails: Processing tournamentUpdated event for current tournament');
-      // Update tournament data with new information
-      setTournament(prev => prev ? { ...prev, ...messageData } : messageData);
+      // Fully re-fetch to guarantee we have the latest roomDetails from DB
+      fetchTournamentDetails();
+    } else if (messageType === 'roomCredentialsReleased' && 
+               (messageData.tournamentId === id || messageData.tournamentId === currentIdStr)) {
+      console.log('TournamentDetails: Room credentials released/updated — refreshing');
+      // Immediately update state with the new room credentials
+      if (messageData.roomCredentials) {
+        setTournament(prev => prev ? {
+          ...prev,
+          roomDetails: {
+            ...(prev.roomDetails || {}),
+            ...messageData.roomCredentials,
+            credentialsReleased: true
+          }
+        } : prev);
+      }
+      // Also do a full refresh to ensure DB state
+      fetchTournamentDetails();
     } else if (messageType === 'tournamentJoined' && messageData.tournamentId === id) {
       console.log('TournamentDetails: Processing tournamentJoined event for current tournament');
       // Refresh tournament data to show updated participant count

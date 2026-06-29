@@ -452,12 +452,12 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
           }
         </Alert>
 
-        {/* Room Credentials */}
-        {tournament?.roomDetails?.credentialsReleased && (
+        {/* Room Credentials — show whenever roomId is set (credentialsReleased flag OR roomId present) */}
+        {(tournament?.roomDetails?.credentialsReleased || tournament?.roomDetails?.roomId) ? (
           <Card sx={{ mb: 2, bgcolor: alpha(theme.palette.success.main, 0.1) }}>
             <CardContent>
               <Typography variant="h6" color="success.main" gutterBottom>
-                🎮 Room Credentials Released
+                🎮 Room Credentials
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
@@ -465,12 +465,14 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Room ID</Typography>
                       <Typography variant="h6" fontFamily="monospace">
-                        {tournament.roomDetails.roomId}
+                        {tournament.roomDetails.roomId || 'Not set'}
                       </Typography>
                     </Box>
-                    <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.roomId, 'Room ID')}>
-                      <CopyIcon />
-                    </IconButton>
+                    {tournament.roomDetails.roomId && (
+                      <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.roomId, 'Room ID')}>
+                        <CopyIcon />
+                      </IconButton>
+                    )}
                   </Box>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -478,15 +480,25 @@ const BGMIRoomLobby = ({ tournament, onClose }) => {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Password</Typography>
                       <Typography variant="h6" fontFamily="monospace">
-                        {tournament.roomDetails.password}
+                        {tournament.roomDetails.password || 'Not set'}
                       </Typography>
                     </Box>
-                    <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.password, 'Password')}>
-                      <CopyIcon />
-                    </IconButton>
+                    {tournament.roomDetails.password && (
+                      <IconButton size="small" onClick={() => copyToClipboard(tournament.roomDetails.password, 'Password')}>
+                        <CopyIcon />
+                      </IconButton>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card sx={{ mb: 2, bgcolor: alpha(theme.palette.warning.main, 0.1) }}>
+            <CardContent>
+              <Typography variant="body1" color="warning.main">
+                🕐 Room credentials will be released closer to the tournament start time.
+              </Typography>
             </CardContent>
           </Card>
         )}

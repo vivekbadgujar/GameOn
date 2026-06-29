@@ -397,9 +397,8 @@ router.post('/purge-orphaned',
       const Admin = require('../../models/Admin');
       const adminIds = (await Admin.find({}).select('_id').lean()).map(a => a._id);
 
-      // Find all active media NOT uploaded by any valid admin
+      // Find all media NOT uploaded by any valid admin
       const orphaned = await Media.find({
-        status: 'active',
         $or: [
           { uploadedBy: { $exists: false } },
           { uploadedBy: null },
@@ -415,20 +414,17 @@ router.post('/purge-orphaned',
         });
       }
 
-      // Archive them all
+      // Permanently delete orphaned records
       const ids = orphaned.map(m => m._id);
-      await Media.updateMany(
-        { _id: { $in: ids } },
-        { status: 'archived', isVisible: false, isPublic: false }
-      );
+      const result = await Media.deleteMany({ _id: { $in: ids } });
 
-      console.log(`[Admin] Purged ${orphaned.length} orphaned media record(s)`);
+      console.log(`[Admin] Permanently deleted ${result.deletedCount} orphaned media record(s)`);
 
       res.json({
         success: true,
-        message: `Archived ${orphaned.length} orphaned media record(s). They will no longer appear on the frontend.`,
-        count: orphaned.length,
-        archivedIds: ids
+        message: `Permanently deleted ${result.deletedCount} orphaned media record(s). They will no longer appear anywhere.`,
+        count: result.deletedCount,
+        deletedIds: ids
       });
     } catch (error) {
       console.error('Error purging orphaned media:', error);
@@ -440,4 +436,40 @@ router.post('/purge-orphaned',
   }
 );
 
-module.exports = router;
+// Purge ALL media — nuclear option, wipes the entire gallery
+router.delete('/purge-all',
+  requirePermission('media_manage'),
+  auditLog('purge_all_media'),
+  async (req, res) => {
+    try {
+      const totalBefore = await Media.countDocuments({});
+      
+      if (totalBefore === 0) {
+        return res.json({
+          success: true,
+          message: 'No media found. Gallery is already empty.',
+          count: 0
+        });
+      }
+
+      // Permanently delete ALL media records
+      const result = await Media.deleteMany({});
+      
+      console.log(`[Admin] Permanently deleted ALL ${result.deletedCount} media record(s)`);
+
+      res.json({
+        success: true,
+        message: `Permanently deleted ${result.deletedCount} media record(s). The gallery is now empty.`,
+        count: result.deletedCount
+      });
+    } catch (error) {
+      console.error('Error purging all media:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to purge all media'
+      });
+    }
+  }
+);
+
+module.exports = router;

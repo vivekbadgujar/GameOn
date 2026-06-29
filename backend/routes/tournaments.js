@@ -34,6 +34,18 @@ router.get('/my-tournaments', authenticateToken, async (req, res) => {
         p.user._id.toString() === userId.toString()
       );
 
+      // Normalize roomDetails — credentialsReleased is true whenever roomId AND password exist
+      const rawRoom = tournament.roomDetails || {};
+      const hasRoomId = !!(rawRoom.roomId && rawRoom.roomId.trim());
+      const hasPassword = !!(rawRoom.password && rawRoom.password.trim());
+      const normalizedRoomDetails = {
+        roomId: rawRoom.roomId || '',
+        password: rawRoom.password || '',
+        credentialsReleased: rawRoom.credentialsReleased || (hasRoomId && hasPassword),
+        manualRelease: rawRoom.manualRelease || false,
+        releaseTime: rawRoom.releaseTime || null
+      };
+
       return {
         _id: tournament._id,
         title: tournament.title,
@@ -50,7 +62,7 @@ router.get('/my-tournaments', authenticateToken, async (req, res) => {
         userSlot: userParticipant?.slotNumber || null,
         joinedAt: userParticipant?.joinedAt || null,
         paymentStatus: userParticipant?.paymentData ? 'completed' : 'pending',
-        roomDetails: tournament.roomDetails,
+        roomDetails: normalizedRoomDetails,
         createdAt: tournament.createdAt
       };
     });
@@ -269,6 +281,19 @@ router.get('/:id', async (req, res) => {
     }
 
     // Transform data for frontend compatibility
+    // Normalize roomDetails — credentialsReleased is true whenever roomId AND password are set
+    const rawRoom = tournament.roomDetails || {};
+    const hasRoomId = !!(rawRoom.roomId && rawRoom.roomId.trim());
+    const hasPassword = !!(rawRoom.password && rawRoom.password.trim());
+    const normalizedRoomDetails = {
+      roomId: rawRoom.roomId || '',
+      password: rawRoom.password || '',
+      credentialsReleased: rawRoom.credentialsReleased || (hasRoomId && hasPassword),
+      manualRelease: rawRoom.manualRelease || false,
+      releaseTime: rawRoom.releaseTime || null,
+      releasedAt: rawRoom.releasedAt || null
+    };
+
     const transformedTournament = {
       _id: tournament._id,
       title: tournament.title,
@@ -289,13 +314,15 @@ router.get('/:id', async (req, res) => {
       scheduledAt: tournament.startDate,
       endDate: tournament.endDate,
       rules: Array.isArray(tournament.rules) ? tournament.rules.join('\n') : tournament.rules,
-      roomDetails: tournament.roomDetails,
+      roomDetails: normalizedRoomDetails,
       thumbnail: tournament.thumbnail || tournament.poster || tournament.posterUrl || '',
       poster: tournament.thumbnail || tournament.poster || '',
       posterUrl: tournament.thumbnail || tournament.posterUrl || '',
       upiId: tournament.upiId || '',
       qrCode: tournament.qrCode || tournament.upiQrImage || '',
       upiQrImage: tournament.qrCode || tournament.upiQrImage || '',
+      prizeDistribution: tournament.prizeDistribution || [],
+      slotLock: tournament.slotLock || {},
       createdAt: tournament.createdAt
     };
 

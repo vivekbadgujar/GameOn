@@ -653,23 +653,67 @@ router.put('/:id',
         delete updates.media;
       }
 
+      // FIX: When roomDetails are provided with a roomId and password, automatically
+      // mark credentialsReleased = true so the frontend always shows them.
+      if (updates.roomDetails) {
+        const incomingRoom = updates.roomDetails;
+        const roomId = typeof incomingRoom.roomId === 'string' ? incomingRoom.roomId.trim() : '';
+        const password = typeof incomingRoom.password === 'string' ? incomingRoom.password.trim() : '';
+
+        // Preserve existing values if new ones are empty
+        updates.roomDetails = {
+          roomId: roomId || tournament.roomDetails?.roomId || '',
+          password: password || tournament.roomDetails?.password || '',
+          manualRelease: incomingRoom.manualRelease ?? tournament.roomDetails?.manualRelease ?? false,
+          releaseTime: incomingRoom.releaseTime ?? tournament.roomDetails?.releaseTime ?? null,
+          // credentialsReleased is true whenever both roomId and password exist
+          credentialsReleased: !!(roomId || tournament.roomDetails?.roomId) && !!(password || tournament.roomDetails?.password)
+        };
+      }
+
       Object.assign(tournament, updates);
       await tournament.save();
 
-      // Emit Socket.IO events for real-time updates
+      // Emit Socket.IO events for real-time updates — broadcast full tournament so
+      // connected clients (frontend) instantly receive updated Room ID & Password
       const io = req.app.get('io');
       if (io) {
         console.log('Emitting socket events for tournament update');
-        // Emit to all clients with structured data
+        const tournamentObj = tournament.toObject ? tournament.toObject() : tournament;
+        // Emit to room-specific channel first (participants)
+        io.to(`tournament_${tournament._id}`).emit('tournamentUpdated', {
+          type: 'tournamentUpdated',
+          data: tournamentObj
+        });
+        // Broadcast to all clients
         io.emit('tournamentUpdated', {
           type: 'tournamentUpdated',
-          data: tournament
+          data: tournamentObj
         });
         // Emit specifically to admin clients
         io.emit('adminUpdate', {
           type: 'tournamentUpdated',
-          data: tournament
+          data: tournamentObj
         });
+        // If roomDetails changed, also emit roomCredentialsUpdated event
+        if (updates.roomDetails && tournamentObj.roomDetails?.credentialsReleased) {
+          io.emit('roomCredentialsReleased', {
+            tournamentId: tournament._id.toString(),
+            roomCredentials: {
+              roomId: tournamentObj.roomDetails.roomId,
+              password: tournamentObj.roomDetails.password
+            },
+            message: 'Room credentials updated by admin!'
+          });
+          io.to(`tournament_${tournament._id}`).emit('roomCredentialsReleased', {
+            tournamentId: tournament._id.toString(),
+            roomCredentials: {
+              roomId: tournamentObj.roomDetails.roomId,
+              password: tournamentObj.roomDetails.password
+            },
+            message: 'Room credentials updated by admin!'
+          });
+        }
       }
       
       res.json({

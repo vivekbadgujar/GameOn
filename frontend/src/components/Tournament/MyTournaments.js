@@ -248,8 +248,8 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
                 </Box>
               )}
 
-              {/* Room Credentials (only show when available) */}
-              {tournament.roomDetails && tournament.roomDetails.credentialsReleased && (
+              {/* Room Credentials — show whenever roomId is set, not just credentialsReleased */}
+              {tournament.roomDetails && (tournament.roomDetails.credentialsReleased || tournament.roomDetails.roomId) && (
                 <Box 
                   sx={{ 
                     bgcolor: alpha(theme.palette.success.main, 0.1),
@@ -259,10 +259,10 @@ const MyTournaments = ({ user, showSuccess, showError, showInfo }) => {
                   }}
                 >
                   <Typography variant="body2" color="success.main" fontWeight="bold">
-                    Room ID: {tournament.roomDetails.roomId}
+                    Room ID: {tournament.roomDetails.roomId || 'Pending'}
                   </Typography>
                   <Typography variant="body2" color="success.main">
-                    Password: {tournament.roomDetails.password}
+                    Password: {tournament.roomDetails.password || 'Pending'}
                   </Typography>
                 </Box>
               )}
